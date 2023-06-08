@@ -1,3 +1,4 @@
 rootProject.name = 'study-project'
 
 include 'concurrency-study'
+include 'coupon-system'
