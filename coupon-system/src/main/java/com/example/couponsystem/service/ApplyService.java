@@ -1,20 +1,19 @@
 package com.example.couponsystem.service;
 
-import com.example.couponsystem.domain.Coupon;
+import com.example.couponsystem.producer.CouponCreateProducer;
 import com.example.couponsystem.repository.CouponCountRepository;
-import com.example.couponsystem.repository.CouponRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ApplyService {
 
-    private final CouponRepository couponRepository;
     private final CouponCountRepository couponCountRepository;
+    private final CouponCreateProducer couponCreateProducer;
 
-    public ApplyService(CouponRepository couponRepository, CouponCountRepository couponCountRepository) {
-        this.couponRepository = couponRepository;
+    public ApplyService(CouponCountRepository couponCountRepository, CouponCreateProducer couponCreateProducer) {
         this.couponCountRepository = couponCountRepository;
+        this.couponCreateProducer = couponCreateProducer;
     }
 
     @Transactional
@@ -25,6 +24,6 @@ public class ApplyService {
             return;
         }
 
-        couponRepository.save(new Coupon(userId));
+        couponCreateProducer.create(userId);
     }
 }
