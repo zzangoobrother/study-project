@@ -17,4 +17,8 @@ public class AppliedUserRepository {
                 .opsForSet()
                 .add("applied_user", userId.toString());
     }
+
+    public Boolean init() {
+        return redisTemplate.delete("applied_user");
+    }
 }

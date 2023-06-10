@@ -1,5 +1,6 @@
 package com.example.couponsystem.service;
 
+import com.example.couponsystem.repository.AppliedUserRepository;
 import com.example.couponsystem.repository.CouponRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -21,9 +22,13 @@ class ApplyServiceTest {
     @Autowired
     private CouponRepository couponRepository;
 
+    @Autowired
+    private AppliedUserRepository appliedUserRepository;
+
     @AfterEach
     void after() {
         couponRepository.deleteAll();
+        appliedUserRepository.init();
     }
 
     @Test
@@ -71,7 +76,7 @@ class ApplyServiceTest {
             long userId = i;
             executorService.submit(() -> {
                 try {
-                    applyService.apply(1L);
+                    applyService.apply(userId);
                 } finally {
                     countDownLatch.countDown();
                 }
@@ -80,10 +85,10 @@ class ApplyServiceTest {
 
         countDownLatch.await();
 
-        Thread.sleep(10000);
+        Thread.sleep(15000);
 
         long count = couponRepository.count();
 
-        assertThat(count).isEqualTo(1);
+        assertThat(count).isEqualTo(100);
     }
 }
