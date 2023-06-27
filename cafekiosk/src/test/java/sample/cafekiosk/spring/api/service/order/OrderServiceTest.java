@@ -32,6 +32,8 @@ class OrderServiceTest {
     @Test
     void createOrder() {
         // given
+        LocalDateTime registeredDateTime = LocalDateTime.now();
+
         Product product1 = createProduct("001", ProductType.HANDMADE, 4000);
         Product product2 = createProduct("002", ProductType.HANDMADE, 4500);
         Product product3 = createProduct("003", ProductType.HANDMADE, 7000);
@@ -42,13 +44,13 @@ class OrderServiceTest {
                 .build();
 
         // when
-        OrderResponse orderResponse = orderService.createOrder(request);
+        OrderResponse orderResponse = orderService.createOrder(request, registeredDateTime);
 
         // then
         assertThat(orderResponse.getId()).isNotNull();
         assertThat(orderResponse)
                 .extracting("registeredDateTime", "totalPrice")
-                .contains(LocalDateTime.now(), 8500);
+                .contains(registeredDateTime, 8500);
         assertThat(orderResponse.getProducts()).hasSize(2)
                 .extracting("productNumber", "price")
                 .containsExactlyInAnyOrder(
