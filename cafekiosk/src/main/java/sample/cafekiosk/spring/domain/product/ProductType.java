@@ -2,6 +2,8 @@ package sample.cafekiosk.spring.domain.product;
 
 import lombok.Getter;
 
+import java.util.List;
+
 @Getter
 public enum ProductType {
     HANDMADE("제조 음료"),
@@ -12,5 +14,9 @@ public enum ProductType {
 
     ProductType(String text) {
         this.text = text;
+    }
+
+    public static boolean containsStockType(ProductType type) {
+        return List.of(BOTTLE, BAKERY).contains(type);
     }
 }

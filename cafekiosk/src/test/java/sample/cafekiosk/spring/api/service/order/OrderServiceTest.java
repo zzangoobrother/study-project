@@ -14,6 +14,8 @@ import sample.cafekiosk.spring.domain.product.Product;
 import sample.cafekiosk.spring.domain.product.ProductRepository;
 import sample.cafekiosk.spring.domain.product.ProductSellingStatus;
 import sample.cafekiosk.spring.domain.product.ProductType;
+import sample.cafekiosk.spring.domain.stock.Stock;
+import sample.cafekiosk.spring.domain.stock.StockRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,6 +34,8 @@ class OrderServiceTest {
     private OrderService orderService;
     @Autowired
     private OrderRepository orderRepository;
+    @Autowired
+    private StockRepository stockRepository;
 
     @Autowired
     private OrderProductRepository orderProductRepository;
@@ -72,6 +76,51 @@ class OrderServiceTest {
                 .containsExactlyInAnyOrder(
                         tuple("001", 4000),
                         tuple("002", 4500)
+                );
+    }
+
+    @DisplayName("재고와 관련된 상품이 포함되어 있는 주문번호 리스트를 받아 주문을 생성한다.")
+    @Test
+    void createOrderWithStock() {
+        // given
+        LocalDateTime registeredDateTime = LocalDateTime.now();
+
+        Product product1 = createProduct("001", ProductType.BOTTLE, 4000);
+        Product product2 = createProduct("002", ProductType.BAKERY, 4500);
+        Product product3 = createProduct("003", ProductType.HANDMADE, 7000);
+        productRepository.saveAll(List.of(product1, product2, product3));
+
+        Stock stork1 = Stock.create("001", 2);
+        Stock stork2 = Stock.create("002", 2);
+        stockRepository.saveAll(List.of(stork1, stork2));
+
+        OrderCreateRequest request = OrderCreateRequest.builder()
+                .productNumbers(List.of("001", "001", "002", "003"))
+                .build();
+
+        // when
+        OrderResponse orderResponse = orderService.createOrder(request, registeredDateTime);
+        List<Stock> stocks = stockRepository.findAll();
+
+        // then
+        assertThat(orderResponse.getId()).isNotNull();
+        assertThat(orderResponse)
+                .extracting("registeredDateTime", "totalPrice")
+                .contains(registeredDateTime, 19500);
+        assertThat(orderResponse.getProducts()).hasSize(4)
+                .extracting("productNumber", "price")
+                .containsExactlyInAnyOrder(
+                        tuple("001", 4000),
+                        tuple("001", 4000),
+                        tuple("002", 4500),
+                        tuple("003", 7000)
+                );
+
+        assertThat(stocks).hasSize(2)
+                .extracting("productNumber", "quantity")
+                .containsExactlyInAnyOrder(
+                        tuple("001", 0),
+                        tuple("001", 1)
                 );
     }
 
