@@ -20,8 +20,7 @@ import sample.cafekiosk.spring.domain.stock.StockRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.tuple;
+import static org.assertj.core.api.Assertions.*;
 
 @ActiveProfiles("test")
 @SpringBootTest
@@ -46,6 +45,7 @@ class OrderServiceTest {
         orderProductRepository.deleteAllInBatch();
         productRepository.deleteAllInBatch();
         orderRepository.deleteAllInBatch();
+        stockRepository.deleteAllInBatch();
     }
 
     @DisplayName("주문번호 리스트를 받아 주문을 생성한다.")
@@ -76,6 +76,37 @@ class OrderServiceTest {
                 .containsExactlyInAnyOrder(
                         tuple("001", 4000),
                         tuple("002", 4500)
+                );
+    }
+
+    @DisplayName("중복되는 상품번호 리스트로 주문을 생성할 수 있다.")
+    @Test
+    void createOrderWithDuplicateProductNumber() {
+        // given
+        LocalDateTime registeredDateTime = LocalDateTime.now();
+
+        Product product1 = createProduct("001", ProductType.HANDMADE, 4000);
+        Product product2 = createProduct("002", ProductType.HANDMADE, 4500);
+        Product product3 = createProduct("003", ProductType.HANDMADE, 7000);
+        productRepository.saveAll(List.of(product1, product2, product3));
+
+        OrderCreateRequest request = OrderCreateRequest.builder()
+                .productNumbers(List.of("001", "001"))
+                .build();
+
+        // when
+        OrderResponse orderResponse = orderService.createOrder(request, registeredDateTime);
+
+        // then
+        assertThat(orderResponse.getId()).isNotNull();
+        assertThat(orderResponse)
+                .extracting("registeredDateTime", "totalPrice")
+                .contains(registeredDateTime, 8000);
+        assertThat(orderResponse.getProducts()).hasSize(2)
+                .extracting("productNumber", "price")
+                .containsExactlyInAnyOrder(
+                        tuple("001", 4000),
+                        tuple("001", 4000)
                 );
     }
 
@@ -120,39 +151,32 @@ class OrderServiceTest {
                 .extracting("productNumber", "quantity")
                 .containsExactlyInAnyOrder(
                         tuple("001", 0),
-                        tuple("001", 1)
+                        tuple("002", 1)
                 );
     }
 
-    @DisplayName("중복되는 상품번호 리스트로 주문을 생성할 수 있다.")
+    @DisplayName("재고가 부족한 상품으로 주문을 생성하려는 경우 예외가 발생한다.")
     @Test
-    void createOrderWithDuplicateProductNumber() {
+    void createOrderWithNoStock() {
         // given
         LocalDateTime registeredDateTime = LocalDateTime.now();
 
-        Product product1 = createProduct("001", ProductType.HANDMADE, 4000);
-        Product product2 = createProduct("002", ProductType.HANDMADE, 4500);
+        Product product1 = createProduct("001", ProductType.BOTTLE, 4000);
+        Product product2 = createProduct("002", ProductType.BAKERY, 4500);
         Product product3 = createProduct("003", ProductType.HANDMADE, 7000);
         productRepository.saveAll(List.of(product1, product2, product3));
 
+        Stock stork1 = Stock.create("001", 1);
+        Stock stork2 = Stock.create("002", 1);
+        stockRepository.saveAll(List.of(stork1, stork2));
+
         OrderCreateRequest request = OrderCreateRequest.builder()
-                .productNumbers(List.of("001", "001"))
+                .productNumbers(List.of("001", "001", "002", "003"))
                 .build();
 
-        // when
-        OrderResponse orderResponse = orderService.createOrder(request, registeredDateTime);
-
-        // then
-        assertThat(orderResponse.getId()).isNotNull();
-        assertThat(orderResponse)
-                .extracting("registeredDateTime", "totalPrice")
-                .contains(registeredDateTime, 8000);
-        assertThat(orderResponse.getProducts()).hasSize(2)
-                .extracting("productNumber", "price")
-                .containsExactlyInAnyOrder(
-                        tuple("001", 4000),
-                        tuple("001", 4000)
-                );
+        assertThatThrownBy(() -> orderService.createOrder(request, registeredDateTime))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("재고가 부족한 상품이 있습니다.");
     }
 
     private Product createProduct(String productNumber, ProductType type, int price) {
