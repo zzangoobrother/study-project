@@ -1,16 +1,17 @@
 package sample.cafekiosk.spring.api.service.order;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import sample.cafekiosk.spring.api.controller.order.request.OrderCreateRequest;
 import sample.cafekiosk.spring.api.service.order.response.OrderResponse;
 import sample.cafekiosk.spring.domain.order.Order;
 import sample.cafekiosk.spring.domain.order.OrderRepository;
-import sample.cafekiosk.spring.domain.product.Product;
-import sample.cafekiosk.spring.domain.product.ProductRepository;
-import sample.cafekiosk.spring.domain.product.ProductType;
+import sample.cafekiosk.spring.domain.product.*;
+import sample.cafekiosk.spring.domain.stock.Stock;
 import sample.cafekiosk.spring.domain.stock.StockRepository;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -28,25 +29,33 @@ public class OrderService {
         this.stockRepository = stockRepository;
     }
 
+    @Transactional
     public OrderResponse createOrder(OrderCreateRequest request, LocalDateTime registeredDateTime) {
         List<String> productNumbers = request.getProductNumbers();
-        List<Product> products = findProductsBy(productNumbers);
+        Products products = new Products(findProductsBy(productNumbers));
 
-        // 재고 차감 체크가 필요한 상품들 filter
-        List<Product> stockProductNumbers = products.stream()
-                .filter(product -> ProductType.containsStockType(product.getType()))
-                .toList();
+        deductStockQuantities(products);
 
-        // 재고 엔티티 조회
-
-
-        // 상품별 counting
-
-        // 재고 차감 시도
-
-        Order order = Order.create(products, registeredDateTime);
+        Order order = Order.create(products.getProducts(), registeredDateTime);
         Order savedOrder = orderRepository.save(order);
         return OrderResponse.of(savedOrder);
+    }
+
+    private void deductStockQuantities(Products products) {
+        ProductNumbers stockProductNumbers = new ProductNumbers(products.extractStockProductNumbers());
+
+        Map<String, Stock> stockMap = createStockMapBy(stockProductNumbers);
+        Map<String, Long> productCountingMap = stockProductNumbers.createCountingMapBy();
+
+        for (String stockProductNumber : new HashSet<>(stockProductNumbers.getProductNumbers())) {
+            Stock stock = stockMap.get(stockProductNumber);
+            int quantity = productCountingMap.get(stockProductNumber).intValue();
+
+            if (stock.isQuantityLessThan(quantity)) {
+                throw new IllegalArgumentException("재고가 부족한 상품이 있습니다.");
+            }
+            stock.deductQuantity(quantity);
+        }
     }
 
     private List<Product> findProductsBy(List<String> productNumbers) {
@@ -57,5 +66,11 @@ public class OrderService {
         return productNumbers.stream()
                 .map(productMap::get)
                 .toList();
+    }
+
+    private Map<String, Stock> createStockMapBy(ProductNumbers stockProductNumbers) {
+        List<Stock> stocks = stockRepository.findAllByProductNumberIn(stockProductNumbers.getProductNumbers());
+        return stocks.stream()
+                .collect(Collectors.toMap(Stock::getProductNumber, s -> s));
     }
 }
