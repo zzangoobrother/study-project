@@ -1,8 +1,45 @@
+plugins {
+    id 'org.asciidoctor.jvm.convert' version '3.3.2'
+}
+
+configurations {
+    asciidoctorExt
+}
+
 dependencies {
     runtimeOnly 'com.h2database:h2'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
     implementation 'com.google.guava:guava:31.1-jre'
+
+    asciidoctorExt 'org.springframework.restdocs:spring-restdocs-asciidoctor'
+    testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
 }
 
 tasks.register("prepareKotlinBuildScriptModel") {}
+
+ext {
+    snippetsDir = file('build/generated-snippets')
+}
+
+test {
+    outputs.dir snippetsDir
+}
+
+asciidoctor {
+    inputs.dir snippetsDir
+    configurations 'asciidoctorExt'
+
+    sources {
+        include("**/index.adoc")
+    }
+    baseDirFollowsSourceFile() // 다은 adoc 파일을 include 할 때 경로를 baseDir로 맞춘다.
+    dependsOn test
+}
+
+bootJar {
+    dependsOn asciidoctor
+    from("${asciidoctor.outputDir}") {
+        into 'static/docs'
+    }
+}
