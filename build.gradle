@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '2.7.12'
+    id 'org.springframework.boot' version '2.7.14'
     id 'io.spring.dependency-management' version '1.0.15.RELEASE'
 }
 
@@ -30,9 +30,7 @@ subprojects {
         compileOnly 'org.projectlombok:lombok'
         annotationProcessor 'org.projectlombok:lombok'
         implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-        implementation 'org.springframework.boot:spring-boot-starter-web'
         runtimeOnly 'com.mysql:mysql-connector-j'
-        testImplementation 'org.springframework.boot:spring-boot-starter-test'
     }
 
     dependencyManagement {
