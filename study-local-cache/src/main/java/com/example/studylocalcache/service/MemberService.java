@@ -4,6 +4,7 @@ import com.example.studylocalcache.domain.Member;
 import com.example.studylocalcache.domain.MemberRepository;
 import com.example.studylocalcache.dto.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +48,14 @@ public class MemberService {
     public MemberResponse getMember(String loginId) {
         Member member = memberRepository.findByLoginId(loginId).orElseThrow(() -> new EntityNotFoundException());
 
+        return new MemberResponse(member.getLoginId(), member.getName(), member.getAge());
+    }
+
+    @CachePut(value = "member::get", key = "#loginId")
+    public MemberResponse modifyMember(String loginId, ModifyRequest request) {
+        Member member = memberRepository.findByLoginId(loginId).orElseThrow(() -> new EntityNotFoundException());
+
+        member.modify(request.getName(), request.getAge());
         return new MemberResponse(member.getLoginId(), member.getName(), member.getAge());
     }
 }

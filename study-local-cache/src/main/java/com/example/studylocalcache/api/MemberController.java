@@ -27,4 +27,9 @@ public class MemberController {
     public MemberResponse getMember(@PathVariable String loginId) {
         return memberService.getMember(loginId);
     }
+
+    @PutMapping("/api/members/{loginId}")
+    public MemberResponse modifyMember(@PathVariable String loginId, @RequestBody ModifyRequest request) {
+        return memberService.modifyMember(loginId, request);
+    }
 }
