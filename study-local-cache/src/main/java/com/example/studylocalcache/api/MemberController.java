@@ -1,13 +1,8 @@
 package com.example.studylocalcache.api;
 
-import com.example.studylocalcache.dto.LoginRequest;
-import com.example.studylocalcache.dto.SignupRequest;
-import com.example.studylocalcache.dto.SignupResponse;
+import com.example.studylocalcache.dto.*;
 import com.example.studylocalcache.service.MemberService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 public class MemberController {
@@ -26,5 +21,10 @@ public class MemberController {
     @GetMapping("/api/login")
     public void login(@RequestBody LoginRequest request) {
         memberService.login(request);
+    }
+
+    @GetMapping("/api/members/{loginId}")
+    public MemberResponse getMember(@PathVariable String loginId) {
+        return memberService.getMember(loginId);
     }
 }

@@ -2,15 +2,16 @@ package com.example.studylocalcache.service;
 
 import com.example.studylocalcache.domain.Member;
 import com.example.studylocalcache.domain.MemberRepository;
-import com.example.studylocalcache.dto.LoginRequest;
-import com.example.studylocalcache.dto.SignupRequest;
-import com.example.studylocalcache.dto.SignupResponse;
+import com.example.studylocalcache.dto.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.EntityNotFoundException;
 
 @Slf4j
+@Transactional
 @Service
 public class MemberService {
 
@@ -39,5 +40,13 @@ public class MemberService {
         if (!request.getPassword().equals(member.getPassword())) {
             throw new IllegalStateException();
         }
+    }
+
+    @Cacheable(value = "member::get", key = "#loginId")
+    @Transactional(readOnly = true)
+    public MemberResponse getMember(String loginId) {
+        Member member = memberRepository.findByLoginId(loginId).orElseThrow(() -> new EntityNotFoundException());
+
+        return new MemberResponse(member.getLoginId(), member.getName(), member.getAge());
     }
 }
