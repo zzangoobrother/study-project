@@ -4,6 +4,7 @@ import com.example.studylocalcache.domain.Member;
 import com.example.studylocalcache.domain.MemberRepository;
 import com.example.studylocalcache.dto.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -57,5 +58,10 @@ public class MemberService {
 
         member.modify(request.getName(), request.getAge());
         return new MemberResponse(member.getLoginId(), member.getName(), member.getAge());
+    }
+
+    @CacheEvict(value = "member::get", key = "#loginId")
+    public void deleteMember(String loginId) {
+        memberRepository.deleteByLoginId(loginId);
     }
 }

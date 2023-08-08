@@ -32,4 +32,9 @@ public class MemberController {
     public MemberResponse modifyMember(@PathVariable String loginId, @RequestBody ModifyRequest request) {
         return memberService.modifyMember(loginId, request);
     }
+
+    @DeleteMapping("/api/members/{loginId}")
+    public void deleteMember(@PathVariable String loginId) {
+        memberService.deleteMember(loginId);
+    }
 }
