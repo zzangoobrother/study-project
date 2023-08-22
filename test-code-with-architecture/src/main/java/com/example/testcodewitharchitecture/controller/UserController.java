@@ -45,7 +45,7 @@ public class UserController {
         return ResponseEntity.ok().body(toMyProfileResponse(userEntity));
     }
 
-    private UserResponse toResponse(UserEntity userEntity) {
+    UserResponse toResponse(UserEntity userEntity) {
         UserResponse userResponse = new UserResponse();
         userResponse.setId(userEntity.getId());
         userResponse.setEmail(userEntity.getEmail());
