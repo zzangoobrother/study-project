@@ -11,3 +11,6 @@
  
 - Practical Testing: 실용적인 테스트 가이드
   - cafekiosk
+ 
+- Java/Spring 테스트를 추가하고 싶은 개발자들의 오답노트
+  - test-code-with-architecture
