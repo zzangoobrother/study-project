@@ -1,11 +1,12 @@
 package com.example.testcodewitharchitecture.service;
 
-import com.example.testcodewitharchitecture.exception.CertificationCodeNotMatchedException;
-import com.example.testcodewitharchitecture.exception.ResourceNotFoundException;
-import com.example.testcodewitharchitecture.model.UserStatus;
-import com.example.testcodewitharchitecture.model.dto.UserCreateDto;
-import com.example.testcodewitharchitecture.model.dto.UserUpdateDto;
-import com.example.testcodewitharchitecture.repository.UserEntity;
+import com.example.testcodewitharchitecture.common.domain.exception.CertificationCodeNotMatchedException;
+import com.example.testcodewitharchitecture.common.domain.exception.ResourceNotFoundException;
+import com.example.testcodewitharchitecture.user.domain.UserStatus;
+import com.example.testcodewitharchitecture.user.domain.UserCreate;
+import com.example.testcodewitharchitecture.user.domain.UserUpdate;
+import com.example.testcodewitharchitecture.user.infrastructure.UserEntity;
+import com.example.testcodewitharchitecture.user.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -76,9 +77,9 @@ class UserServiceTest {
     }
 
     @Test
-    void userCreateDto_를_이용하여_유저를_생성할_수_있다() {
+    void userCreate_를_이용하여_유저를_생성할_수_있다() {
         // given
-        UserCreateDto userCreateDto = UserCreateDto.builder()
+        UserCreate userCreate = UserCreate.builder()
                 .email("abcde@naver.com")
                 .address("Gyeongi")
                 .nickname("abcde")
@@ -87,7 +88,7 @@ class UserServiceTest {
         doNothing().when(mailSender).send(any(SimpleMailMessage.class));
 
         // when
-        UserEntity result = userService.create(userCreateDto);
+        UserEntity result = userService.create(userCreate);
 
         // then
         assertThat(result.getId()).isNotNull();
@@ -95,15 +96,15 @@ class UserServiceTest {
     }
 
     @Test
-    void userUpdateDto_를_이용하여_유저를_수정할_수_있다() {
+    void userUpdate_를_이용하여_유저를_수정할_수_있다() {
         // given
-        UserUpdateDto userUpdateDto = UserUpdateDto.builder()
+        UserUpdate userUpdate = UserUpdate.builder()
                 .address("Inchenon")
                 .nickname("abcde-10")
                 .build();
 
         // when
-        userService.update(1, userUpdateDto);
+        userService.update(1, userUpdate);
 
         // then
         UserEntity result = userService.getById(1);

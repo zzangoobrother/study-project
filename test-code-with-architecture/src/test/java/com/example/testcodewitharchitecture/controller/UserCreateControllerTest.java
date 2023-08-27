@@ -1,7 +1,6 @@
 package com.example.testcodewitharchitecture.controller;
 
-import com.example.testcodewitharchitecture.model.dto.UserCreateDto;
-import com.example.testcodewitharchitecture.repository.UserRepository;
+import com.example.testcodewitharchitecture.user.domain.UserCreate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,7 +39,7 @@ class UserCreateControllerTest {
 
     @Test
     void 사용자는_회원_가입을_할_수_있고_회원가입된_사용자는_PENDING_상태이다() throws Exception {
-        UserCreateDto userCreateDto = UserCreateDto.builder()
+        UserCreate userCreate = UserCreate.builder()
                 .email("aaa@naver.com")
                 .nickname("aaa")
                 .address("Pang")
@@ -50,7 +49,7 @@ class UserCreateControllerTest {
 
         mockMvc.perform(post("/api/users")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(userCreateDto)))
+                        .content(objectMapper.writeValueAsString(userCreate)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.email").value("aaa@naver.com"))

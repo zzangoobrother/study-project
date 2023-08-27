@@ -1,7 +1,7 @@
 package com.example.testcodewitharchitecture.controller;
 
-import com.example.testcodewitharchitecture.model.dto.PostCreateDto;
-import com.example.testcodewitharchitecture.repository.UserRepository;
+import com.example.testcodewitharchitecture.post.domain.PostCreate;
+import com.example.testcodewitharchitecture.user.infrastructure.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,7 +36,7 @@ class PostCreateControllerTest {
 
     @Test
     void 사용자는_게시물을_작성할_수_있다() throws Exception {
-        PostCreateDto postCreateDto = PostCreateDto.builder()
+        PostCreate postCreateDto = PostCreate.builder()
                 .writerId(1)
                 .content("helloworld")
                 .build();

@@ -1,8 +1,9 @@
 package com.example.testcodewitharchitecture.service;
 
-import com.example.testcodewitharchitecture.model.dto.PostCreateDto;
-import com.example.testcodewitharchitecture.model.dto.PostUpdateDto;
-import com.example.testcodewitharchitecture.repository.PostEntity;
+import com.example.testcodewitharchitecture.post.domain.PostCreate;
+import com.example.testcodewitharchitecture.post.domain.PostUpdate;
+import com.example.testcodewitharchitecture.post.infrastructure.PostEntity;
+import com.example.testcodewitharchitecture.post.service.PostService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -37,7 +38,7 @@ class PostServiceTest {
     @Test
     void postCreateDto_를_이용하여_게시물을_생성할_수_있다() {
         // given
-        PostCreateDto postCreateDto = PostCreateDto.builder()
+        PostCreate postCreateDto = PostCreate.builder()
                 .writerId(1)
                 .content("foobar")
                 .build();
@@ -54,7 +55,7 @@ class PostServiceTest {
     @Test
     void postUpdateDto_를_이용하여_게시물을_수정할_수_있다() {
         // given
-        PostUpdateDto postUpdateDto = PostUpdateDto.builder()
+        PostUpdate postUpdateDto = PostUpdate.builder()
                 .content("hello world : ")
                 .build();
 

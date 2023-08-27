@@ -1,9 +1,9 @@
 package com.example.testcodewitharchitecture.controller;
 
-import com.example.testcodewitharchitecture.model.UserStatus;
-import com.example.testcodewitharchitecture.model.dto.UserUpdateDto;
-import com.example.testcodewitharchitecture.repository.UserEntity;
-import com.example.testcodewitharchitecture.repository.UserRepository;
+import com.example.testcodewitharchitecture.user.domain.UserStatus;
+import com.example.testcodewitharchitecture.user.domain.UserUpdate;
+import com.example.testcodewitharchitecture.user.infrastructure.UserEntity;
+import com.example.testcodewitharchitecture.user.infrastructure.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -86,7 +86,7 @@ class UserControllerTest {
 
     @Test
     void 사용자는_내_정보를_수정할_수_있다() throws Exception {
-        UserUpdateDto userUpdateDto = UserUpdateDto.builder()
+        UserUpdate userUpdate = UserUpdate.builder()
                 .nickname("aaa")
                 .address("Pang")
                 .build();
@@ -94,7 +94,7 @@ class UserControllerTest {
         mockMvc.perform(put("/api/users/me")
                         .header("EMAIL", "abc@naver.com")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(userUpdateDto)))
+                        .content(objectMapper.writeValueAsString(userUpdate)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.email").value("abc@naver.com"))

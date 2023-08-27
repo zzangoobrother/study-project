@@ -1,6 +1,6 @@
 package com.example.testcodewitharchitecture.controller;
 
-import com.example.testcodewitharchitecture.model.dto.PostUpdateDto;
+import com.example.testcodewitharchitecture.post.domain.PostUpdate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,7 +43,7 @@ class PostControllerTest {
 
     @Test
     void 사용자는_게시물을_수정할_수_있다() throws Exception {
-        PostUpdateDto postUpdateDto = PostUpdateDto.builder()
+        PostUpdate postUpdateDto = PostUpdate.builder()
                 .content("foobar")
                 .build();
 
