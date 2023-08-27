@@ -1,4 +1,4 @@
-package com.example.testcodewitharchitecture.controller;
+package com.example.testcodewitharchitecture.post.controller;
 
 import com.example.testcodewitharchitecture.post.domain.PostCreate;
 import com.example.testcodewitharchitecture.user.infrastructure.UserRepository;

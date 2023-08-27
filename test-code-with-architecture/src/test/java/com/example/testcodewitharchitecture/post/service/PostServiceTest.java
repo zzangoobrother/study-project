@@ -1,4 +1,4 @@
-package com.example.testcodewitharchitecture.service;
+package com.example.testcodewitharchitecture.post.service;
 
 import com.example.testcodewitharchitecture.post.domain.PostCreate;
 import com.example.testcodewitharchitecture.post.domain.PostUpdate;

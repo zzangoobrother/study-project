@@ -1,4 +1,4 @@
-package com.example.testcodewitharchitecture.service;
+package com.example.testcodewitharchitecture.user.service;
 
 import com.example.testcodewitharchitecture.common.domain.exception.CertificationCodeNotMatchedException;
 import com.example.testcodewitharchitecture.common.domain.exception.ResourceNotFoundException;

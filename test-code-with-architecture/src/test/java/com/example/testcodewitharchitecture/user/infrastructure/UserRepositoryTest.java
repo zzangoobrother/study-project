@@ -1,8 +1,6 @@
-package com.example.testcodewitharchitecture.repository;
+package com.example.testcodewitharchitecture.user.infrastructure;
 
 import com.example.testcodewitharchitecture.user.domain.UserStatus;
-import com.example.testcodewitharchitecture.user.infrastructure.UserEntity;
-import com.example.testcodewitharchitecture.user.infrastructure.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
