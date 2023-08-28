@@ -3,7 +3,7 @@ package com.example.testcodewitharchitecture.user.controller;
 import com.example.testcodewitharchitecture.user.domain.UserStatus;
 import com.example.testcodewitharchitecture.user.domain.UserUpdate;
 import com.example.testcodewitharchitecture.user.infrastructure.UserEntity;
-import com.example.testcodewitharchitecture.user.infrastructure.UserRepository;
+import com.example.testcodewitharchitecture.user.infrastructure.JpaUserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +33,7 @@ class UserControllerTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private UserRepository userRepository;
+    private JpaUserRepository userRepository;
 
     private ObjectMapper objectMapper = new ObjectMapper();
 

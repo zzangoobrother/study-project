@@ -4,7 +4,7 @@ import com.example.testcodewitharchitecture.common.domain.exception.ResourceNotF
 import com.example.testcodewitharchitecture.post.domain.PostCreate;
 import com.example.testcodewitharchitecture.post.domain.PostUpdate;
 import com.example.testcodewitharchitecture.post.infrastructure.PostEntity;
-import com.example.testcodewitharchitecture.post.infrastructure.PostRepository;
+import com.example.testcodewitharchitecture.post.service.port.PostRepository;
 import com.example.testcodewitharchitecture.user.infrastructure.UserEntity;
 import com.example.testcodewitharchitecture.user.service.UserService;
 import lombok.RequiredArgsConstructor;

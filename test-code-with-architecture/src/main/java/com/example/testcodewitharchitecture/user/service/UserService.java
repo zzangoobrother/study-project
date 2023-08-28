@@ -2,11 +2,11 @@ package com.example.testcodewitharchitecture.user.service;
 
 import com.example.testcodewitharchitecture.common.domain.exception.CertificationCodeNotMatchedException;
 import com.example.testcodewitharchitecture.common.domain.exception.ResourceNotFoundException;
-import com.example.testcodewitharchitecture.user.domain.UserStatus;
 import com.example.testcodewitharchitecture.user.domain.UserCreate;
+import com.example.testcodewitharchitecture.user.domain.UserStatus;
 import com.example.testcodewitharchitecture.user.domain.UserUpdate;
 import com.example.testcodewitharchitecture.user.infrastructure.UserEntity;
-import com.example.testcodewitharchitecture.user.infrastructure.UserRepository;
+import com.example.testcodewitharchitecture.user.service.port.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
