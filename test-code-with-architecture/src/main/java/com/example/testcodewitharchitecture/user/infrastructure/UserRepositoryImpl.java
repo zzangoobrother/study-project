@@ -1,5 +1,6 @@
 package com.example.testcodewitharchitecture.user.infrastructure;
 
+import com.example.testcodewitharchitecture.common.domain.exception.ResourceNotFoundException;
 import com.example.testcodewitharchitecture.user.domain.User;
 import com.example.testcodewitharchitecture.user.domain.UserStatus;
 import com.example.testcodewitharchitecture.user.service.port.UserRepository;
@@ -14,6 +15,11 @@ public class UserRepositoryImpl implements UserRepository {
 
     public UserRepositoryImpl(JpaUserRepository jpaUserRepository) {
         this.jpaUserRepository = jpaUserRepository;
+    }
+
+    @Override
+    public User getById(long id) {
+        return findById(id).orElseThrow(() -> new ResourceNotFoundException("Posts", id));
     }
 
     @Override
