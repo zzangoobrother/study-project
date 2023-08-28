@@ -3,7 +3,7 @@ package com.example.testcodewitharchitecture.medium;
 import com.example.testcodewitharchitecture.post.domain.Post;
 import com.example.testcodewitharchitecture.post.domain.PostCreate;
 import com.example.testcodewitharchitecture.post.domain.PostUpdate;
-import com.example.testcodewitharchitecture.post.service.PostService;
+import com.example.testcodewitharchitecture.post.service.PostServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,16 +19,16 @@ import static org.assertj.core.api.Assertions.assertThat;
         @Sql(value = "/sql/post-service-test-data.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD),
         @Sql(value = "/sql/delete-all--data.sql", executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 })
-class PostServiceTest {
+class PostServiceImplTest {
 
     @Autowired
-    private PostService postService;
+    private PostServiceImpl postServiceImpl;
 
     @Test
     void getById는_존재하는_게시물을_내려준다() {
         // given
         // when
-        Post result = postService.getById(1);
+        Post result = postServiceImpl.getById(1);
 
         // then
         assertThat(result.getContent()).isEqualTo("helloword");
@@ -44,7 +44,7 @@ class PostServiceTest {
                 .build();
 
         // when
-        Post result = postService.create(postCreateDto);
+        Post result = postServiceImpl.create(postCreateDto);
 
         // then
         assertThat(result.getId()).isNotNull();
@@ -60,10 +60,10 @@ class PostServiceTest {
                 .build();
 
         // when
-        postService.update(1, postUpdateDto);
+        postServiceImpl.update(1, postUpdateDto);
 
         // then
-        Post result = postService.getById(1);
+        Post result = postServiceImpl.getById(1);
         assertThat(result.getContent()).isEqualTo("hello world : ");
         assertThat(result.getModifiedAt()).isGreaterThan(0);
     }

@@ -13,9 +13,9 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class PostServiceTest {
+class PostServiceImplTest {
 
-    private PostService postService;
+    private PostServiceImpl postServiceImpl;
 
     @BeforeEach
     void init() {
@@ -45,7 +45,7 @@ class PostServiceTest {
         repository.save(user2);
 
         FakePostRepository postRepository = new FakePostRepository();
-        postService = new PostService(postRepository, repository, new TestClockHolder(10000L));
+        postServiceImpl = new PostServiceImpl(postRepository, repository, new TestClockHolder(10000L));
 
         Post post = Post.builder()
                 .id(1L)
@@ -62,7 +62,7 @@ class PostServiceTest {
     void getById는_존재하는_게시물을_내려준다() {
         // given
         // when
-        Post result = postService.getById(1);
+        Post result = postServiceImpl.getById(1);
 
         // then
         assertThat(result.getContent()).isEqualTo("helloword");
@@ -78,7 +78,7 @@ class PostServiceTest {
                 .build();
 
         // when
-        Post result = postService.create(postCreateDto);
+        Post result = postServiceImpl.create(postCreateDto);
 
         // then
         assertThat(result.getId()).isNotNull();
@@ -94,10 +94,10 @@ class PostServiceTest {
                 .build();
 
         // when
-        postService.update(1, postUpdateDto);
+        postServiceImpl.update(1, postUpdateDto);
 
         // then
-        Post result = postService.getById(1);
+        Post result = postServiceImpl.getById(1);
         assertThat(result.getContent()).isEqualTo("hello world : ");
         assertThat(result.getModifiedAt()).isEqualTo(10000L);
     }

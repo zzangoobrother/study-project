@@ -1,8 +1,8 @@
 package com.example.testcodewitharchitecture.post.controller;
 
+import com.example.testcodewitharchitecture.post.controller.port.PostService;
 import com.example.testcodewitharchitecture.post.controller.response.PostResponse;
 import com.example.testcodewitharchitecture.post.domain.PostCreate;
-import com.example.testcodewitharchitecture.post.service.PostService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class PostCreateController {
 
     private final PostService postService;
-    private final PostController postController;
 
     @PostMapping
     public ResponseEntity<PostResponse> createPost(@RequestBody PostCreate postCreateDto) {

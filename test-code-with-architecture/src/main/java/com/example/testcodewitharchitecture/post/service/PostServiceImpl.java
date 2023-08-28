@@ -2,6 +2,7 @@ package com.example.testcodewitharchitecture.post.service;
 
 import com.example.testcodewitharchitecture.common.domain.exception.ResourceNotFoundException;
 import com.example.testcodewitharchitecture.common.service.port.ClockHolder;
+import com.example.testcodewitharchitecture.post.controller.port.PostService;
 import com.example.testcodewitharchitecture.post.domain.Post;
 import com.example.testcodewitharchitecture.post.domain.PostCreate;
 import com.example.testcodewitharchitecture.post.domain.PostUpdate;
@@ -13,22 +14,25 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class PostService {
+public class PostServiceImpl implements PostService {
 
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final ClockHolder clockHolder;
 
+    @Override
     public Post getById(long id) {
         return postRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Posts", id));
     }
 
+    @Override
     public Post create(PostCreate postCreateDto) {
         User user = userRepository.getById(postCreateDto.getWriterId());
         Post post = Post.from(postCreateDto, user, clockHolder);
         return postRepository.save(post);
     }
 
+    @Override
     public Post update(long id, PostUpdate postUpdateDto) {
         Post post = getById(id);
         post = post.update(postUpdateDto, clockHolder);
