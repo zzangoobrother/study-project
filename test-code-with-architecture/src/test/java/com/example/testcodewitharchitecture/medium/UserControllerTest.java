@@ -1,4 +1,4 @@
-package com.example.testcodewitharchitecture.user.controller;
+package com.example.testcodewitharchitecture.medium;
 
 import com.example.testcodewitharchitecture.user.domain.UserStatus;
 import com.example.testcodewitharchitecture.user.domain.UserUpdate;
