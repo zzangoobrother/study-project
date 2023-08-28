@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class UserResponseTest {
+class MyProfileResponseTest {
 
     @Test
     void User으로_응답을_생성할_수_있다() {
@@ -16,7 +16,7 @@ class UserResponseTest {
                 .status(UserStatus.ACTIVE)
                 .build();
 
-        UserResponse response = UserResponse.from(user);
+        MyProfileResponse response = MyProfileResponse.from(user);
 
         assertThat(response.getEmail()).isEqualTo(user.getEmail());
         assertThat(response.getNickname()).isEqualTo(user.getNickname());
