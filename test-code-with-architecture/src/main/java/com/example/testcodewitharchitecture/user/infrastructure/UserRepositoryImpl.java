@@ -1,5 +1,6 @@
 package com.example.testcodewitharchitecture.user.infrastructure;
 
+import com.example.testcodewitharchitecture.user.domain.User;
 import com.example.testcodewitharchitecture.user.domain.UserStatus;
 import com.example.testcodewitharchitecture.user.service.port.UserRepository;
 import org.springframework.stereotype.Repository;
@@ -16,22 +17,23 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public Optional<UserEntity> findById(long id) {
-        return jpaUserRepository.findById(id);
+    public Optional<User> findById(long id) {
+        return jpaUserRepository.findById(id)
+                .map(UserEntity::toModel);
     }
 
     @Override
-    public Optional<UserEntity> findByIdAndStatus(long id, UserStatus status) {
-        return jpaUserRepository.findByIdAndStatus(id, status);
+    public Optional<User> findByIdAndStatus(long id, UserStatus status) {
+        return jpaUserRepository.findByIdAndStatus(id, status).map(UserEntity::toModel);
     }
 
     @Override
-    public Optional<UserEntity> findByEmailAndStatus(String email, UserStatus status) {
-        return jpaUserRepository.findByEmailAndStatus(email, status);
+    public Optional<User> findByEmailAndStatus(String email, UserStatus status) {
+        return jpaUserRepository.findByEmailAndStatus(email, status).map(UserEntity::toModel);
     }
 
     @Override
-    public UserEntity save(UserEntity userEntity) {
-        return jpaUserRepository.save(userEntity);
+    public User save(User user) {
+        return jpaUserRepository.save(UserEntity.fromModel(user)).toModel();
     }
 }

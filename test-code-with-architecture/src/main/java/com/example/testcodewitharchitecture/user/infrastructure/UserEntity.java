@@ -1,5 +1,6 @@
 package com.example.testcodewitharchitecture.user.infrastructure;
 
+import com.example.testcodewitharchitecture.user.domain.User;
 import com.example.testcodewitharchitecture.user.domain.UserStatus;
 import lombok.Getter;
 import lombok.Setter;
@@ -34,4 +35,28 @@ public class UserEntity {
 
     @Column(name = "last_login_at")
     private Long lastLoginAt;
+
+    public static UserEntity fromModel(User user) {
+        UserEntity userEntity = new UserEntity();
+        userEntity.setId(user.getId());
+        userEntity.setEmail(user.getEmail());
+        userEntity.setNickname(user.getNickname());
+        userEntity.setAddress(user.getAddress());
+        userEntity.setCertificationCode(user.getCertificationCode());
+        userEntity.setStatus(user.getStatus());
+        userEntity.setLastLoginAt(user.getLastLoginAt());
+        return userEntity;
+    }
+
+    public User toModel() {
+        return User.builder()
+                .id(id)
+                .email(email)
+                .nickname(nickname)
+                .address(address)
+                .certificationCode(certificationCode)
+                .status(status)
+                .lastLoginAt(lastLoginAt)
+                .build();
+    }
 }

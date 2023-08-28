@@ -1,7 +1,7 @@
 package com.example.testcodewitharchitecture.post.controller;
 
-import com.example.testcodewitharchitecture.post.domain.PostCreate;
 import com.example.testcodewitharchitecture.post.controller.response.PostResponse;
+import com.example.testcodewitharchitecture.post.domain.PostCreate;
 import com.example.testcodewitharchitecture.post.service.PostService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +21,6 @@ public class PostCreateController {
 
     @PostMapping
     public ResponseEntity<PostResponse> createPost(@RequestBody PostCreate postCreateDto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(postController.toResponse(postService.create(postCreateDto)));
+        return ResponseEntity.status(HttpStatus.CREATED).body(PostResponse.from(postService.create(postCreateDto)));
     }
 }

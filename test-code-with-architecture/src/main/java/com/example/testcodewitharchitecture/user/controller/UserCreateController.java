@@ -1,8 +1,8 @@
 package com.example.testcodewitharchitecture.user.controller;
 
-import com.example.testcodewitharchitecture.user.domain.UserCreate;
 import com.example.testcodewitharchitecture.user.controller.response.UserResponse;
-import com.example.testcodewitharchitecture.user.infrastructure.UserEntity;
+import com.example.testcodewitharchitecture.user.domain.User;
+import com.example.testcodewitharchitecture.user.domain.UserCreate;
 import com.example.testcodewitharchitecture.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,7 +22,7 @@ public class UserCreateController {
 
     @PostMapping
     public ResponseEntity<UserResponse> createUser(@RequestBody UserCreate userCreate) {
-        UserEntity userEntity = userService.create(userCreate);
-        return ResponseEntity.status(HttpStatus.CREATED).body(userController.toResponse(userEntity));
+        User user = userService.create(userCreate);
+        return ResponseEntity.status(HttpStatus.CREATED).body(UserResponse.from(user));
     }
 }

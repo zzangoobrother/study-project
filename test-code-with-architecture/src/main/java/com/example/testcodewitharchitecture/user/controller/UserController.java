@@ -1,9 +1,9 @@
 package com.example.testcodewitharchitecture.user.controller;
 
-import com.example.testcodewitharchitecture.user.domain.MyProfileResponse;
 import com.example.testcodewitharchitecture.user.controller.response.UserResponse;
+import com.example.testcodewitharchitecture.user.controller.response.MyProfileResponse;
+import com.example.testcodewitharchitecture.user.domain.User;
 import com.example.testcodewitharchitecture.user.domain.UserUpdate;
-import com.example.testcodewitharchitecture.user.infrastructure.UserEntity;
 import com.example.testcodewitharchitecture.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,7 +22,7 @@ public class UserController {
     @ResponseStatus
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> getUserById(@PathVariable long id) {
-        return ResponseEntity.ok().body(toResponse(userService.getById(id)));
+        return ResponseEntity.ok().body(UserResponse.from(userService.getById(id)));
     }
 
     @GetMapping("/{id}/verify")
@@ -33,36 +33,15 @@ public class UserController {
 
     @GetMapping("/me")
     public ResponseEntity<MyProfileResponse> getMyInfo(@RequestHeader("EMAIL") String email) {
-        UserEntity userEntity = userService.getByEmail(email);
-        userService.login(userEntity.getId());
-        return ResponseEntity.ok().body(toMyProfileResponse(userEntity));
+        User user = userService.getByEmail(email);
+        userService.login(user.getId());
+        return ResponseEntity.ok().body(MyProfileResponse.from(user));
     }
 
     @PutMapping("/me")
     public ResponseEntity<MyProfileResponse> updateMyInfo(@RequestHeader("EMAIL") String email, @RequestBody UserUpdate userUpdate) {
-        UserEntity userEntity = userService.getByEmail(email);
-        userEntity = userService.update(userEntity.getId(), userUpdate);
-        return ResponseEntity.ok().body(toMyProfileResponse(userEntity));
-    }
-
-    public UserResponse toResponse(UserEntity userEntity) {
-        UserResponse userResponse = new UserResponse();
-        userResponse.setId(userEntity.getId());
-        userResponse.setEmail(userEntity.getEmail());
-        userResponse.setNickname(userEntity.getNickname());
-        userResponse.setStatus(userEntity.getStatus());
-        userResponse.setLastLoginAt(userEntity.getLastLoginAt());
-        return userResponse;
-    }
-
-    private MyProfileResponse toMyProfileResponse(UserEntity userEntity) {
-        MyProfileResponse myProfileResponse = new MyProfileResponse();
-        myProfileResponse.setId(userEntity.getId());
-        myProfileResponse.setEmail(userEntity.getEmail());
-        myProfileResponse.setNickname(userEntity.getNickname());
-        myProfileResponse.setStatus(userEntity.getStatus());
-        myProfileResponse.setAddress(userEntity.getAddress());
-        myProfileResponse.setLastLoginAt(userEntity.getLastLoginAt());
-        return myProfileResponse;
+        User user = userService.getByEmail(email);
+        user = userService.update(user.getId(), userUpdate);
+        return ResponseEntity.ok().body(MyProfileResponse.from(user));
     }
 }
