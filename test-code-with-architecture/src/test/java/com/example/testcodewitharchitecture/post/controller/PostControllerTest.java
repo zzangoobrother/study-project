@@ -41,7 +41,7 @@ class PostControllerTest {
                 .createdAt(100L)
                 .build());
 
-        ResponseEntity<PostResponse> response = testContainer.postController.getPostById(1L);
+        ResponseEntity<PostResponse> response = testContainer.postController.getById(1L);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
@@ -76,7 +76,7 @@ class PostControllerTest {
 
         PostUpdate postUpdate = PostUpdate.builder().content("abcde").build();
 
-        ResponseEntity<PostResponse> response = testContainer.postController.updatePost(1L, postUpdate);
+        ResponseEntity<PostResponse> response = testContainer.postController.update(1L, postUpdate);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
@@ -102,7 +102,7 @@ class PostControllerTest {
 
         testContainer.userRepository.save(user);
 
-        assertThatThrownBy(() -> testContainer.postController.getPostById(1L))
+        assertThatThrownBy(() -> testContainer.postController.getById(1L))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 }

@@ -24,7 +24,7 @@ class UserCreateControllerTest {
                 .address("Pang")
                 .build();
 
-        ResponseEntity<UserResponse> response = testContainer.userCreateController.createUser(userCreate);
+        ResponseEntity<UserResponse> response = testContainer.userCreateController.create(userCreate);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();

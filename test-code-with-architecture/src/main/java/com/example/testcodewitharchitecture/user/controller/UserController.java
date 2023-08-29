@@ -1,10 +1,10 @@
 package com.example.testcodewitharchitecture.user.controller;
 
 import com.example.testcodewitharchitecture.user.controller.port.UserService;
+import com.example.testcodewitharchitecture.user.controller.request.UserUpdateRequest;
 import com.example.testcodewitharchitecture.user.controller.response.MyProfileResponse;
 import com.example.testcodewitharchitecture.user.controller.response.UserResponse;
 import com.example.testcodewitharchitecture.user.domain.User;
-import com.example.testcodewitharchitecture.user.domain.UserUpdate;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -23,7 +23,7 @@ public class UserController {
 
     @ResponseStatus
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponse> getUserById(@PathVariable long id) {
+    public ResponseEntity<UserResponse> getById(@PathVariable long id) {
         return ResponseEntity.ok().body(UserResponse.from(userService.getById(id)));
     }
 
@@ -42,9 +42,9 @@ public class UserController {
     }
 
     @PutMapping("/me")
-    public ResponseEntity<MyProfileResponse> updateMyInfo(@RequestHeader("EMAIL") String email, @RequestBody UserUpdate userUpdate) {
+    public ResponseEntity<MyProfileResponse> updateMyInfo(@RequestHeader("EMAIL") String email, @RequestBody UserUpdateRequest request) {
         User user = userService.getByEmail(email);
-        user = userService.update(user.getId(), userUpdate);
+        user = userService.update(user.getId(), request.toUserUpdate());
         return ResponseEntity.ok().body(MyProfileResponse.from(user));
     }
 }

@@ -34,7 +34,7 @@ class PostCreateControllerTest {
                 .content("helloworld")
                 .build();
 
-        ResponseEntity<PostResponse> response = testContainer.postCreateController.createPost(postCreateDto);
+        ResponseEntity<PostResponse> response = testContainer.postCreateController.create(postCreateDto);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();

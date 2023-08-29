@@ -4,11 +4,11 @@ import com.example.testcodewitharchitecture.common.domain.exception.Certificatio
 import com.example.testcodewitharchitecture.common.domain.exception.ResourceNotFoundException;
 import com.example.testcodewitharchitecture.mock.TestClockHolder;
 import com.example.testcodewitharchitecture.mock.TestContainer;
+import com.example.testcodewitharchitecture.user.controller.request.UserUpdateRequest;
 import com.example.testcodewitharchitecture.user.controller.response.MyProfileResponse;
 import com.example.testcodewitharchitecture.user.controller.response.UserResponse;
 import com.example.testcodewitharchitecture.user.domain.User;
 import com.example.testcodewitharchitecture.user.domain.UserStatus;
-import com.example.testcodewitharchitecture.user.domain.UserUpdate;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,7 +32,7 @@ class UserControllerTest {
                 .lastLoginAt(0L)
                 .build());
 
-        ResponseEntity<UserResponse> response = testContainer.userController.getUserById(1L);
+        ResponseEntity<UserResponse> response = testContainer.userController.getById(1L);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getEmail()).isEqualTo("abc@naver.com");
@@ -44,7 +44,7 @@ class UserControllerTest {
     void 사용자는_존재하지_않는_유저의_아이디로_api_호출할_경우_404_응답을_받는다() {
         TestContainer testContainer = TestContainer.create(null, null);
 
-        assertThatThrownBy(() -> testContainer.userController.getUserById(1L))
+        assertThatThrownBy(() -> testContainer.userController.getById(1L))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -124,7 +124,7 @@ class UserControllerTest {
                 .lastLoginAt(0L)
                 .build());
 
-        ResponseEntity<MyProfileResponse> response = testContainer.userController.updateMyInfo("abc@naver.com", UserUpdate.builder().address("Pang").nickname("abcdd").build());
+        ResponseEntity<MyProfileResponse> response = testContainer.userController.updateMyInfo("abc@naver.com", UserUpdateRequest.builder().address("Pang").nickname("abcdd").build());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
