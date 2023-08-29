@@ -1,6 +1,6 @@
 package com.example.testcodewitharchitecture.user.controller;
 
-import com.example.testcodewitharchitecture.user.controller.port.UserCreateService;
+import com.example.testcodewitharchitecture.user.controller.port.UserService;
 import com.example.testcodewitharchitecture.user.controller.response.UserResponse;
 import com.example.testcodewitharchitecture.user.domain.User;
 import com.example.testcodewitharchitecture.user.domain.UserCreate;
@@ -17,11 +17,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class UserCreateController {
 
-    private final UserCreateService userCreateService;
+    private final UserService userService;
 
     @PostMapping
     public ResponseEntity<UserResponse> createUser(@RequestBody UserCreate userCreate) {
-        User user = userCreateService.create(userCreate);
+        User user = userService.create(userCreate);
         return ResponseEntity.status(HttpStatus.CREATED).body(UserResponse.from(user));
     }
 }
