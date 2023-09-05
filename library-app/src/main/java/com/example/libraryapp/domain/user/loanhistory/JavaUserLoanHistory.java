@@ -1,6 +1,6 @@
 package com.example.libraryapp.domain.user.loanhistory;
 
-import com.example.libraryapp.domain.user.User;
+import com.example.libraryapp.domain.user.JavaUser;
 import org.jetbrains.annotations.NotNull;
 
 import javax.persistence.Entity;
@@ -11,22 +11,22 @@ import javax.persistence.ManyToOne;
 import static javax.persistence.GenerationType.IDENTITY;
 
 @Entity
-public class UserLoanHistory {
+public class JavaUserLoanHistory {
     @Id
     @GeneratedValue(strategy = IDENTITY)
     private Long id;
 
     @ManyToOne
-    private User user;
+    private JavaUser user;
 
     private String bookName;
 
     private boolean isReturn;
 
-    public UserLoanHistory() {
+    public JavaUserLoanHistory() {
     }
 
-    public UserLoanHistory(User user, String bookName, boolean isReturn) {
+    public JavaUserLoanHistory(JavaUser user, String bookName, boolean isReturn) {
         this.user = user;
         this.bookName = bookName;
         this.isReturn = isReturn;
@@ -42,7 +42,7 @@ public class UserLoanHistory {
     }
 
     @NotNull
-    public User getUser() {
+    public JavaUser getUser() {
         return user;
     }
 

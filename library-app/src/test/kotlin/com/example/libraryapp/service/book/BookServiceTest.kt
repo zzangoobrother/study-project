@@ -51,7 +51,7 @@ class BookServiceTest @Autowired constructor(
     fun loanBookTest() {
         // given
         bookRepository.save(Book("홍길동전"))
-        val saveUser = userRepository.save(User("홍길동", null))
+        userRepository.save(User("홍길동", null))
         val request = BookLoanRequest("홍길동", "홍길동전")
 
         // when
