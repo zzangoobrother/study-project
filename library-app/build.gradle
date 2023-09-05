@@ -1,10 +1,29 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
+plugins {
+    id 'org.jetbrains.kotlin.jvm' version '1.6.21'
+    id 'org.jetbrains.kotlin.plugin.spring' version '1.6.21'
+}
+
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
+    implementation 'org.jetbrains.kotlin:kotlin-reflect'
     runtimeOnly 'com.h2database:h2'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
 tasks.register("prepareKotlinBuildScriptModel") {}
 
+compileKotlin {
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
 
+compileTestKotlin {
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
 
