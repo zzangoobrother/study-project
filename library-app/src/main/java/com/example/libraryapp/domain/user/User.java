@@ -2,6 +2,8 @@ package com.example.libraryapp.domain.user;
 
 import com.example.libraryapp.domain.book.Book;
 import com.example.libraryapp.domain.user.loanhistory.UserLoanHistory;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.persistence.*;
 import java.util.ArrayList;
@@ -54,10 +56,12 @@ public class User {
         return id;
     }
 
+    @NotNull
     public String getName() {
         return name;
     }
 
+    @Nullable
     public Integer getAge() {
         return age;
     }
