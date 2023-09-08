@@ -1,3 +1,5 @@
 package com.example.libraryapp.dto.book.request
 
-data class BookRequest(val name: String, val type: String)
+import com.example.libraryapp.domain.book.BookType
+
+data class BookRequest(val name: String, val type: BookType)
