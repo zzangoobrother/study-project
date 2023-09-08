@@ -7,6 +7,7 @@ import com.example.libraryapp.domain.user.User
 import com.example.libraryapp.domain.user.UserRepository
 import com.example.libraryapp.domain.user.loanhistory.UserLoanHistory
 import com.example.libraryapp.domain.user.loanhistory.UserLoanHistoryRepository
+import com.example.libraryapp.domain.user.loanhistory.UserLoanStatus
 import com.example.libraryapp.dto.book.request.BookLoanRequest
 import com.example.libraryapp.dto.book.request.BookRequest
 import com.example.libraryapp.dto.book.request.BookReturnRequest
@@ -63,7 +64,7 @@ class BookServiceTest @Autowired constructor(
         val result = userLoanHistoryRepository.findAll()
         assertThat(result).hasSize(1)
         assertThat(result[0].bookName).isEqualTo("홍길동전")
-        assertThat(result[0].isReturn).isFalse()
+        assertThat(result[0].status).isEqualTo(UserLoanStatus.LOANED)
     }
 
     @DisplayName("책이 진작 대출되어 있다면, 신규 대출이 실패한다.")
@@ -72,7 +73,7 @@ class BookServiceTest @Autowired constructor(
         // given
         bookRepository.save(Book.fixture())
         val saveUser = userRepository.save(User("홍길동", null))
-        userLoanHistoryRepository.save(UserLoanHistory(saveUser, "홍길동전", false))
+        userLoanHistoryRepository.save(UserLoanHistory.fixture(saveUser, "홍길동전"))
         val request = BookLoanRequest("홍길동", "홍길동전")
 
         // then
@@ -88,7 +89,7 @@ class BookServiceTest @Autowired constructor(
     fun returnBookTest() {
         // given
         val saveUser = userRepository.save(User("홍길동", null))
-        userLoanHistoryRepository.save(UserLoanHistory(saveUser, "홍길동전", false))
+        userLoanHistoryRepository.save(UserLoanHistory.fixture(saveUser, "홍길동전"))
         val request = BookReturnRequest("홍길동", "홍길동전")
 
         // when
@@ -97,6 +98,6 @@ class BookServiceTest @Autowired constructor(
         // then
         val results = userLoanHistoryRepository.findAll()
         assertThat(results).hasSize(1)
-        assertThat(results[0].isReturn).isTrue()
+        assertThat(results[0].status).isEqualTo(UserLoanStatus.RETURNED)
     }
 }
