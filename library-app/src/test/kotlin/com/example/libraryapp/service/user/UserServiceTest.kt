@@ -2,6 +2,9 @@ package com.example.libraryapp.service.user
 
 import com.example.libraryapp.domain.user.User
 import com.example.libraryapp.domain.user.UserRepository
+import com.example.libraryapp.domain.user.loanhistory.UserLoanHistory
+import com.example.libraryapp.domain.user.loanhistory.UserLoanHistoryRepository
+import com.example.libraryapp.domain.user.loanhistory.UserLoanStatus
 import com.example.libraryapp.dto.user.request.UserCreateRequest
 import com.example.libraryapp.dto.user.request.UserUpdateRequest
 import org.assertj.core.api.AssertionsForInterfaceTypes.assertThat
@@ -14,7 +17,8 @@ import org.springframework.boot.test.context.SpringBootTest
 @SpringBootTest
 class UserServiceTest @Autowired constructor(
     private val userRepository: UserRepository,
-    private val userService: UserService
+    private val userService: UserService,
+    private val userLoanHistoryRepository: UserLoanHistoryRepository
 ) {
 
     @AfterEach
@@ -82,5 +86,42 @@ class UserServiceTest @Autowired constructor(
 
         // then
         assertThat(userRepository.findAll()).isEmpty()
+    }
+
+    @DisplayName("대출 기록이 없는 유저도 응답에 포합된다.")
+    @Test
+    fun getUSerLoanHistoriesTest1() {
+        // given
+        userRepository.save(User("A", null))
+
+        // when
+        val results = userService.getUserLoanHistories()
+
+        // then
+        assertThat(results).hasSize(1)
+        assertThat(results[0].name).isEqualTo("A")
+        assertThat(results[0].books).isEmpty()
+    }
+
+    @DisplayName("대출 기록이 많은 유저의 응답이 정상 동작된다.")
+    @Test
+    fun getUSerLoanHistoriesTest2() {
+        // given
+        val saveUser = userRepository.save(User("A", null))
+        userLoanHistoryRepository.saveAll(listOf(
+            UserLoanHistory.fixture(saveUser, "홍길동전", UserLoanStatus.LOANED),
+            UserLoanHistory.fixture(saveUser, "홍길동전1", UserLoanStatus.LOANED),
+            UserLoanHistory.fixture(saveUser, "홍길동전2", UserLoanStatus.RETURNED),
+        ))
+
+        // when
+        val results = userService.getUserLoanHistories()
+
+        // then
+        assertThat(results).hasSize(1)
+        assertThat(results[0].name).isEqualTo("A")
+        assertThat(results[0].books).hasSize(3)
+        assertThat(results[0].books).extracting("name").containsExactlyInAnyOrder("홍길동전", "홍길동전1", "홍길동전2")
+        assertThat(results[0].books).extracting("isReturn").containsExactlyInAnyOrder(false, false, true)
     }
 }
