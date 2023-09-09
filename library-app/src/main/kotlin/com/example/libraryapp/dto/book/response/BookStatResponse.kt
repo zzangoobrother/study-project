@@ -4,6 +4,6 @@ import com.example.libraryapp.domain.book.BookType
 
 class BookStatResponse(
     val type: BookType,
-    val count: Int
+    val count: Long
 ) {
 }
