@@ -3,11 +3,9 @@ package com.example.libraryapp.controller.book
 import com.example.libraryapp.dto.book.request.BookLoanRequest
 import com.example.libraryapp.dto.book.request.BookRequest
 import com.example.libraryapp.dto.book.request.BookReturnRequest
+import com.example.libraryapp.dto.book.response.BookStatResponse
 import com.example.libraryapp.service.book.BookService
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 
 @RestController
 class BookController(
@@ -27,5 +25,15 @@ class BookController(
     @PutMapping("/book/return")
     fun returnBook(@RequestBody request: BookReturnRequest) {
         bookService.returnBook(request)
+    }
+
+    @GetMapping("/book/loan")
+    fun countLoanedBook(): Int {
+        return bookService.countLoanedBook()
+    }
+
+    @GetMapping("/book/stat")
+    fun getBookStatistics(): List<BookStatResponse> {
+        return bookService.getBookStatistics()
     }
 }
