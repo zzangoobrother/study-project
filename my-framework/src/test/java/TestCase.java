@@ -9,6 +9,14 @@ public abstract class TestCase {
     }
 
     public void run() {
+        before();
+        runTestCase();
+        after();
+    }
+
+    protected void before() {}
+
+    public void runTestCase() {
         try {
             Method method = this.getClass().getMethod(testCaseName, null);
             method.invoke(this, null);
@@ -16,4 +24,6 @@ public abstract class TestCase {
             throw new RuntimeException(e);
         }
     }
+
+    protected void after() {}
 }

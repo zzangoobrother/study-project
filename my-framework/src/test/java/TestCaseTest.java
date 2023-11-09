@@ -8,7 +8,8 @@ public class TestCaseTest extends TestCase {
 
     private static long base;
 
-    public void before() {
+    @Override
+    protected void before() {
         base = 10;
     }
 
