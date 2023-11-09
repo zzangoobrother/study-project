@@ -1,3 +1,5 @@
+import java.lang.reflect.Method;
+
 public abstract class TestCase {
 
     protected String testCaseName;
@@ -6,5 +8,12 @@ public abstract class TestCase {
         this.testCaseName = testCaseName;
     }
 
-    public abstract void run();
+    public void run() {
+        try {
+            Method method = this.getClass().getMethod(testCaseName, null);
+            method.invoke(this, null);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

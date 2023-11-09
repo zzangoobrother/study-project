@@ -1,21 +1,9 @@
 import myjunit.Assert;
 
-import java.lang.reflect.Method;
-
 public class TestCaseTest extends TestCase {
 
     public TestCaseTest(String testCaseName) {
         super(testCaseName);
-    }
-
-    @Override
-    public void run() {
-        try {
-            Method method = this.getClass().getMethod(super.testCaseName, null);
-            method.invoke(this, null);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 
     public void runTest() {
