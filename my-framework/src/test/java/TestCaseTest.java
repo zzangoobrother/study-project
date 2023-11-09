@@ -6,13 +6,21 @@ public class TestCaseTest extends TestCase {
         super(testCaseName);
     }
 
+    private static long base;
+
+    public void before() {
+        base = 10;
+    }
+
     public void runTest() {
-        long sum = 10 + 10;
+        before();
+        long sum = base + 10;
         Assert.assertTrue(sum == 20);
     }
 
     public void runTestMinus() {
-        long minus = 100 - 10;
+        before();
+        long minus = 100 - base;
         Assert.assertTrue(minus == 90);
     }
 
