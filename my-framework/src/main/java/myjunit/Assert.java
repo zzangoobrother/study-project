@@ -1,3 +1,5 @@
+package myjunit;
+
 import error.AssertionFailedError;
 
 public class Assert {
