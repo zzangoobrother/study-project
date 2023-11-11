@@ -1,6 +1,6 @@
 package myjunit;
 
-import error.AssertionFailedError;
+import myjunit.error.AssertionFailedError;
 
 public class Assert {
 
