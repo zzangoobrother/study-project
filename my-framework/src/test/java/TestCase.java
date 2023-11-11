@@ -1,3 +1,5 @@
+import myjunit.TestResult;
+
 import java.lang.reflect.Method;
 
 public abstract class TestCase {
@@ -8,7 +10,19 @@ public abstract class TestCase {
         this.testCaseName = testCaseName;
     }
 
-    public void run() {
+    public TestResult run() {
+        TestResult testResult = createTestResult();
+        run(testResult);
+
+        return testResult;
+    }
+
+    private TestResult createTestResult() {
+        return new TestResult();
+    }
+
+    public void run(TestResult testResult) {
+        testResult.startTest();
         before();
         runTestCase();
         after();
