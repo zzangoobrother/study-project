@@ -11,4 +11,10 @@ public class Assert {
             throw new AssertionFailedError();
         }
     }
+
+    public static void assertEquals(Object expected, Object actual) {
+        if (!expected.equals(actual)) {
+            throw new AssertionFailedError();
+        }
+    }
 }
