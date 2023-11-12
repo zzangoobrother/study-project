@@ -1,3 +1,4 @@
+import annotation.Test;
 import myjunit.Assert;
 
 public class TestCaseTest extends TestCase {
@@ -13,19 +14,22 @@ public class TestCaseTest extends TestCase {
         base = 10;
     }
 
-    public void testRun() {
+    @Test
+    public void runTest() {
         long sum = base + 10;
         Assert.assertTrue(sum == 20);
     }
 
-    public void testRunMinus() {
+    @Test
+    public void runTestMinus() {
         long minus = 100 - base;
         Assert.assertTrue(minus == 90);
     }
 
-    public void testRunAdd() {
+    @Test
+    public void runTestAdd() {
         long add = 90 + base;
-        Assert.assertEquals(add, 100);
+        Assert.assertEquals(add, 100L);
     }
 
     public static void main(String[] args) {

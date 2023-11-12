@@ -2,6 +2,8 @@ package myjunit;
 
 import myjunit.error.AssertionFailedError;
 
+import java.util.Objects;
+
 public class Assert {
 
     private Assert() {}
@@ -12,8 +14,8 @@ public class Assert {
         }
     }
 
-    public static void assertEquals(Object expected, Object actual) {
-        if (!expected.equals(actual)) {
+    public static void assertEquals(Long expected, Long actual) {
+        if (!Objects.equals(expected, actual)) {
             throw new AssertionFailedError();
         }
     }
