@@ -3,7 +3,7 @@ import myjunit.error.AssertionFailedError;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-public abstract class TestCase {
+public abstract class TestCase implements Test {
 
     protected String testCaseName;
 
@@ -22,6 +22,7 @@ public abstract class TestCase {
         return new TestResult();
     }
 
+    @Override
     public void run(TestResult testResult) {
         testResult.startTest();
         before();
