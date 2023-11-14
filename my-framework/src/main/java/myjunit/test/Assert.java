@@ -1,6 +1,6 @@
-package myjunit;
+package myjunit.test;
 
-import myjunit.error.AssertionFailedError;
+import myjunit.test.error.AssertionFailedError;
 
 import java.util.Objects;
 

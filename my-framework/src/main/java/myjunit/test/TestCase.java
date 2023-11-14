@@ -1,4 +1,7 @@
-import myjunit.error.AssertionFailedError;
+package myjunit.test;
+
+import myjunit.test.TestResult;
+import myjunit.test.error.AssertionFailedError;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;

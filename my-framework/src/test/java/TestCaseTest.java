@@ -1,5 +1,8 @@
-import annotation.Test;
-import myjunit.Assert;
+import myjunit.test.TestCase;
+import myjunit.test.TestResult;
+import myjunit.test.TestSuite;
+import myjunit.test.annotation.Test;
+import myjunit.test.Assert;
 
 public class TestCaseTest extends TestCase {
 

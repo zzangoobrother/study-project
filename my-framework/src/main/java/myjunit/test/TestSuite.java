@@ -1,3 +1,5 @@
+package myjunit.test;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -7,7 +9,7 @@ public class TestSuite implements Test {
 
     public TestSuite(Class<? extends TestCase> testClass) {
         Arrays.stream(testClass.getMethods())
-                .filter(m -> m.getAnnotation(annotation.Test.class) != null)
+                .filter(m -> m.getAnnotation(myjunit.test.annotation.Test.class) != null)
                 .forEach(m ->
                         {
                             try {

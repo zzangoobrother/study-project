@@ -1,3 +1,5 @@
+package myjunit.test;
+
 public class TestError {
     private TestCase testCase;
     private Exception exception;

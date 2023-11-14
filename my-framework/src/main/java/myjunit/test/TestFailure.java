@@ -1,3 +1,5 @@
+package myjunit.test;
+
 public class TestFailure {
     private TestCase testCase;
 
