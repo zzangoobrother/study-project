@@ -5,32 +5,34 @@ import myjunit.test.TestCase;
 import myjunit.test.annotation.Test;
 
 public class CalculatorTest extends TestCase {
+    private Calculator calculator;
 
     public CalculatorTest(String testCaseName) {
         super(testCaseName);
     }
 
+    @Override
+    protected void before() {
+        calculator = new Calculator();
+    }
+
     @Test
     public void add() {
-        Calculator calculator = new Calculator();
         Assert.assertEquals(12, calculator.add(9, 3));
     }
 
     @Test
     public void subtract() {
-        Calculator calculator = new Calculator();
         Assert.assertEquals(6, calculator.subtract(9, 3));
     }
 
     @Test
     public void multiply() {
-        Calculator calculator = new Calculator();
         Assert.assertEquals(27, calculator.multiply(9, 3));
     }
 
     @Test
     public void divide() {
-        Calculator calculator = new Calculator();
         Assert.assertEquals(3, calculator.divide(9, 3));
     }
 }
