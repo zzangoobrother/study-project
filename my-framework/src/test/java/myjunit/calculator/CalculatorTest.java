@@ -1,5 +1,6 @@
 package myjunit.calculator;
 
+import myjunit.test.Assert;
 import myjunit.test.TestCase;
 import myjunit.test.annotation.Test;
 
@@ -10,27 +11,26 @@ public class CalculatorTest extends TestCase {
     }
 
     @Test
-    public void calculatorTest() {
+    public void add() {
         Calculator calculator = new Calculator();
-        add(calculator);
-        subtract(calculator);
-        multiply(calculator);
-        divide(calculator);
+        Assert.assertEquals(12, calculator.add(9, 3));
     }
 
-    public void add(Calculator cal) {
-        cal.add(9, 3);
+    @Test
+    public void subtract() {
+        Calculator calculator = new Calculator();
+        Assert.assertEquals(6, calculator.subtract(9, 3));
     }
 
-    public void subtract(Calculator cal) {
-        cal.subtract(9, 3);
+    @Test
+    public void multiply() {
+        Calculator calculator = new Calculator();
+        Assert.assertEquals(27, calculator.multiply(9, 3));
     }
 
-    public void multiply(Calculator cal) {
-        cal.multiply(9, 3);
-    }
-
-    public void divide(Calculator cal) {
-        cal.divide(9, 3);
+    @Test
+    public void divide() {
+        Calculator calculator = new Calculator();
+        Assert.assertEquals(3, calculator.divide(9, 3));
     }
 }
