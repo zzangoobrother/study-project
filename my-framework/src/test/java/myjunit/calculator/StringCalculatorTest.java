@@ -43,6 +43,16 @@ public class StringCalculatorTest extends TestCase {
         Assert.assertEquals(6, stringCalculator.add("1,2,3"));
     }
 
+    @Test
+    public void separateColonInput() {
+        Assert.assertEquals(3, stringCalculator.add("1:2"));
+    }
+
+    @Test
+    public void separateColonNumberThreeInput() {
+        Assert.assertEquals(6, stringCalculator.add("1:2:3"));
+    }
+
     public static void main(String[] args) {
         TestSuite testSuite = new TestSuite(StringCalculatorTest.class);
 
