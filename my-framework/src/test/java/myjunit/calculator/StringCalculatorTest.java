@@ -33,6 +33,16 @@ public class StringCalculatorTest extends TestCase {
         Assert.assertEquals(1, stringCalculator.add("1"));
     }
 
+    @Test
+    public void separateCommaInput() {
+        Assert.assertEquals(3, stringCalculator.add("1,2"));
+    }
+
+    @Test
+    public void separateCommaNumberThreeInput() {
+        Assert.assertEquals(6, stringCalculator.add("1,2,3"));
+    }
+
     public static void main(String[] args) {
         TestSuite testSuite = new TestSuite(StringCalculatorTest.class);
 
