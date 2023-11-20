@@ -53,6 +53,11 @@ public class StringCalculatorTest extends TestCase {
         Assert.assertEquals(6, stringCalculator.add("1:2:3"));
     }
 
+    @Test
+    public void separateColonCommaMixInput() {
+        Assert.assertEquals(6, stringCalculator.add("1,2:3"));
+    }
+
     public static void main(String[] args) {
         TestSuite testSuite = new TestSuite(StringCalculatorTest.class);
 
