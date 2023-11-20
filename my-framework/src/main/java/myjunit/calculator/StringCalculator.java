@@ -2,6 +2,10 @@ package myjunit.calculator;
 
 public class StringCalculator {
     public int add(String text) {
-        return 0;
+        if (text == null || text.isEmpty()) {
+            return 0;
+        }
+
+        return Integer.parseInt(text);
     }
 }

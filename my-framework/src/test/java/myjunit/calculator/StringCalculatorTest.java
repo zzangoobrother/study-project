@@ -20,12 +20,17 @@ public class StringCalculatorTest extends TestCase {
 
     @Test
     public void emptyTextInput() {
-        Assert.assertEquals(0, stringCalculator.add(" "));
+        Assert.assertEquals(0, stringCalculator.add(""));
     }
 
     @Test
     public void nullTextInput() {
         Assert.assertEquals(0, stringCalculator.add(null));
+    }
+
+    @Test
+    public void oneNumberTextInput() {
+        Assert.assertEquals(1, stringCalculator.add("1"));
     }
 
     public static void main(String[] args) {
