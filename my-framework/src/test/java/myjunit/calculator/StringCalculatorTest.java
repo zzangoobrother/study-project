@@ -23,6 +23,11 @@ public class StringCalculatorTest extends TestCase {
         Assert.assertEquals(0, stringCalculator.add(" "));
     }
 
+    @Test
+    public void nullTextInput() {
+        Assert.assertEquals(0, stringCalculator.add(null));
+    }
+
     public static void main(String[] args) {
         TestSuite testSuite = new TestSuite(StringCalculatorTest.class);
 
