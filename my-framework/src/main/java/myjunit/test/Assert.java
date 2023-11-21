@@ -4,6 +4,8 @@ import myjunit.test.error.AssertionFailedError;
 
 import java.util.Objects;
 
+import static myjunit.test.TryCatchThrowable.catchThrowable;
+
 public class Assert {
 
     private Assert() {}
@@ -24,5 +26,9 @@ public class Assert {
         if (!Objects.equals(expected, actual)) {
             throw new AssertionFailedError();
         }
+    }
+
+    public static void assertThatThrownBy(ThrowingCallable shouldRaiseThrowable) {
+        assertTrue(catchThrowable(shouldRaiseThrowable) instanceof RuntimeException);
     }
 }

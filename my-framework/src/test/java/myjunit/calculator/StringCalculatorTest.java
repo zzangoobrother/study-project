@@ -68,6 +68,16 @@ public class StringCalculatorTest extends TestCase {
         Assert.assertEquals(6, stringCalculator.add("//;\n1;2;3"));
     }
 
+    @Test
+    public void negativeNumberInputException() {
+        Assert.assertThatThrownBy(() -> stringCalculator.add("-1"));
+    }
+
+    @Test
+    public void negativeNumbersInputException() {
+        Assert.assertThatThrownBy(() -> stringCalculator.add("1,2,-3"));
+    }
+
     public static void main(String[] args) {
         TestSuite testSuite = new TestSuite(StringCalculatorTest.class);
 

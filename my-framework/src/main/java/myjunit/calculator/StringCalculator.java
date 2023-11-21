@@ -10,18 +10,24 @@ public class StringCalculator {
             return 0;
         }
 
-        if (text.length() == 1) {
-            return Integer.parseInt(text);
-        }
+        String separate = ",|:";
 
         Matcher matcher = Pattern.compile("//(.)\n(.*)").matcher(text);
         if (matcher.find()) {
             String customDelimeter = matcher.group(1);
-            String[] numbers = matcher.group(2).split(customDelimeter);
-            return Arrays.stream(numbers).mapToInt(t -> Integer.parseInt(t)).sum();
+            separate = separate + "|" + customDelimeter;
+            text = matcher.group(2);
         }
 
-        String[] numbers = text.split(",|:");
+        String[] numbers = text.split(separate);
+        Arrays.stream(numbers)
+                .mapToInt(t -> Integer.parseInt(t))
+                .forEach(num -> {
+                    if (num < 0) throw new RuntimeException();
+                });
+
         return Arrays.stream(numbers).mapToInt(t -> Integer.parseInt(t)).sum();
     }
+
+
 }
