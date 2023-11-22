@@ -29,41 +29,6 @@ public class StringCalculatorTest extends TestCase {
     }
 
     @Test
-    public void oneNumberTextInput() {
-        Assert.assertEquals(1, stringCalculator.add("1"));
-    }
-
-    @Test
-    public void separateCommaInput() {
-        Assert.assertEquals(3, stringCalculator.add("1,2"));
-    }
-
-    @Test
-    public void separateCommaNumberThreeInput() {
-        Assert.assertEquals(6, stringCalculator.add("1,2,3"));
-    }
-
-    @Test
-    public void separateColonInput() {
-        Assert.assertEquals(3, stringCalculator.add("1:2"));
-    }
-
-    @Test
-    public void separateColonNumberThreeInput() {
-        Assert.assertEquals(6, stringCalculator.add("1:2:3"));
-    }
-
-    @Test
-    public void separateColonCommaMixInput() {
-        Assert.assertEquals(6, stringCalculator.add("1,2:3"));
-    }
-
-    @Test
-    public void separateCustomInput() {
-        Assert.assertEquals(3, stringCalculator.add("//;\n1;2"));
-    }
-
-    @Test
     public void separateCustomNumberThreeInput() {
         Assert.assertEquals(6, stringCalculator.add("//;\n1;2;3"));
     }

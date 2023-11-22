@@ -28,6 +28,12 @@ public class Assert {
         }
     }
 
+    public static void assertEquals(String expected, String actual) {
+        if (!Objects.equals(expected, actual)) {
+            throw new AssertionFailedError();
+        }
+    }
+
     public static void assertThatThrownBy(ThrowingCallable shouldRaiseThrowable) {
         assertTrue(catchThrowable(shouldRaiseThrowable) instanceof RuntimeException);
     }
