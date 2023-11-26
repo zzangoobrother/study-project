@@ -3,6 +3,7 @@ package myjunit.mvc.part1.webserver;
 import myjunit.mvc.part1.db.DataBase;
 import myjunit.mvc.part1.model.User;
 import myjunit.mvc.part1.util.HttpRequestUtils;
+import myjunit.mvc.part1.util.IOUtils;
 
 import java.io.*;
 import java.net.Socket;
@@ -26,15 +27,22 @@ public class RequestHandler extends Thread {
                 return;
             }
 
+            int contentLength = 0;
             String url = HttpRequestUtils.getUrl(line);
-
             if ("/user/create".equals(url)) {
-                String queryString = HttpRequestUtils.getQueryString(line);
-                Map<String, String> params = HttpRequestUtils.parseQueryString(queryString);
+                while (!(line = br.readLine()).equals("")) {
+                    if (line.startsWith("Content-Length")) {
+                        contentLength = Integer.parseInt(line.split(":")[1].trim());
+                    }
+                }
+
+                String body = IOUtils.readData(br, contentLength);
+                Map<String, String> params = HttpRequestUtils.parseQueryString(body);
 
                 User user = new User(params.get("userId"), params.get("password"), params.get("name"), params.get("email"));
                 DataBase.addUser(user);
-                return;
+
+                url = "/index.html";
             }
 
             DataOutputStream dos = new DataOutputStream(out);
