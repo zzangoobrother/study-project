@@ -1,7 +1,5 @@
 package myjunit.mvc.part1.webserver;
 
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -23,7 +21,7 @@ public class WebServer {
             Socket connection;
             while ((connection = listenSocket.accept()) != null) {
                 RequestHandler requestHandler = new RequestHandler(connection);
-                requestHandler.start();
+                requestHandler.run();
             }
         }
     }

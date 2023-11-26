@@ -16,6 +16,12 @@ public class Assert {
         }
     }
 
+    public static void assertEquals(Object expected, Object actual) {
+        if (!Objects.equals(expected, actual)) {
+            throw new AssertionFailedError();
+        }
+    }
+
     public static void assertEquals(Long expected, Long actual) {
         if (!Objects.equals(expected, actual)) {
             throw new AssertionFailedError();

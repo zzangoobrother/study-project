@@ -1,5 +1,7 @@
 package myjunit.mvc.part1.webserver;
 
+import myjunit.mvc.part1.util.HttpRequestUtils;
+
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
@@ -21,8 +23,7 @@ public class RequestHandler extends Thread {
                 return;
             }
 
-            String[] tokens = line.split(" ");
-            String url = tokens[1];
+            String url = HttpRequestUtils.getUrl(line);
 
             DataOutputStream dos = new DataOutputStream(out);
             byte[] body = Files.readAllBytes(new File("./my-framework/webapp", url).toPath());
