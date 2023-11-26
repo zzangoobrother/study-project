@@ -1,10 +1,8 @@
 package myjunit.mvc.part1.webserver;
 
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.Socket;
+import java.nio.file.Files;
 
 public class RequestHandler extends Thread {
     private Socket connection;
@@ -15,8 +13,19 @@ public class RequestHandler extends Thread {
 
     public void run() {
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
+
+            BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"));
+
+            String line = br.readLine();
+            if (line == null) {
+                return;
+            }
+
+            String[] tokens = line.split(" ");
+            String url = tokens[1];
+
             DataOutputStream dos = new DataOutputStream(out);
-            byte[] body = "Hello World".getBytes();
+            byte[] body = Files.readAllBytes(new File("./my-framework/webapp", url).toPath());
             response200Header(dos, body.length);
             responseBody(dos, body);
         } catch (IOException e) {
