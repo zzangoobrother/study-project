@@ -75,6 +75,30 @@ public class HttpRequestUtilsTest extends TestCase {
         Assert.assertEquals(pair, new HttpRequestUtils.Pair("Content-Length", "59"));
     }
 
+    @Test
+    public void getUrl() {
+        String line = "GET /index.html";
+        String url = HttpRequestUtils.getUrl(line);
+
+        Assert.assertEquals(url, "/index.html");
+    }
+
+    @Test
+    public void getUrlQueryString() {
+        String line = "GET /user/create?userId=choiseon&password=password&name=최선&email=com1368%40naver.com";
+        String url = HttpRequestUtils.getUrl(line);
+
+        Assert.assertEquals(url, "/user/create");
+    }
+
+    @Test
+    public void getQueryString() {
+        String line = "GET /user/create?userId=choiseon&password=password&name=최선&email=com1368%40naver.com";
+        String url = HttpRequestUtils.getQueryString(line);
+
+        Assert.assertEquals(url, "userId=choiseon&password=password&name=최선&email=com1368%40naver.com");
+    }
+
     public static void main(String[] args) {
         TestSuite testSuite = new TestSuite(HttpRequestUtilsTest.class);
 

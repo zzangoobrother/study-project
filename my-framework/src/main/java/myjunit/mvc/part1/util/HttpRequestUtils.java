@@ -10,7 +10,23 @@ import java.util.stream.Collectors;
 public class HttpRequestUtils {
 
     public static String getUrl(String firstLine) {
-        return firstLine.split(" ")[1];
+        String url = findUrl(firstLine);
+        int index = url.indexOf("?");
+        if (index < 0) {
+            return url;
+        }
+
+        return url.substring(0, index);
+    }
+
+    public static String getQueryString(String firstLine) {
+        String url = findUrl(firstLine);
+        int index = url.indexOf("?");
+        return url.substring(index + 1);
+    }
+
+    private static String findUrl(String line) {
+        return line.split(" ")[1];
     }
 
     /**

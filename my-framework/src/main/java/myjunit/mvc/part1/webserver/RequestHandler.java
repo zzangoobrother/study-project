@@ -1,10 +1,13 @@
 package myjunit.mvc.part1.webserver;
 
+import myjunit.mvc.part1.db.DataBase;
+import myjunit.mvc.part1.model.User;
 import myjunit.mvc.part1.util.HttpRequestUtils;
 
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
+import java.util.Map;
 
 public class RequestHandler extends Thread {
     private Socket connection;
@@ -24,6 +27,15 @@ public class RequestHandler extends Thread {
             }
 
             String url = HttpRequestUtils.getUrl(line);
+
+            if ("/user/create".equals(url)) {
+                String queryString = HttpRequestUtils.getQueryString(line);
+                Map<String, String> params = HttpRequestUtils.parseQueryString(queryString);
+
+                User user = new User(params.get("userId"), params.get("password"), params.get("name"), params.get("email"));
+                DataBase.addUser(user);
+                return;
+            }
 
             DataOutputStream dos = new DataOutputStream(out);
             byte[] body = Files.readAllBytes(new File("./my-framework/webapp", url).toPath());
