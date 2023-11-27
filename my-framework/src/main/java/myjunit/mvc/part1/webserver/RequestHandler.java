@@ -51,9 +51,24 @@ public class RequestHandler extends Thread {
 
                 DataOutputStream dos = new DataOutputStream(out);
                 response302Header(dos, "http://localhost:8080/index.html");
-                responseBody(dos, new byte[]{});
 
                 return;
+            } else if ("/user/login".equals(url)) {
+                int contentLength = Integer.parseInt(headers.get("Content-Length"));
+                String body = IOUtils.readData(br, contentLength);
+                Map<String, String> params = HttpRequestUtils.parseQueryString(body);
+
+                User user = DataBase.findUserById(params.get("userId"));
+                if (user != null) {
+                    if (params.get("password").equals(user.getPassword())) {
+                        DataOutputStream dos = new DataOutputStream(out);
+                        response302LoginSuccessHeader(dos, "http://localhost:8080/index.html");
+                    } else {
+                        url = "/user/login_failed.html";
+                    }
+                } else {
+                    url = "/user/login_failed.html";
+                }
             }
 
             DataOutputStream dos = new DataOutputStream(out);
@@ -79,6 +94,17 @@ public class RequestHandler extends Thread {
     private void response302Header(DataOutputStream dos, String redirectUrl) {
         try {
             dos.writeBytes("HTTP/1.1 302 Found \r\n");
+            dos.writeBytes("Location: " + redirectUrl + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+
+        }
+    }
+
+    private void response302LoginSuccessHeader(DataOutputStream dos, String redirectUrl) {
+        try {
+            dos.writeBytes("HTTP/1.1 302 Found \r\n");
+            dos.writeBytes("Cookie: logined=true \r\n");
             dos.writeBytes("Location: " + redirectUrl + "\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
