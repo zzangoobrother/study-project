@@ -8,6 +8,7 @@ import myjunit.mvc.part1.util.IOUtils;
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
+import java.util.HashMap;
 import java.util.Map;
 
 public class RequestHandler extends Thread {
@@ -27,15 +28,21 @@ public class RequestHandler extends Thread {
                 return;
             }
 
-            int contentLength = 0;
             String url = HttpRequestUtils.getUrl(line);
-            if ("/user/create".equals(url)) {
-                while (!(line = br.readLine()).equals("")) {
-                    if (line.startsWith("Content-Length")) {
-                        contentLength = Integer.parseInt(line.split(":")[1].trim());
-                    }
+
+            Map<String, String> headers = new HashMap<>();
+            while (!"".equals(line)) {
+                line = br.readLine();
+                String[] headerTokens = line.split(": ");
+                if (headerTokens.length != 2) {
+                    break;
                 }
 
+                headers.put(headerTokens[0], headerTokens[1]);
+            }
+
+            if ("/user/create".equals(url)) {
+                int contentLength = Integer.parseInt(headers.get("Content-Length"));
                 String body = IOUtils.readData(br, contentLength);
                 Map<String, String> params = HttpRequestUtils.parseQueryString(body);
 
