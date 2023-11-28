@@ -83,6 +83,11 @@ public class RequestHandler extends Thread {
                 } else {
                     response302Header(dos, "http://localhost:8080/user/login.html");
                 }
+            } else if (url.endsWith(".css")) {
+                DataOutputStream dos = new DataOutputStream(out);
+                responseCss(dos, url);
+
+                return;
             }
 
             DataOutputStream dos = new DataOutputStream(out);
@@ -145,6 +150,23 @@ public class RequestHandler extends Thread {
             dos.writeBytes("HTTP/1.1 302 Found \r\n");
             dos.writeBytes("Set-Cookie: " + cookie + "\r\n");
             dos.writeBytes("Location: " + redirectUrl + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+
+        }
+    }
+
+    private void responseCss(DataOutputStream dos, String url) throws IOException {
+        byte[] body = Files.readAllBytes(new File("./my-framework/webapp", url).toPath());
+        response200CssHeader(dos, body.length);
+        responseBody(dos, body);
+    }
+
+    private void response200CssHeader(DataOutputStream dos, int lengthOfBodyContent) {
+        try {
+            dos.writeBytes("HTTP/1.1 200 OK \r\n");
+            dos.writeBytes("Content-Type: text/css;charset=utf-8\r\n");
+            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
 
