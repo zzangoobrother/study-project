@@ -77,28 +77,7 @@ public class RequestHandler extends Thread {
                 DataOutputStream dos = new DataOutputStream(out);
                 if (Boolean.parseBoolean(cookieParams.get("logined"))) {
                     Collection<User> users = DataBase.findAll();
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("<table border='1'>");
-                    for (User user : users) {
-                        sb.append("<tr>");
-
-                        sb.append("<td>");
-                        sb.append(user.getUserId());
-                        sb.append("</td>");
-
-                        sb.append("<td>");
-                        sb.append(user.getName());
-                        sb.append("</td>");
-
-                        sb.append("<td>");
-                        sb.append(user.getEmail());
-                        sb.append("</td>");
-
-                        sb.append("</tr>");
-                    }
-                    sb.append("</table>");
-
-                    byte[] body = sb.toString().getBytes();
+                    byte[] body = getBody(users);
                     response200Header(dos, body.length);
                     responseBody(dos, body);
                 } else {
@@ -113,6 +92,31 @@ public class RequestHandler extends Thread {
         } catch (IOException e) {
 
         }
+    }
+
+    private static byte[] getBody(Collection<User> users) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<table border='1'>");
+        for (User user : users) {
+            sb.append("<tr>");
+
+            sb.append("<td>");
+            sb.append(user.getUserId());
+            sb.append("</td>");
+
+            sb.append("<td>");
+            sb.append(user.getName());
+            sb.append("</td>");
+
+            sb.append("<td>");
+            sb.append(user.getEmail());
+            sb.append("</td>");
+
+            sb.append("</tr>");
+        }
+        sb.append("</table>");
+
+        return sb.toString().getBytes();
     }
 
     private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
