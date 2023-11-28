@@ -8,6 +8,7 @@ import myjunit.mvc.part1.util.IOUtils;
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -60,14 +61,48 @@ public class RequestHandler extends Thread {
 
                 User user = DataBase.findUserById(params.get("userId"));
                 if (user != null) {
-                    if (params.get("password").equals(user.getPassword())) {
+                    if (user.getPassword().equals(params.get("password"))) {
                         DataOutputStream dos = new DataOutputStream(out);
-                        response302LoginSuccessHeader(dos, "http://localhost:8080/index.html");
+                        response302LoginSuccessHeader(dos, "http://localhost:8080/index.html", "logined=true");
                     } else {
                         url = "/user/login_failed.html";
                     }
                 } else {
                     url = "/user/login_failed.html";
+                }
+            } else if ("/user/list".equals(url)) {
+                String cookie = headers.get("Cookie");
+                Map<String, String> cookieParams = HttpRequestUtils.parseCookies(cookie);
+
+                DataOutputStream dos = new DataOutputStream(out);
+                if (Boolean.parseBoolean(cookieParams.get("logined"))) {
+                    Collection<User> users = DataBase.findAll();
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("<table border='1'>");
+                    for (User user : users) {
+                        sb.append("<tr>");
+
+                        sb.append("<td>");
+                        sb.append(user.getUserId());
+                        sb.append("</td>");
+
+                        sb.append("<td>");
+                        sb.append(user.getName());
+                        sb.append("</td>");
+
+                        sb.append("<td>");
+                        sb.append(user.getEmail());
+                        sb.append("</td>");
+
+                        sb.append("</tr>");
+                    }
+                    sb.append("</table>");
+
+                    byte[] body = sb.toString().getBytes();
+                    response200Header(dos, body.length);
+                    responseBody(dos, body);
+                } else {
+                    response302Header(dos, "http://localhost:8080/user/login.html");
                 }
             }
 
@@ -101,10 +136,10 @@ public class RequestHandler extends Thread {
         }
     }
 
-    private void response302LoginSuccessHeader(DataOutputStream dos, String redirectUrl) {
+    private void response302LoginSuccessHeader(DataOutputStream dos, String redirectUrl, String cookie) {
         try {
             dos.writeBytes("HTTP/1.1 302 Found \r\n");
-            dos.writeBytes("Cookie: logined=true \r\n");
+            dos.writeBytes("Set-Cookie: " + cookie + "\r\n");
             dos.writeBytes("Location: " + redirectUrl + "\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
