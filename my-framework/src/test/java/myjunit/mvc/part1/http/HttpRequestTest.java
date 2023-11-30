@@ -20,7 +20,7 @@ public class HttpRequestTest extends TestCase {
 
     @Test
     public void request_get() throws FileNotFoundException {
-        InputStream in = new FileInputStream(new File(testDirectory + "Http_GET.txt"));
+        InputStream in = new FileInputStream(testDirectory + "Http_GET.txt");
         HttpRequest request = new HttpRequest(in);
 
         Assert.assertEquals("GET", request.getMethod());
