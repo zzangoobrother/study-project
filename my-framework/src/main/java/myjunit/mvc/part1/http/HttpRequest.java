@@ -30,7 +30,11 @@ public class HttpRequest {
             String[] url = tokens[1].split("\\?");
             path = url[0];
 
-            bodys = HttpRequestUtils.parseQueryString(url[1]);
+            if (url.length == 2) {
+                if (url[1] != null || !url[1].isEmpty()) {
+                    bodys.putAll(HttpRequestUtils.parseQueryString(url[1]));
+                }
+            }
 
             while (!"".equals(line)) {
                 line = br.readLine();

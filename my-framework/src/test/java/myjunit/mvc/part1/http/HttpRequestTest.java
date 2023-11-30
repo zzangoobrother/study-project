@@ -29,6 +29,17 @@ public class HttpRequestTest extends TestCase {
         Assert.assertEquals("choi", request.getParameter("userId"));
     }
 
+    @Test
+    public void request_post() throws FileNotFoundException {
+        InputStream in = new FileInputStream(testDirectory + "Http_POST.txt");
+        HttpRequest request = new HttpRequest(in);
+
+        Assert.assertEquals("POST", request.getMethod());
+        Assert.assertEquals("/user/create", request.getPath());
+        Assert.assertEquals("keep-alive", request.getHeader("Connection"));
+        Assert.assertEquals("choi", request.getParameter("userId"));
+    }
+
     public static void main(String[] args) {
         TestSuite testSuite = new TestSuite(HttpRequestTest.class);
 
