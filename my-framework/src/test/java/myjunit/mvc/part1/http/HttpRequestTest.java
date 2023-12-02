@@ -6,7 +6,6 @@ import myjunit.test.TestResult;
 import myjunit.test.TestSuite;
 import myjunit.test.annotation.Test;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
