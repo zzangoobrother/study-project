@@ -1,15 +1,14 @@
 package myjunit.mvc.part1.webserver;
 
 import myjunit.mvc.part1.db.DataBase;
+import myjunit.mvc.part1.http.HttpRequest;
 import myjunit.mvc.part1.model.User;
 import myjunit.mvc.part1.util.HttpRequestUtils;
-import myjunit.mvc.part1.util.IOUtils;
 
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
 
 public class RequestHandler extends Thread {
@@ -22,32 +21,12 @@ public class RequestHandler extends Thread {
     public void run() {
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
 
-            BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"));
+            HttpRequest request = new HttpRequest(in);
 
-            String line = br.readLine();
-            if (line == null) {
-                return;
-            }
-
-            String url = HttpRequestUtils.getUrl(line);
-
-            Map<String, String> headers = new HashMap<>();
-            while (!"".equals(line)) {
-                line = br.readLine();
-                String[] headerTokens = line.split(": ");
-                if (headerTokens.length != 2) {
-                    break;
-                }
-
-                headers.put(headerTokens[0], headerTokens[1]);
-            }
+            String url = request.getPath();
 
             if ("/user/create".equals(url)) {
-                int contentLength = Integer.parseInt(headers.get("Content-Length"));
-                String body = IOUtils.readData(br, contentLength);
-                Map<String, String> params = HttpRequestUtils.parseQueryString(body);
-
-                User user = new User(params.get("userId"), params.get("password"), params.get("name"), params.get("email"));
+                User user = new User(request.getParameter("userId"), request.getParameter("password"), request.getParameter("name"), request.getParameter("email"));
                 DataBase.addUser(user);
 
                 DataOutputStream dos = new DataOutputStream(out);
@@ -55,13 +34,9 @@ public class RequestHandler extends Thread {
 
                 return;
             } else if ("/user/login".equals(url)) {
-                int contentLength = Integer.parseInt(headers.get("Content-Length"));
-                String body = IOUtils.readData(br, contentLength);
-                Map<String, String> params = HttpRequestUtils.parseQueryString(body);
-
-                User user = DataBase.findUserById(params.get("userId"));
+                User user = DataBase.findUserById(request.getParameter("userId"));
                 if (user != null) {
-                    if (user.getPassword().equals(params.get("password"))) {
+                    if (user.getPassword().equals(request.getParameter("password"))) {
                         DataOutputStream dos = new DataOutputStream(out);
                         response302LoginSuccessHeader(dos, "http://localhost:8080/index.html", "logined=true");
                     } else {
@@ -71,7 +46,7 @@ public class RequestHandler extends Thread {
                     url = "/user/login_failed.html";
                 }
             } else if ("/user/list".equals(url)) {
-                String cookie = headers.get("Cookie");
+                String cookie = request.getHeader("Cookie");
                 Map<String, String> cookieParams = HttpRequestUtils.parseCookies(cookie);
 
                 DataOutputStream dos = new DataOutputStream(out);
