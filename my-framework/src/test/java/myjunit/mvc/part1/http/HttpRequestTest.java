@@ -22,7 +22,7 @@ public class HttpRequestTest extends TestCase {
         InputStream in = new FileInputStream(testDirectory + "Http_GET.txt");
         HttpRequest request = new HttpRequest(in);
 
-        Assert.assertEquals("GET", request.getMethod());
+        Assert.assertEquals("GET", request.getMethod().name());
         Assert.assertEquals("/user/create", request.getPath());
         Assert.assertEquals("keep-alive", request.getHeader("Connection"));
         Assert.assertEquals("choi", request.getParameter("userId"));
@@ -33,7 +33,7 @@ public class HttpRequestTest extends TestCase {
         InputStream in = new FileInputStream(testDirectory + "Http_POST.txt");
         HttpRequest request = new HttpRequest(in);
 
-        Assert.assertEquals("POST", request.getMethod());
+        Assert.assertEquals("POST", request.getMethod().name());
         Assert.assertEquals("/user/create", request.getPath());
         Assert.assertEquals("keep-alive", request.getHeader("Connection"));
         Assert.assertEquals("choi", request.getParameter("userId"));

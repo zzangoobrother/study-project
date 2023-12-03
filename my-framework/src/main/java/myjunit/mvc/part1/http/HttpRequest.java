@@ -1,20 +1,17 @@
 package myjunit.mvc.part1.http;
 
-import myjunit.mvc.part1.util.HttpRequestUtils;
 import myjunit.mvc.part1.util.IOUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.HashMap;
-import java.util.Map;
 
 public class HttpRequest {
-    private Map<String, String> headers = new HashMap<>();
-    private Map<String, String> bodys = new HashMap<>();
+    private HttpHeaders headers;
+    private RequestParams params = new RequestParams();
 
-    private String method;
+    private HttpMethod method;
     private String path;
 
     public HttpRequest(InputStream in) {
@@ -23,29 +20,21 @@ public class HttpRequest {
             String line = createLine(br);
 
             String[] tokens = line.split(" ");
-            method = tokens[0];
+            method = HttpMethod.valueOf(tokens[0]);
 
             String[] url = tokens[1].split("\\?");
             path = url[0];
 
             if (url.length == 2) {
                 if (url[1] != null || !url[1].isEmpty()) {
-                    bodys.putAll(HttpRequestUtils.parseQueryString(url[1]));
+                    params.addQueryString(url[1]);
                 }
             }
 
-            while (!"".equals(line)) {
-                line = br.readLine();
-                String[] headerTokens = line.split(": ");
-                if (headerTokens.length != 2) {
-                    break;
-                }
+            headers = processHeaders(br);
 
-                headers.put(headerTokens[0], headerTokens[1]);
-            }
-
-            String body = IOUtils.readData(br, Integer.parseInt(headers.getOrDefault("Content-Length", "0")));
-            this.bodys.putAll(HttpRequestUtils.parseQueryString(body));
+            String body = IOUtils.readData(br, headers.getContentLength());
+            params.addBody(body);
         } catch (IOException e) {
 
         }
@@ -60,7 +49,17 @@ public class HttpRequest {
         return line;
     }
 
-    public String getMethod() {
+    private HttpHeaders processHeaders(BufferedReader br) throws IOException {
+        HttpHeaders httpheaders = new HttpHeaders();
+        String line;
+        while (!"".equals(line = br.readLine())) {
+            httpheaders.add(line);
+        }
+
+        return httpheaders;
+    }
+
+    public HttpMethod getMethod() {
         return this.method;
     }
 
@@ -69,10 +68,10 @@ public class HttpRequest {
     }
 
     public String getHeader(String name) {
-        return headers.get(name);
+        return headers.getHeader(name);
     }
 
     public String getParameter(String name) {
-        return bodys.get(name);
+        return params.getParam(name);
     }
 }
