@@ -24,7 +24,7 @@ public class HttpResponse {
 
     public void forward(String url) {
         try {
-            byte[] body = Files.readAllBytes(new File("./my-framework/webapp", url).toPath());
+            byte[] body = Files.readAllBytes(new File("./my-framework/webapp/part1", url).toPath());
 
             if (url.endsWith(".css")) {
                 headers.put("Content-Type", "text/css");

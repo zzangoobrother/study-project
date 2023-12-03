@@ -4,6 +4,32 @@ dependencies {
 
     // https://mvnrepository.com/artifact/com.google.guava/guava
     implementation group: 'com.google.guava', name: 'guava', version: '32.1.2-jre'
+
+    // https://mvnrepository.com/artifact/javax.servlet/javax.servlet-api
+    compileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '4.0.1'
+
+    // https://mvnrepository.com/artifact/javax.servlet/jstl
+    implementation group: 'javax.servlet', name: 'jstl', version: '1.2'
+
+    runtimeOnly 'com.h2database:h2'
+
+    // https://mvnrepository.com/artifact/org.springframework/spring-jdbc
+    implementation group: 'org.springframework', name: 'spring-jdbc', version: '6.0.11'
+
+    // https://mvnrepository.com/artifact/org.apache.tomcat.embed/tomcat-embed-core
+    implementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10.1.15'
+
+    // https://mvnrepository.com/artifact/org.apache.tomcat.embed/tomcat-embed-logging-juli
+    implementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-logging-juli', version: '8.5.2'
+
+    // https://mvnrepository.com/artifact/org.apache.tomcat.embed/tomcat-embed-jasper
+    implementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-jasper', version: '10.1.15'
+
+    // https://mvnrepository.com/artifact/org.apache.commons/commons-lang3
+    implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.12.0'
+
+    // https://mvnrepository.com/artifact/org.apache.commons/commons-dbcp2
+    implementation group: 'org.apache.commons', name: 'commons-dbcp2', version: '2.10.0'
 }
 
 tasks.register("prepareKotlinBuildScriptModel") {}
