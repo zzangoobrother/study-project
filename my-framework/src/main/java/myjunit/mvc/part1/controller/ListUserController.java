@@ -13,9 +13,8 @@ public class ListUserController extends AbstractController {
     @Override
     void doGet(HttpRequest request, HttpResponse response) {
         String cookie = request.getHeader("Cookie");
-        Map<String, String> cookieParams = HttpRequestUtils.parseCookies(cookie);
 
-        if (Boolean.parseBoolean(cookieParams.get("logined"))) {
+        if (isLogin(cookie)) {
             Collection<User> users = DataBase.findAll();
             response.forwardBody(getBody(users));
         } else {
@@ -46,5 +45,15 @@ public class ListUserController extends AbstractController {
         sb.append("</table>");
 
         return sb.toString();
+    }
+
+    boolean isLogin(String cookie) {
+        Map<String, String> cookies = HttpRequestUtils.parseCookies(cookie);
+        String value = cookies.get("logined");
+        if (value == null) {
+            return false;
+        }
+
+        return Boolean.parseBoolean(value);
     }
 }
