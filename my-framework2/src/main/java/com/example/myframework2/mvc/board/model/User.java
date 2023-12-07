@@ -13,6 +13,14 @@ public class User {
         this.email = email;
     }
 
+    public boolean matchPassword(String password) {
+        if (password == null) {
+            return false;
+        }
+
+        return this.password.equals(password);
+    }
+
     public void update(User user) {
         this.password = user.getPassword();
         this.name = user.getName();
