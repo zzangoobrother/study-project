@@ -1,5 +1,7 @@
 package com.example.myframework2.mvc.board.web;
 
+import com.example.myframework2.mvc.board.model.User;
+import com.example.myframework2.mvc.board.util.UserSessionUtils;
 import com.example.myframework2.mvc.core.db.DataBase;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletException;
@@ -16,9 +18,7 @@ public class ListUserServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        HttpSession session = req.getSession();
-        Object value = session.getAttribute("user");
-        if (value == null) {
+        if (!UserSessionUtils.isLogined(req.getSession())) {
             resp.sendRedirect("/users/loginForm");
             return;
         }
