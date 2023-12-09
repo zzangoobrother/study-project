@@ -1,21 +1,17 @@
 package myjunit.mvc.part1.controller;
 
 import myjunit.mvc.part1.db.DataBase;
-import myjunit.mvc.part1.http.HttpCookie;
 import myjunit.mvc.part1.http.HttpRequest;
 import myjunit.mvc.part1.http.HttpResponse;
+import myjunit.mvc.part1.http.HttpSession;
 import myjunit.mvc.part1.model.User;
-import myjunit.mvc.part1.util.HttpRequestUtils;
 
 import java.util.Collection;
-import java.util.Map;
 
 public class ListUserController extends AbstractController {
     @Override
     void doGet(HttpRequest request, HttpResponse response) {
-        String cookie = request.getHeader("Cookie");
-
-        if (isLogin(cookie)) {
+        if (isLogin(request.getSession())) {
             Collection<User> users = DataBase.findAll();
             response.forwardBody(getBody(users));
         } else {
@@ -48,13 +44,12 @@ public class ListUserController extends AbstractController {
         return sb.toString();
     }
 
-    boolean isLogin(String cookie) {
-        HttpCookie httpCookie = new HttpCookie(cookie);
-        String value = httpCookie.getCookie("logined");
+    boolean isLogin(HttpSession session) {
+        Object value = session.getAttribute("user");
         if (value == null) {
             return false;
         }
 
-        return Boolean.parseBoolean(value);
+        return true;
     }
 }
