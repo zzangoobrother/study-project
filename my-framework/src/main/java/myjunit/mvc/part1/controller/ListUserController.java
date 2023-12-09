@@ -1,6 +1,7 @@
 package myjunit.mvc.part1.controller;
 
 import myjunit.mvc.part1.db.DataBase;
+import myjunit.mvc.part1.http.HttpCookie;
 import myjunit.mvc.part1.http.HttpRequest;
 import myjunit.mvc.part1.http.HttpResponse;
 import myjunit.mvc.part1.model.User;
@@ -48,8 +49,8 @@ public class ListUserController extends AbstractController {
     }
 
     boolean isLogin(String cookie) {
-        Map<String, String> cookies = HttpRequestUtils.parseCookies(cookie);
-        String value = cookies.get("logined");
+        HttpCookie httpCookie = new HttpCookie(cookie);
+        String value = httpCookie.getCookie("logined");
         if (value == null) {
             return false;
         }
