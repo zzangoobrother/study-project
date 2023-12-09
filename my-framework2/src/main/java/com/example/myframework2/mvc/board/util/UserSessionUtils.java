@@ -21,4 +21,16 @@ public class UserSessionUtils {
         }
         return true;
     }
+
+    public static boolean isSameUser(HttpSession session, User target) {
+        if (!isLogined(session)) {
+            return false;
+        }
+
+        if (target == null) {
+            return false;
+        }
+
+        return target.equals(getUserSession(session));
+    }
 }

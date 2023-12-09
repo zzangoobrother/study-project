@@ -1,6 +1,7 @@
 package com.example.myframework2.mvc.board.web;
 
 import com.example.myframework2.mvc.board.model.User;
+import com.example.myframework2.mvc.board.util.UserSessionUtils;
 import com.example.myframework2.mvc.core.db.DataBase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,24 +22,14 @@ public class UpdateUserServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        HttpSession session = req.getSession();
-        Object value = session.getAttribute("user");
-        if (value == null) {
-            RequestDispatcher rd = req.getRequestDispatcher("/user/login.jsp");
-            rd.forward(req, resp);
-            return;
-        }
-
-        User sessionUser = (User) value;
-
         String userId = req.getParameter("userId");
-
         User user = DataBase.findUserById(userId);
-        if (user == null) {
+
+        if (!UserSessionUtils.isSameUser(req.getSession(), user)) {
             throw new IllegalStateException();
         }
 
-        if (!sessionUser.equals(user)) {
+        if (user == null) {
             throw new IllegalStateException();
         }
 
