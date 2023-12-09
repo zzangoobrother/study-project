@@ -1,5 +1,7 @@
 package com.example.myframework2.mvc.board.model;
 
+import java.util.Objects;
+
 public class User {
     private String userId;
     private String password;
@@ -41,6 +43,19 @@ public class User {
 
     public String getEmail() {
         return email;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        User user = (User) o;
+        return Objects.equals(userId, user.userId) && Objects.equals(name, user.name) && Objects.equals(email, user.email);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(userId, name, email);
     }
 
     @Override
