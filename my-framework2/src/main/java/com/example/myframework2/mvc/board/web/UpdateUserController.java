@@ -1,18 +1,26 @@
 package com.example.myframework2.mvc.board.web;
 
+import com.example.myframework2.mvc.board.dao.UserDao;
 import com.example.myframework2.mvc.board.model.User;
 import com.example.myframework2.mvc.board.util.UserSessionUtils;
-import com.example.myframework2.mvc.core.db.DataBase;
 import com.example.myframework2.mvc.core.mvc.Controller;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.sql.SQLException;
 
 public class UpdateUserController implements Controller {
     @Override
     public String execute(HttpServletRequest request, HttpServletResponse httpServletrespon) {
         String userId = request.getParameter("userId");
-        User user = DataBase.findUserById(userId);
+
+        UserDao userDao = new UserDao();
+        User user;
+        try {
+            user = userDao.findByUserId(userId);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
 
         if (!UserSessionUtils.isSameUser(request.getSession(), user)) {
             throw new IllegalStateException();

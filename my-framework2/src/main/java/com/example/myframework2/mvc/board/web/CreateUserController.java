@@ -1,18 +1,25 @@
 package com.example.myframework2.mvc.board.web;
 
+import com.example.myframework2.mvc.board.dao.UserDao;
 import com.example.myframework2.mvc.board.model.User;
-import com.example.myframework2.mvc.core.db.DataBase;
 import com.example.myframework2.mvc.core.mvc.Controller;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.sql.SQLException;
 
 public class CreateUserController implements Controller {
 
     @Override
     public String execute(HttpServletRequest request, HttpServletResponse httpServletrespon) {
         User user = new User(request.getParameter("userId"), request.getParameter("password"), request.getParameter("name"), request.getParameter("email"));
-        DataBase.addUser(user);
+
+        UserDao userDao = new UserDao();
+        try {
+            userDao.insert(user);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
 
         return "redirect:/user/list";
     }
