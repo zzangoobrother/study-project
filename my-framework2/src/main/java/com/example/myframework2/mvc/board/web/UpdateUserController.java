@@ -18,20 +18,20 @@ public class UpdateUserController implements Controller {
         User user;
         try {
             user = userDao.findByUserId(userId);
+            if (!UserSessionUtils.isSameUser(request.getSession(), user)) {
+                throw new IllegalStateException();
+            }
+
+            if (user == null) {
+                throw new IllegalStateException();
+            }
+
+            User updateUser = new User(request.getParameter("userId"), request.getParameter("password"), request.getParameter("name"), request.getParameter("email"));
+            user.update(updateUser);
+            userDao.update(user);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
-
-        if (!UserSessionUtils.isSameUser(request.getSession(), user)) {
-            throw new IllegalStateException();
-        }
-
-        if (user == null) {
-            throw new IllegalStateException();
-        }
-
-        User updateUser = new User(request.getParameter("userId"), request.getParameter("password"), request.getParameter("name"), request.getParameter("email"));
-        user.update(updateUser);
 
         return "redirect:/";
     }
