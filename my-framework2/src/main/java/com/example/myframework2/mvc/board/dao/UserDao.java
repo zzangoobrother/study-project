@@ -112,6 +112,8 @@ public class UserDao {
             pstmt.setString(2, user.getName());
             pstmt.setString(3, user.getEmail());
             pstmt.setString(4, user.getUserId());
+
+            pstmt.executeUpdate();
         } finally {
             if (rs != null) {
                 rs.close();
