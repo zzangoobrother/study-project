@@ -1,4 +1,4 @@
-package com.example.myframework2.mvc.board.web;
+package com.example.myframework2.mvc.core.mvc;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;

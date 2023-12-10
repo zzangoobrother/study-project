@@ -3,6 +3,7 @@ package com.example.myframework2.mvc.board.web;
 import com.example.myframework2.mvc.board.model.User;
 import com.example.myframework2.mvc.board.util.UserSessionUtils;
 import com.example.myframework2.mvc.core.db.DataBase;
+import com.example.myframework2.mvc.core.mvc.Controller;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
