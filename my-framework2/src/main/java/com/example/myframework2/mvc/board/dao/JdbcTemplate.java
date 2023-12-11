@@ -8,20 +8,14 @@ import java.sql.SQLException;
 
 public abstract class JdbcTemplate {
 
-    public void update(String sql) throws SQLException {
-        Connection con = null;
-        PreparedStatement pstmt = null;
-        try {
-            con = ConnectionManager.getConnection();
-            pstmt = con.prepareStatement(sql);
-            pstmt = setValues(pstmt);
-        } finally {
-            if (pstmt != null) {
-                pstmt.close();
-            }
-            if (con != null) {
-                con.close();
-            }
+    public void update(String sql) throws RuntimeException {
+        try (Connection con = ConnectionManager.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
+            setValues(pstmt);
+
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException();
         }
     }
 
