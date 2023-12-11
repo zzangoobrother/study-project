@@ -1,6 +1,5 @@
 package com.example.myframework2.mvc.board.dao;
 
-import com.example.myframework2.mvc.board.model.User;
 import com.example.myframework2.mvc.core.jdbc.ConnectionManager;
 
 import java.sql.Connection;
@@ -9,14 +8,13 @@ import java.sql.SQLException;
 
 public abstract class JdbcTemplate {
 
-    public void update(User user) throws SQLException {
+    public void update(String sql) throws SQLException {
         Connection con = null;
         PreparedStatement pstmt = null;
         try {
             con = ConnectionManager.getConnection();
-            String sql = createQuery();
             pstmt = con.prepareStatement(sql);
-            pstmt = setValues(user, pstmt);
+            pstmt = setValues(pstmt);
         } finally {
             if (pstmt != null) {
                 pstmt.close();
@@ -27,6 +25,5 @@ public abstract class JdbcTemplate {
         }
     }
 
-    abstract PreparedStatement setValues(User user, PreparedStatement pstmt) throws SQLException;
-    abstract String createQuery();
+    abstract PreparedStatement setValues(PreparedStatement pstmt) throws SQLException;
 }
