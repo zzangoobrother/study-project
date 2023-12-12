@@ -10,70 +10,72 @@ import java.util.stream.Collectors;
 
 public class UserDao {
     public void insert(User user) throws SQLException {
-        JdbcTemplate jdbcTemplate = new JdbcTemplate() {
+        JdbcTemplate jdbcTemplate = new JdbcTemplate();
+        PreparedStatementSetter pss = new PreparedStatementSetter() {
             @Override
-            PreparedStatement setValues(PreparedStatement pstmt) throws SQLException {
+            public void setValues(PreparedStatement pstmt) throws SQLException {
                 pstmt.setString(1, user.getUserId());
                 pstmt.setString(2, user.getPassword());
                 pstmt.setString(3, user.getName());
                 pstmt.setString(4, user.getEmail());
-
-                return pstmt;
             }
         };
 
-        jdbcTemplate.update("INSERT INTO USERS VALUES (?, ?, ?, ?)");
+        jdbcTemplate.update("INSERT INTO USERS VALUES (?, ?, ?, ?)", pss);
     }
 
     public void update(User user) throws SQLException {
-        JdbcTemplate jdbcTemplate = new JdbcTemplate() {
+        JdbcTemplate jdbcTemplate = new JdbcTemplate();
+        PreparedStatementSetter pss = new PreparedStatementSetter() {
             @Override
-            PreparedStatement setValues(PreparedStatement pstmt) throws SQLException {
+            public void setValues(PreparedStatement pstmt) throws SQLException {
                 pstmt.setString(1, user.getPassword());
                 pstmt.setString(2, user.getName());
                 pstmt.setString(3, user.getEmail());
                 pstmt.setString(4, user.getUserId());
-
-                return pstmt;
             }
         };
-        jdbcTemplate.update("UPDATE USERS set password=?, name=?, email=? where userid=?");
+
+        jdbcTemplate.update("UPDATE USERS set password=?, name=?, email=? where userid=?", pss);
     }
 
     public User findByUserId(String userId) throws SQLException {
-        SelectJdbcTemplate selectJdbcTemplate = new SelectJdbcTemplate() {
+        JdbcTemplate jdbcTemplate = new JdbcTemplate();
+        PreparedStatementSetter pss = new PreparedStatementSetter() {
             @Override
-            PreparedStatement setValues(PreparedStatement pstmt) throws SQLException {
+            public void setValues(PreparedStatement pstmt) throws SQLException {
                 pstmt.setString(1, userId);
-
-                return pstmt;
             }
+        };
 
+        RowMapper rm = new RowMapper() {
             @Override
-            Object mapRow(ResultSet rs) throws SQLException {
+            public Object mapRow(ResultSet rs) throws SQLException {
                 return new User(rs.getString("userId"), rs.getString("password"), rs.getString("name"),
                         rs.getString("email"));
             }
         };
 
-        return (User) selectJdbcTemplate.queryForObject("SELECT userId, password, name, email FROM USERS WHERE userid=?");
+        return (User) jdbcTemplate.queryForObject("SELECT userId, password, name, email FROM USERS WHERE userid=?", pss, rm);
     }
 
     public List<User> findAll() throws SQLException {
-        SelectJdbcTemplate selectJdbcTemplate = new SelectJdbcTemplate() {
+        JdbcTemplate jdbcTemplate = new JdbcTemplate();
+        PreparedStatementSetter pss = new PreparedStatementSetter() {
             @Override
-            PreparedStatement setValues(PreparedStatement pstmt) throws SQLException {
-                return null;
-            }
+            public void setValues(PreparedStatement pstmt) throws SQLException {
 
+            }
+        };
+        RowMapper rm = new RowMapper() {
             @Override
-            Object mapRow(ResultSet rs) throws SQLException {
+            public Object mapRow(ResultSet rs) throws SQLException {
                 return new User(rs.getString("userId"), rs.getString("password"), rs.getString("name"),
                         rs.getString("email"));
             }
         };
 
-        List<Object> result = selectJdbcTemplate.query("SELECT userId, password, name, email FROM USERS");
+        List<Object> result = jdbcTemplate.query("SELECT userId, password, name, email FROM USERS", pss, rm);
 
         return result.stream()
                 .map(o -> (User) o)
