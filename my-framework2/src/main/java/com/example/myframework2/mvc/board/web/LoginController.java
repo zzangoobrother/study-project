@@ -7,7 +7,6 @@ import com.example.myframework2.mvc.core.mvc.Controller;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-import java.sql.SQLException;
 
 public class LoginController implements Controller {
     @Override
@@ -15,12 +14,7 @@ public class LoginController implements Controller {
         String userId = request.getParameter("userId");
 
         UserDao userDao = new UserDao();
-        User findUser;
-        try {
-            findUser = userDao.findByUserId(userId);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        User findUser = userDao.findByUserId(userId);
 
         if (findUser == null) {
             return "/user/login.jsp";

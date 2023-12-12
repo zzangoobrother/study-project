@@ -6,7 +6,6 @@ import com.example.myframework2.mvc.core.mvc.Controller;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.sql.SQLException;
 
 public class ListUserController implements Controller {
     @Override
@@ -16,11 +15,7 @@ public class ListUserController implements Controller {
         }
 
         UserDao userDao = new UserDao();
-        try {
-            request.setAttribute("users", userDao.findAll());
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        request.setAttribute("users", userDao.findAll());
         return "/user/list.jsp";
     }
 }

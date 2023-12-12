@@ -7,20 +7,14 @@ import com.example.myframework2.mvc.core.mvc.Controller;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.sql.SQLException;
 
 public class UpdateUserFormController implements Controller {
     @Override
     public String execute(HttpServletRequest request, HttpServletResponse httpServletrespon) {
         String userId = request.getParameter("userId");
 
-        User user;
-        try {
-            UserDao userDao = new UserDao();
-            user = userDao.findByUserId(userId);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        UserDao userDao = new UserDao();
+        User user = userDao.findByUserId(userId);
 
         if (!UserSessionUtils.isSameUser(request.getSession(), user)) {
             throw new IllegalStateException();

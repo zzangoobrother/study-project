@@ -15,11 +15,14 @@ public class JdbcTemplate {
         try (Connection con = ConnectionManager.getConnection();
              PreparedStatement pstmt = con.prepareStatement(sql)) {
             pss.setValues(pstmt);
-
             pstmt.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException();
         }
+    }
+
+    public void update(String sql, Object... parameters) {
+        update(sql, createPreparedStatementSetter(parameters));
     }
 
     public <T> List<T> query(String sql, PreparedStatementSetter pss, RowMapper<T> rm) {
@@ -50,6 +53,10 @@ public class JdbcTemplate {
         }
     }
 
+    public <T> List<T> query(String sql, RowMapper<T> rm, Object... parameters) {
+        return query(sql, createPreparedStatementSetter(parameters), rm);
+    }
+
     public <T> T queryForObject(String sql, PreparedStatementSetter pss, RowMapper<T> rm) {
         List<T> result = query(sql, pss, rm);
         if (result.isEmpty()) {
@@ -57,5 +64,20 @@ public class JdbcTemplate {
         }
 
         return result.get(0);
+    }
+
+    public <T> T queryForObject(String sql, RowMapper<T> rm, Object... parameters) {
+        return queryForObject(sql, createPreparedStatementSetter(parameters), rm);
+    }
+
+    private PreparedStatementSetter createPreparedStatementSetter(Object... parameters) {
+        return new PreparedStatementSetter() {
+            @Override
+            public void setValues(PreparedStatement pstmt) throws SQLException {
+                for (int i = 0; i < parameters.length; i++) {
+                    pstmt.setObject(i + 1, parameters[i]);
+                }
+            }
+        };
     }
 }
