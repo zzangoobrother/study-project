@@ -6,7 +6,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class UserDao {
     public void insert(User user) throws SQLException {
@@ -48,15 +47,15 @@ public class UserDao {
             }
         };
 
-        RowMapper rm = new RowMapper() {
+        RowMapper<User> rm = new RowMapper<User>() {
             @Override
-            public Object mapRow(ResultSet rs) throws SQLException {
+            public User mapRow(ResultSet rs) throws SQLException {
                 return new User(rs.getString("userId"), rs.getString("password"), rs.getString("name"),
                         rs.getString("email"));
             }
         };
 
-        return (User) jdbcTemplate.queryForObject("SELECT userId, password, name, email FROM USERS WHERE userid=?", pss, rm);
+        return jdbcTemplate.queryForObject("SELECT userId, password, name, email FROM USERS WHERE userid=?", pss, rm);
     }
 
     public List<User> findAll() throws SQLException {
@@ -67,18 +66,15 @@ public class UserDao {
 
             }
         };
-        RowMapper rm = new RowMapper() {
+
+        RowMapper<User> rm = new RowMapper<User>() {
             @Override
-            public Object mapRow(ResultSet rs) throws SQLException {
+            public User mapRow(ResultSet rs) throws SQLException {
                 return new User(rs.getString("userId"), rs.getString("password"), rs.getString("name"),
                         rs.getString("email"));
             }
         };
 
-        List<Object> result = jdbcTemplate.query("SELECT userId, password, name, email FROM USERS", pss, rm);
-
-        return result.stream()
-                .map(o -> (User) o)
-                .collect(Collectors.toList());
+        return jdbcTemplate.query("SELECT userId, password, name, email FROM USERS", pss, rm);
     }
 }
