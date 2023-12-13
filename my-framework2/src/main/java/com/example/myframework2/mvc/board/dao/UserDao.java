@@ -3,7 +3,6 @@ package com.example.myframework2.mvc.board.dao;
 import com.example.myframework2.mvc.board.model.User;
 
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.List;
 
 public class UserDao {
@@ -21,30 +20,15 @@ public class UserDao {
 
     public User findByUserId(String userId) {
         JdbcTemplate jdbcTemplate = new JdbcTemplate();
-
-        RowMapper<User> rm = new RowMapper<User>() {
-            @Override
-            public User mapRow(ResultSet rs) throws SQLException {
-                return new User(rs.getString("userId"), rs.getString("password"), rs.getString("name"),
-                        rs.getString("email"));
-            }
-        };
-
         String sql = "SELECT userId, password, name, email FROM USERS WHERE userid=?";
-        return jdbcTemplate.queryForObject(sql, rm, userId);
+        return jdbcTemplate.queryForObject(sql,
+                (ResultSet rs) -> new User(rs.getString("userId"), rs.getString("password"), rs.getString("name"), rs.getString("email")),
+                userId);
     }
 
     public List<User> findAll() {
         JdbcTemplate jdbcTemplate = new JdbcTemplate();
-
-        RowMapper<User> rm = new RowMapper<User>() {
-            @Override
-            public User mapRow(ResultSet rs) throws SQLException {
-                return new User(rs.getString("userId"), rs.getString("password"), rs.getString("name"),
-                        rs.getString("email"));
-            }
-        };
-
-        return jdbcTemplate.query("SELECT userId, password, name, email FROM USERS", rm);
+        String sql = "SELECT userId, password, name, email FROM USERS";
+        return jdbcTemplate.query(sql, (ResultSet rs) -> new User(rs.getString("userId"), rs.getString("password"), rs.getString("name"), rs.getString("email")));
     }
 }
