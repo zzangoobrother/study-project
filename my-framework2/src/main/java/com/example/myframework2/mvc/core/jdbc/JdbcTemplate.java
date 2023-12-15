@@ -1,6 +1,4 @@
-package com.example.myframework2.mvc.board.dao;
-
-import com.example.myframework2.mvc.core.jdbc.ConnectionManager;
+package com.example.myframework2.mvc.core.jdbc;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -23,6 +21,22 @@ public class JdbcTemplate {
 
     public void update(String sql, Object... parameters) {
         update(sql, createPreparedStatementSetter(parameters));
+    }
+
+    public void update(PreparedStatementCreator psc, KeyHolder keyHolder) {
+        try (Connection con = ConnectionManager.getConnection()) {
+            PreparedStatement ps = psc.createPreparedStatement(con);
+            ps.executeUpdate();
+
+            ResultSet rs = ps.getGeneratedKeys();
+            if (rs.next()) {
+                keyHolder.setId(rs.getLong(1));
+            }
+
+            rs.close();
+        } catch (SQLException e) {
+            throw new RuntimeException();
+        }
     }
 
     public <T> List<T> query(String sql, PreparedStatementSetter pss, RowMapper<T> rm) {

@@ -1,6 +1,7 @@
 package com.example.myframework2.mvc.core.mvc;
 
 import com.example.myframework2.mvc.board.web.*;
+import com.example.myframework2.mvc.board.web.user.*;
 
 import java.util.HashMap;
 import java.util.Map;

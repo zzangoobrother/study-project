@@ -1,4 +1,4 @@
-package com.example.myframework2.mvc.board.dao;
+package com.example.myframework2.mvc.core.jdbc;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;

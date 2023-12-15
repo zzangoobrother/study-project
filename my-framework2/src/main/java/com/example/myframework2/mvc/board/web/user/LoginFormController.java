@@ -1,4 +1,4 @@
-package com.example.myframework2.mvc.board.web;
+package com.example.myframework2.mvc.board.web.user;
 
 import com.example.myframework2.mvc.core.mvc.Controller;
 

@@ -1,6 +1,7 @@
 package com.example.myframework2.mvc.board.dao;
 
 import com.example.myframework2.mvc.board.model.User;
+import com.example.myframework2.mvc.core.jdbc.JdbcTemplate;
 
 import java.sql.ResultSet;
 import java.util.List;
