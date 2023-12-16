@@ -6,8 +6,10 @@ import javax.servlet.http.HttpSession;
 
 public class UserSessionUtils {
 
+    public static final String USER_SESSION_KEY = "user";
+
     public static User getUserSession(HttpSession session) {
-        Object value = session.getAttribute("user");
+        Object value = session.getAttribute(USER_SESSION_KEY);
         if (value == null) {
             return null;
         }
