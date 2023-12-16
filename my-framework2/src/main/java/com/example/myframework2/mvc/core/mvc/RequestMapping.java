@@ -2,6 +2,7 @@ package com.example.myframework2.mvc.core.mvc;
 
 import com.example.myframework2.mvc.board.web.*;
 import com.example.myframework2.mvc.board.web.qna.AddAnswerController;
+import com.example.myframework2.mvc.board.web.qna.DeleteAnswerController;
 import com.example.myframework2.mvc.board.web.qna.ShowController;
 import com.example.myframework2.mvc.board.web.user.*;
 
@@ -25,6 +26,7 @@ public class RequestMapping {
 
         controllers.put("/qna/show", new ShowController());
         controllers.put("/api/qna/addAnswer", new AddAnswerController());
+        controllers.put("/api/qna/deleteAnswer", new DeleteAnswerController());
     }
 
     public Controller getController(String url) {
