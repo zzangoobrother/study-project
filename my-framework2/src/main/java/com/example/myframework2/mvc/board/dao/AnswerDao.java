@@ -18,9 +18,9 @@ public class AnswerDao {
             public PreparedStatement createPreparedStatement(Connection con) throws SQLException {
                 PreparedStatement pstmt = con.prepareStatement(sql);
                 pstmt.setString(1, answer.getWriter());
-                pstmt.setString(1, answer.getContents());
-                pstmt.setTimestamp(1, new Timestamp(answer.getTimeFromCreateDate()));
-                pstmt.setLong(1, answer.getQuestionId());
+                pstmt.setString(2, answer.getContents());
+                pstmt.setTimestamp(3, new Timestamp(answer.getTimeFromCreateDate()));
+                pstmt.setLong(4, answer.getQuestionId());
                 return pstmt;
             }
         };

@@ -24,7 +24,18 @@ public class DispatcherServlet extends HttpServlet {
     protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         Controller controller = requestMapping.getController(request.getRequestURI());
 
-        String uri = controller.execute(request, response);
+        try {
+            String viewName = controller.execute(request, response);
+
+            if (viewName != null) {
+                move(viewName, request, response);
+            }
+        } catch (Exception e) {
+            throw new ServletException(e.getMessage());
+        }
+    }
+
+    private void move(String uri, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
         if (uri.startsWith(DEFAULT_REDIRECT_PREFIX)) {
             String target = uri.split(":")[1];
             response.sendRedirect(target);

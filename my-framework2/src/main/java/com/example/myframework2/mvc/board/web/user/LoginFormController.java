@@ -7,7 +7,7 @@ import javax.servlet.http.HttpServletResponse;
 
 public class LoginFormController implements Controller {
     @Override
-    public String execute(HttpServletRequest request, HttpServletResponse httpServletrespon) {
+    public String execute(HttpServletRequest request, HttpServletResponse response) {
         return "/user/login.jsp";
     }
 }

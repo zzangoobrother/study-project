@@ -10,7 +10,7 @@ import javax.servlet.http.HttpServletResponse;
 
 public class UpdateUserController implements Controller {
     @Override
-    public String execute(HttpServletRequest request, HttpServletResponse httpServletrespon) {
+    public String execute(HttpServletRequest request, HttpServletResponse response) {
         String userId = request.getParameter("userId");
 
         UserDao userDao = new UserDao();

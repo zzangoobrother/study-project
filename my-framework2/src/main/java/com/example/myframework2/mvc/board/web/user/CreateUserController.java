@@ -10,7 +10,7 @@ import javax.servlet.http.HttpServletResponse;
 public class CreateUserController implements Controller {
 
     @Override
-    public String execute(HttpServletRequest request, HttpServletResponse httpServletrespon) {
+    public String execute(HttpServletRequest request, HttpServletResponse response) {
         User user = new User(request.getParameter("userId"), request.getParameter("password"), request.getParameter("name"), request.getParameter("email"));
 
         UserDao userDao = new UserDao();

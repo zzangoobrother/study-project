@@ -9,7 +9,7 @@ import javax.servlet.http.HttpServletResponse;
 
 public class ShowController implements Controller {
     @Override
-    public String execute(HttpServletRequest request, HttpServletResponse httpServletrespon) {
+    public String execute(HttpServletRequest request, HttpServletResponse response) {
         Long questionId = Long.parseLong(request.getParameter("questionId"));
         QuestionDao questionDao = new QuestionDao();
         AnswerDao answerDao = new AnswerDao();
