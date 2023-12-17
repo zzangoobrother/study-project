@@ -1,6 +1,7 @@
 package com.example.myframework2.mvc.board.web.qna;
 
 import com.example.myframework2.mvc.board.dao.AnswerDao;
+import com.example.myframework2.mvc.board.model.Result;
 import com.example.myframework2.mvc.core.mvc.AbstractController;
 import com.example.myframework2.mvc.core.mvc.ModelAndView;
 
@@ -14,8 +15,14 @@ public class DeleteAnswerController extends AbstractController {
     public ModelAndView execute(HttpServletRequest request, HttpServletResponse response) throws Exception {
         long answerId = Long.parseLong(request.getParameter("answerId"));
 
-        answerDao.delete(answerId);
+        ModelAndView modelAndView = jsonView();
+        try {
+            answerDao.delete(answerId);
+            modelAndView.addObject("result", Result.ok());
+        } catch (Exception e) {
+            modelAndView.addObject("result", Result.fail(e.getMessage()));
+        }
 
-        return jsonView();
+        return modelAndView;
     }
 }
