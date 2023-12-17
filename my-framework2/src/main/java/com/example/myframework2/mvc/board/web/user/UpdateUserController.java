@@ -9,11 +9,12 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 public class UpdateUserController extends AbstractController {
+    private UserDao userDao = UserDao.getInstance();
+
     @Override
     public ModelAndView execute(HttpServletRequest request, HttpServletResponse response) {
         String userId = request.getParameter("userId");
 
-        UserDao userDao = new UserDao();
         User user = userDao.findByUserId(userId);
         if (!UserSessionUtils.isSameUser(request.getSession(), user)) {
             throw new IllegalStateException();

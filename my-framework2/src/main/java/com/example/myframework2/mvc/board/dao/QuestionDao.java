@@ -7,8 +7,19 @@ import java.sql.*;
 import java.util.List;
 
 public class QuestionDao {
+    private JdbcTemplate jdbcTemplate = JdbcTemplate.getInstance();
+
+    private static QuestionDao questionDao;
+
+    public static QuestionDao getInstance() {
+        if (questionDao == null) {
+            questionDao = new QuestionDao();
+        }
+
+        return questionDao;
+    }
+
     public Question insert(Question question) {
-        JdbcTemplate jdbcTemplate = new JdbcTemplate();
         String sql = "INSERT INTO QUESTIONS (writer, title, contents, createdDate) VALUES (?, ?, ?, ?)";
 
         PreparedStatementCreator psc = new PreparedStatementCreator() {
@@ -30,7 +41,6 @@ public class QuestionDao {
     }
 
     public Question findById(Long questionId) {
-        JdbcTemplate jdbcTemplate = new JdbcTemplate();
         String sql = "SELECT questionId, writer, title, contents, createdDate, countOfAnswer FROM QUESTIONS WHERE questionId = ?";
 
         RowMapper<Question> rm = new RowMapper<Question>() {
@@ -45,7 +55,6 @@ public class QuestionDao {
     }
 
     public List<Question> findAll() {
-        JdbcTemplate jdbcTemplate = new JdbcTemplate();
         String sql = "SELECT questionId, writer, title, createdDate, countOfAnswer FROM QUESTIONS order by questionId desc";
 
         RowMapper<Question> rm = new RowMapper<Question>() {

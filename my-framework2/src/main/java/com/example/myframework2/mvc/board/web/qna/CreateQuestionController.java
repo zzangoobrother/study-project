@@ -1,5 +1,6 @@
 package com.example.myframework2.mvc.board.web.qna;
 
+import com.example.myframework2.mvc.board.dao.AnswerDao;
 import com.example.myframework2.mvc.board.dao.QuestionDao;
 import com.example.myframework2.mvc.board.model.Question;
 import com.example.myframework2.mvc.board.model.User;
@@ -11,6 +12,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 public class CreateQuestionController extends AbstractController {
+
+    private QuestionDao questionDao = QuestionDao.getInstance();
+
     @Override
     public ModelAndView execute(HttpServletRequest request, HttpServletResponse response) throws Exception {
         if (!UserSessionUtils.isLogined(request.getSession())) {
@@ -20,7 +24,6 @@ public class CreateQuestionController extends AbstractController {
         User user = UserSessionUtils.getUserSession(request.getSession());
         Question question = new Question(user.getUserId(), request.getParameter("title"), request.getParameter("contents"));
 
-        QuestionDao questionDao = new QuestionDao();
         questionDao.insert(question);
 
         return jspView("redirect:/");

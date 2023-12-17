@@ -8,10 +8,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 public class DeleteAnswerController extends AbstractController {
+    private AnswerDao answerDao = AnswerDao.getInstance();
+
     @Override
     public ModelAndView execute(HttpServletRequest request, HttpServletResponse response) throws Exception {
         long answerId = Long.parseLong(request.getParameter("answerId"));
-        AnswerDao answerDao = new AnswerDao();
 
         answerDao.delete(answerId);
 

@@ -13,13 +13,13 @@ import java.io.IOException;
 
 public class AddAnswerController extends AbstractController {
     private static final Logger log = LoggerFactory.getLogger(AddAnswerController.class);
+    private AnswerDao answerDao = AnswerDao.getInstance();
 
     @Override
     public ModelAndView execute(HttpServletRequest request, HttpServletResponse response) throws IOException {
         Answer answer = new Answer(request.getParameter("writer"), request.getParameter("contents"), Long.parseLong(request.getParameter("questionId")));
         log.info("answer : {}", answer);
 
-        AnswerDao answerDao = new AnswerDao();
         Answer saveAnswer = answerDao.insert(answer);
 
         return jsonView()

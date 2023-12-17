@@ -8,13 +8,14 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 public class ListUserController extends AbstractController {
+    private UserDao userDao = UserDao.getInstance();
+
     @Override
     public ModelAndView execute(HttpServletRequest request, HttpServletResponse response) {
         if (!UserSessionUtils.isLogined(request.getSession())) {
             return jspView("redirect:/users/loginForm");
         }
 
-        UserDao userDao = new UserDao();
         return jspView("/user/list.jsp")
                 .addObject("users", userDao.findAll());
     }

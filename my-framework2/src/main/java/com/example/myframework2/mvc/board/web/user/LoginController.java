@@ -10,11 +10,12 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 public class LoginController extends AbstractController {
+    private UserDao userDao = UserDao.getInstance();
+
     @Override
     public ModelAndView execute(HttpServletRequest request, HttpServletResponse response) {
         String userId = request.getParameter("userId");
 
-        UserDao userDao = new UserDao();
         User findUser = userDao.findByUserId(userId);
 
         if (findUser == null) {
