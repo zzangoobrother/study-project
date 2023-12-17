@@ -3,6 +3,6 @@ package com.example.myframework2.mvc.core.mvc;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-public interface Controller {
-    View execute(HttpServletRequest request, HttpServletResponse response) throws Exception;
+public interface View {
+    void render(HttpServletRequest request, HttpServletResponse response) throws Exception;
 }

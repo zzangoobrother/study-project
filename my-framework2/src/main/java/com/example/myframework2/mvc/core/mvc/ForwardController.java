@@ -12,7 +12,7 @@ public class ForwardController implements Controller {
     }
 
     @Override
-    public String execute(HttpServletRequest request, HttpServletResponse httpServletrespon) {
-        return forwardUrl;
+    public View execute(HttpServletRequest request, HttpServletResponse httpServletrespon) {
+        return new JspView(forwardUrl);
     }
 }

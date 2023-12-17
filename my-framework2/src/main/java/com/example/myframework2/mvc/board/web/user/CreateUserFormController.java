@@ -1,6 +1,8 @@
 package com.example.myframework2.mvc.board.web.user;
 
 import com.example.myframework2.mvc.core.mvc.Controller;
+import com.example.myframework2.mvc.core.mvc.JspView;
+import com.example.myframework2.mvc.core.mvc.View;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -8,7 +10,7 @@ import javax.servlet.http.HttpServletResponse;
 public class CreateUserFormController implements Controller {
 
     @Override
-    public String execute(HttpServletRequest request, HttpServletResponse response) {
-        return "/user/form.jsp";
+    public View execute(HttpServletRequest request, HttpServletResponse response) {
+        return new JspView("/user/form.jsp");
     }
 }
