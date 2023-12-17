@@ -16,6 +16,6 @@ public class CreateUserController extends AbstractController {
         UserDao userDao = new UserDao();
         userDao.insert(user);
 
-        return jspView("redirect:/user/list");
+        return jspView("redirect:/users");
     }
 }

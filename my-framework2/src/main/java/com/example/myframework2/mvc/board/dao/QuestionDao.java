@@ -1,14 +1,34 @@
 package com.example.myframework2.mvc.board.dao;
 
 import com.example.myframework2.mvc.board.model.Question;
-import com.example.myframework2.mvc.core.jdbc.JdbcTemplate;
-import com.example.myframework2.mvc.core.jdbc.RowMapper;
+import com.example.myframework2.mvc.core.jdbc.*;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.List;
 
 public class QuestionDao {
+    public Question insert(Question question) {
+        JdbcTemplate jdbcTemplate = new JdbcTemplate();
+        String sql = "INSERT INTO QUESTIONS (writer, title, contents, createdDate) VALUES (?, ?, ?, ?)";
+
+        PreparedStatementCreator psc = new PreparedStatementCreator() {
+            @Override
+            public PreparedStatement createPreparedStatement(Connection con) throws SQLException {
+                PreparedStatement pstmt = con.prepareStatement(sql);
+                pstmt.setString(1, question.getWriter());
+                pstmt.setString(2, question.getTitle());
+                pstmt.setString(3, question.getContents());
+                pstmt.setTimestamp(4, new Timestamp(question.getTimeFromCreateDate()));
+
+                return pstmt;
+            }
+        };
+
+        KeyHolder keyHolder = new KeyHolder();
+        jdbcTemplate.update(psc, keyHolder);
+        return findById(keyHolder.getId());
+    }
+
     public Question findById(Long questionId) {
         JdbcTemplate jdbcTemplate = new JdbcTemplate();
         String sql = "SELECT questionId, writer, title, contents, createdDate, countOfAnswer FROM QUESTIONS WHERE questionId = ?";

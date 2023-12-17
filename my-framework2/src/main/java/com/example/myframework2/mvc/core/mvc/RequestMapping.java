@@ -1,9 +1,7 @@
 package com.example.myframework2.mvc.core.mvc;
 
 import com.example.myframework2.mvc.board.web.*;
-import com.example.myframework2.mvc.board.web.qna.AddAnswerController;
-import com.example.myframework2.mvc.board.web.qna.DeleteAnswerController;
-import com.example.myframework2.mvc.board.web.qna.ShowController;
+import com.example.myframework2.mvc.board.web.qna.*;
 import com.example.myframework2.mvc.board.web.user.*;
 
 import java.util.HashMap;
@@ -27,6 +25,8 @@ public class RequestMapping {
         controllers.put("/qna/show", new ShowController());
         controllers.put("/api/qna/addAnswer", new AddAnswerController());
         controllers.put("/api/qna/deleteAnswer", new DeleteAnswerController());
+        controllers.put("/qna/form", new CreateFormQuestionController());
+        controllers.put("/qna/create", new CreateQuestionController());
     }
 
     public Controller getController(String url) {
