@@ -45,6 +45,10 @@ public class User {
         return email;
     }
 
+    public boolean isSameUser(String userId) {
+        return this.userId.equals(userId);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

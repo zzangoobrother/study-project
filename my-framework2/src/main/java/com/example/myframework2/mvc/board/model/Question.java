@@ -57,6 +57,15 @@ public class Question {
         return countOfComment;
     }
 
+    public boolean isSameUser(User user) {
+        return user.isSameUser(this.writer);
+    }
+
+    public void update(Question question) {
+        this.title = question.getTitle();
+        this.contents = question.getContents();
+    }
+
     @Override
     public String toString() {
         return "Question [questionId=" + questionId + ", writer=" + writer + ", title=" + title + ", contents="

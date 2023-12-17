@@ -52,7 +52,8 @@ function deleteAnswer(e) {
       alert("error");
     },
     success: function (json, status) {
-      if (json.status) {
+      var result = json.result;
+      if (result.status) {
         deleteBtn.closest('article').remove();
       }
     }
