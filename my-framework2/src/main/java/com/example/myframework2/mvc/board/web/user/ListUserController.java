@@ -2,22 +2,20 @@ package com.example.myframework2.mvc.board.web.user;
 
 import com.example.myframework2.mvc.board.dao.UserDao;
 import com.example.myframework2.mvc.board.util.UserSessionUtils;
-import com.example.myframework2.mvc.core.mvc.Controller;
-import com.example.myframework2.mvc.core.mvc.JspView;
-import com.example.myframework2.mvc.core.mvc.View;
+import com.example.myframework2.mvc.core.mvc.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-public class ListUserController implements Controller {
+public class ListUserController extends AbstractController {
     @Override
-    public View execute(HttpServletRequest request, HttpServletResponse response) {
+    public ModelAndView execute(HttpServletRequest request, HttpServletResponse response) {
         if (!UserSessionUtils.isLogined(request.getSession())) {
-            return new JspView("redirect:/users/loginForm");
+            return jspView("redirect:/users/loginForm");
         }
 
         UserDao userDao = new UserDao();
-        request.setAttribute("users", userDao.findAll());
-        return new JspView("/user/list.jsp");
+        return jspView("/user/list.jsp")
+                .addObject("users", userDao.findAll());
     }
 }

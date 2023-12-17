@@ -1,10 +1,10 @@
 package com.example.myframework2.mvc.core.mvc;
 
 import javax.servlet.RequestDispatcher;
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
+import java.util.Map;
+import java.util.Set;
 
 public class JspView implements View {
     private static final String DEFAULT_REDIRECT_PREFIX = "redirect";
@@ -15,12 +15,18 @@ public class JspView implements View {
         this.uri = uri;
     }
 
+
     @Override
-    public void render(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+    public void render(Map<String, ?> model, HttpServletRequest request, HttpServletResponse response) throws Exception {
         if (uri.startsWith(DEFAULT_REDIRECT_PREFIX)) {
             String target = uri.split(":")[1];
             response.sendRedirect(target);
             return;
+        }
+
+        Set<String> keys = model.keySet();
+        for (String key : keys) {
+            request.setAttribute(key, model.get(key));
         }
 
         RequestDispatcher rd = request.getRequestDispatcher(uri);

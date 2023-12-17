@@ -3,7 +3,7 @@ package com.example.myframework2.mvc.core.mvc;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-public class ForwardController implements Controller {
+public class ForwardController extends AbstractController {
 
     private String forwardUrl;
 
@@ -12,7 +12,7 @@ public class ForwardController implements Controller {
     }
 
     @Override
-    public View execute(HttpServletRequest request, HttpServletResponse httpServletrespon) {
-        return new JspView(forwardUrl);
+    public ModelAndView execute(HttpServletRequest request, HttpServletResponse httpServletrespon) {
+        return jspView(forwardUrl);
     }
 }

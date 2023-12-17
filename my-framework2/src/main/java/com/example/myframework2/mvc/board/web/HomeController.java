@@ -1,18 +1,17 @@
 package com.example.myframework2.mvc.board.web;
 
 import com.example.myframework2.mvc.board.dao.QuestionDao;
-import com.example.myframework2.mvc.core.mvc.Controller;
-import com.example.myframework2.mvc.core.mvc.JspView;
-import com.example.myframework2.mvc.core.mvc.View;
+import com.example.myframework2.mvc.core.mvc.AbstractController;
+import com.example.myframework2.mvc.core.mvc.ModelAndView;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-public class HomeController implements Controller {
+public class HomeController extends AbstractController {
     @Override
-    public View execute(HttpServletRequest request, HttpServletResponse httpServletrespon) {
+    public ModelAndView execute(HttpServletRequest request, HttpServletResponse response) {
         QuestionDao questionDao = new QuestionDao();
-        request.setAttribute("questions", questionDao.findAll());
-        return new JspView("home.jsp");
+        return jspView("home.jsp")
+                .addObject("questions", questionDao.findAll());
     }
 }

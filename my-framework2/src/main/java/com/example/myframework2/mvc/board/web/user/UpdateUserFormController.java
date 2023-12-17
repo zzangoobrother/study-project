@@ -3,16 +3,14 @@ package com.example.myframework2.mvc.board.web.user;
 import com.example.myframework2.mvc.board.dao.UserDao;
 import com.example.myframework2.mvc.board.model.User;
 import com.example.myframework2.mvc.board.util.UserSessionUtils;
-import com.example.myframework2.mvc.core.mvc.Controller;
-import com.example.myframework2.mvc.core.mvc.JspView;
-import com.example.myframework2.mvc.core.mvc.View;
+import com.example.myframework2.mvc.core.mvc.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-public class UpdateUserFormController implements Controller {
+public class UpdateUserFormController extends AbstractController {
     @Override
-    public View execute(HttpServletRequest request, HttpServletResponse response) {
+    public ModelAndView execute(HttpServletRequest request, HttpServletResponse response) {
         String userId = request.getParameter("userId");
 
         UserDao userDao = new UserDao();
@@ -22,7 +20,7 @@ public class UpdateUserFormController implements Controller {
             throw new IllegalStateException();
         }
 
-        request.setAttribute("user", user);
-        return new JspView("/user/updateForm.jsp");
+        return jspView("/user/updateForm.jsp")
+                .addObject("user", user);
     }
 }
