@@ -12,13 +12,11 @@ import java.util.List;
 public class AnswerDao {
     private JdbcTemplate jdbcTemplate = JdbcTemplate.getInstance();
 
-    private static AnswerDao answerDao;
+    private static AnswerDao answerDao = new AnswerDao();
+
+    private AnswerDao() {}
 
     public static AnswerDao getInstance() {
-        if (answerDao == null) {
-            answerDao = new AnswerDao();
-        }
-
         return answerDao;
     }
 
