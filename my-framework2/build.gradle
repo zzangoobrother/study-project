@@ -37,6 +37,10 @@ dependencies {
 
   implementation "com.fasterxml.jackson.core:jackson-databind:2.4.4"
 
+  implementation "org.springframework:spring-test"
+
+  implementation 'org.reflections:reflections:0.10.2'
+
   runtimeOnly 'com.h2database:h2'
 
   testImplementation("org.junit.jupiter:junit-jupiter-api:${junitVersion}")

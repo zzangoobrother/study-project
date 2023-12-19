@@ -9,8 +9,8 @@ import com.example.myframework2.mvc.board.model.User;
 import java.util.List;
 
 public class QnaService {
-    private AnswerDao answerDao = new AnswerDao();
-    private QuestionDao questionDao = new QuestionDao();
+    private AnswerDao answerDao = AnswerDao.getInstance();
+    private QuestionDao questionDao = QuestionDao.getInstance();
 
     private static QnaService questionService;
 
