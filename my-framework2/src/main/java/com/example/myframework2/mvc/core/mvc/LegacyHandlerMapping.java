@@ -7,7 +7,7 @@ import com.example.myframework2.mvc.board.web.user.*;
 import java.util.HashMap;
 import java.util.Map;
 
-public class RequestMapping {
+public class LegacyHandlerMapping {
     private Map<String, Controller> controllers = new HashMap<>();
 
     void init() {

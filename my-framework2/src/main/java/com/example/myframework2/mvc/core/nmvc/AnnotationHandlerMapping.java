@@ -23,7 +23,6 @@ public class AnnotationHandlerMapping {
 
     public void initialize() {
         Reflections reflections = new Reflections(basePackage);
-
         Set<Class<?>> clazzes = reflections.getTypesAnnotatedWith(Controller.class);
 
         clazzes.forEach(clazz -> {
