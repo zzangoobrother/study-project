@@ -22,7 +22,11 @@ public class ControllerScanner {
     private Map<Class<?>, Object> instantiateControllers(Set<Class<?>> clazzes) {
         Map<Class<?>, Object> controllers = new HashMap<>();
         clazzes.forEach(clazz -> {
-            controllers.put(clazz, clazz.getName());
+            try {
+                controllers.put(clazz, clazz.newInstance());
+            } catch (InstantiationException | IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
         });
 
         return controllers;

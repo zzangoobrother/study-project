@@ -1,13 +1,14 @@
 package com.example.myframework2.mvc.core.mvc;
 
-import com.example.myframework2.mvc.board.web.*;
+import com.example.myframework2.mvc.board.web.HomeController;
 import com.example.myframework2.mvc.board.web.qna.*;
 import com.example.myframework2.mvc.board.web.user.*;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.Map;
 
-public class LegacyHandlerMapping {
+public class LegacyHandlerMapping implements HandlerMapping {
     private Map<String, Controller> controllers = new HashMap<>();
 
     void init() {
@@ -33,7 +34,8 @@ public class LegacyHandlerMapping {
         controllers.put("/api/qna/deleteQuestion", new ApiDeleteQuestionController());
     }
 
-    public Controller getController(String url) {
-        return controllers.get(url);
+    @Override
+    public Object getHandler(HttpServletRequest request) {
+        return controllers.get(request.getRequestURI());
     }
 }

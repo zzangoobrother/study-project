@@ -2,6 +2,7 @@ package com.example.myframework2.mvc.core.mvc;
 
 import com.example.myframework2.mvc.core.nmvc.AnnotationHandlerMapping;
 import com.example.myframework2.mvc.core.nmvc.HandlerExecution;
+import com.google.common.collect.Lists;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -9,37 +10,56 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.List;
 
 @WebServlet(name = "dispatcher", urlPatterns = "/", loadOnStartup = 1)
 public class DispatcherServlet extends HttpServlet {
 
-    private LegacyHandlerMapping lhm;
-    private AnnotationHandlerMapping ahm;
+    private List<HandlerMapping> mappings = Lists.newArrayList();
 
     @Override
     public void init() throws ServletException {
-        lhm = new LegacyHandlerMapping();
+        LegacyHandlerMapping lhm = new LegacyHandlerMapping();
         lhm.init();
-        ahm = new AnnotationHandlerMapping("next.controller");
+        AnnotationHandlerMapping ahm = new AnnotationHandlerMapping("com.example.myframework2.mvc");
         ahm.initialize();
+
+        mappings.add(lhm);
+        mappings.add(ahm);
     }
 
     @Override
     protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        try {
-            Controller controller = lhm.getController(request.getRequestURI());
-            if (controller != null) {
-                render(request, response, controller.execute(request, response));
-            } else {
-                HandlerExecution handler = ahm.getHandler(request);
-                if (handler == null) {
-                    throw new ServletException("");
-                }
+        Object handler = getHandler(request);
+        if (handler == null) {
+            throw new IllegalArgumentException();
+        }
 
-                render(request, response, handler.handle(request, response));
-            }
+        try {
+            ModelAndView modelAndView = execute(handler, request, response);
+            View view = modelAndView.getView();
+            view.render(modelAndView.getModel(), request, response);
         } catch (Exception e) {
             throw new ServletException(e.getMessage());
+        }
+    }
+
+    private Object getHandler(HttpServletRequest request) {
+        for (HandlerMapping handlerMapping : mappings) {
+            Object handler = handlerMapping.getHandler(request);
+            if (handler != null) {
+                return handler;
+            }
+        }
+
+        return null;
+    }
+
+    private ModelAndView execute(Object handler, HttpServletRequest request, HttpServletResponse response) throws Exception {
+        if (handler instanceof Controller) {
+            return ((Controller) handler).execute(request, response);
+        } else {
+            return ((HandlerExecution) handler).handle(request, response);
         }
     }
 

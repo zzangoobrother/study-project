@@ -1,18 +1,18 @@
 package com.example.myframework2.mvc.core.nmvc;
 
-import com.example.myframework2.mvc.core.annotation.Controller;
 import com.example.myframework2.mvc.core.annotation.RequestMapping;
 import com.example.myframework2.mvc.core.annotation.RequestMethod;
+import com.example.myframework2.mvc.core.mvc.HandlerMapping;
 import com.google.common.collect.Maps;
-import org.reflections.Reflections;
+import com.google.common.collect.Sets;
+import org.reflections.ReflectionUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 
-public class AnnotationHandlerMapping {
+public class AnnotationHandlerMapping implements HandlerMapping {
     private Object[] basePackage;
 
     private Map<HandlerKey, HandlerExecution> handlerExecutions = Maps.newHashMap();
@@ -22,29 +22,31 @@ public class AnnotationHandlerMapping {
     }
 
     public void initialize() {
-        Reflections reflections = new Reflections(basePackage);
-        Set<Class<?>> clazzes = reflections.getTypesAnnotatedWith(Controller.class);
+        ControllerScanner controllerScanner = new ControllerScanner(basePackage);
+        Map<Class<?>, Object> controllers = controllerScanner.getControllers();
+        Set<Method> methods = getRequestMappingMethods(controllers.keySet());
 
-        clazzes.forEach(clazz -> {
-            Arrays.stream(clazz.getDeclaredMethods()).forEach(method -> {
-                RequestMapping requestMapping = method.getDeclaredAnnotation(RequestMapping.class);
-
-                handlerExecutions.put(new HandlerKey(requestMapping.value(), requestMapping.method()),
-                        new HandlerExecution(method, getInstantiate(clazz)));
-            });
+        methods.forEach(method -> {
+            RequestMapping requestMapping = method.getAnnotation(RequestMapping.class);
+            handlerExecutions.put(createHandlerKey(requestMapping),
+                    new HandlerExecution(method, controllers.get(method.getDeclaringClass())));
         });
     }
 
-    private Object getInstantiate(Class<?> clazz) {
-        try {
-            return clazz.newInstance();
-        } catch (InstantiationException e) {
-            throw new RuntimeException(e);
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
+    private Set<Method> getRequestMappingMethods(Set<Class<?>> controllers) {
+        Set<Method> requestMappingMethods = Sets.newHashSet();
+        for (Class<?> clazz : controllers) {
+            requestMappingMethods.addAll(ReflectionUtils.getAllMethods(clazz, ReflectionUtils.withAnnotation(RequestMapping.class)));
         }
+
+        return requestMappingMethods;
     }
 
+    private HandlerKey createHandlerKey(RequestMapping rm) {
+        return new HandlerKey(rm.value(), rm.method());
+    }
+
+    @Override
     public HandlerExecution getHandler(HttpServletRequest request) {
         String uri = request.getRequestURI();
         RequestMethod rm = RequestMethod.valueOf(request.getMethod());
