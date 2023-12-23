@@ -1,9 +1,6 @@
 package com.example.myframework2.mvc.core.nmvc;
 
-import com.example.myframework2.mvc.core.mvc.HandlerMapping;
-import com.example.myframework2.mvc.core.mvc.LegacyHandlerMapping;
-import com.example.myframework2.mvc.core.mvc.ModelAndView;
-import com.example.myframework2.mvc.core.mvc.View;
+import com.example.myframework2.mvc.core.mvc.*;
 import com.google.common.collect.Lists;
 
 import javax.servlet.ServletException;
