@@ -1,5 +1,10 @@
 package com.example.myframework2.mvc.core.mvc;
 
+import com.example.myframework2.mvc.board.dao.AnswerDao;
+import com.example.myframework2.mvc.board.dao.JdbcAnswerDao;
+import com.example.myframework2.mvc.board.dao.JdbcQuestionDao;
+import com.example.myframework2.mvc.board.dao.QuestionDao;
+import com.example.myframework2.mvc.board.service.QnaService;
 import com.example.myframework2.mvc.board.web.HomeController;
 import com.example.myframework2.mvc.board.web.qna.*;
 import com.example.myframework2.mvc.board.web.user.*;
@@ -11,8 +16,12 @@ import java.util.Map;
 public class LegacyHandlerMapping implements HandlerMapping {
     private Map<String, Controller> controllers = new HashMap<>();
 
-    void init() {
-        controllers.put("/", new HomeController());
+    public void init() {
+        AnswerDao answerDao = new JdbcAnswerDao();
+        QuestionDao questionDao = new JdbcQuestionDao();
+        QnaService qnaService = new QnaService(answerDao, questionDao);
+
+        controllers.put("/", new HomeController(questionDao));
         controllers.put("/users/create", new CreateUserController());
         controllers.put("/users/form", new ForwardController("/user/form.jsp"));
         controllers.put("/users", new ListUserController());
@@ -23,15 +32,15 @@ public class LegacyHandlerMapping implements HandlerMapping {
         controllers.put("/users/updateForm", new UpdateUserFormController());
         controllers.put("/users/update", new UpdateUserController());
 
-        controllers.put("/qna/show", new ShowController());
-        controllers.put("/api/qna/addAnswer", new AddAnswerController());
-        controllers.put("/api/qna/deleteAnswer", new DeleteAnswerController());
+        controllers.put("/qna/show", new ShowController(answerDao, questionDao));
+        controllers.put("/api/qna/addAnswer", new AddAnswerController(answerDao, questionDao));
+        controllers.put("/api/qna/deleteAnswer", new DeleteAnswerController(answerDao));
         controllers.put("/qna/form", new CreateFormQuestionController());
-        controllers.put("/qna/create", new CreateQuestionController());
-        controllers.put("/qna/updateForm", new UpdateFormQuestionController());
-        controllers.put("/qna/update", new UpdateQuestionController());
-        controllers.put("/qna/delete", new DeleteQuestionController());
-        controllers.put("/api/qna/deleteQuestion", new ApiDeleteQuestionController());
+        controllers.put("/qna/create", new CreateQuestionController(questionDao));
+        controllers.put("/qna/updateForm", new UpdateFormQuestionController(questionDao));
+        controllers.put("/qna/update", new UpdateQuestionController(questionDao));
+        controllers.put("/qna/delete", new DeleteQuestionController(qnaService));
+        controllers.put("/api/qna/deleteQuestion", new ApiDeleteQuestionController(qnaService));
     }
 
     @Override

@@ -8,8 +8,13 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 public class ShowController extends AbstractController {
-    private AnswerDao answerDao = AnswerDao.getInstance();
-    private QuestionDao questionDao = QuestionDao.getInstance();
+    private AnswerDao answerDao;
+    private QuestionDao questionDao;
+
+    public ShowController(AnswerDao answerDao, QuestionDao questionDao) {
+        this.answerDao = answerDao;
+        this.questionDao = questionDao;
+    }
 
     @Override
     public ModelAndView execute(HttpServletRequest request, HttpServletResponse response) {

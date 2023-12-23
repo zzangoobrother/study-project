@@ -1,6 +1,5 @@
 package com.example.myframework2.mvc.board.web.qna;
 
-import com.example.myframework2.mvc.board.dao.AnswerDao;
 import com.example.myframework2.mvc.board.dao.QuestionDao;
 import com.example.myframework2.mvc.board.model.Question;
 import com.example.myframework2.mvc.board.model.User;
@@ -13,7 +12,11 @@ import javax.servlet.http.HttpServletResponse;
 
 public class CreateQuestionController extends AbstractController {
 
-    private QuestionDao questionDao = QuestionDao.getInstance();
+    private QuestionDao questionDao;
+
+    public CreateQuestionController(QuestionDao questionDao) {
+        this.questionDao = questionDao;
+    }
 
     @Override
     public ModelAndView execute(HttpServletRequest request, HttpServletResponse response) throws Exception {

@@ -9,17 +9,12 @@ import com.example.myframework2.mvc.board.model.User;
 import java.util.List;
 
 public class QnaService {
-    private AnswerDao answerDao = AnswerDao.getInstance();
-    private QuestionDao questionDao = QuestionDao.getInstance();
+    private AnswerDao answerDao;
+    private QuestionDao questionDao;
 
-    private static QnaService questionService;
-
-    public static QnaService getInstance() {
-        if (questionService == null) {
-            questionService = new QnaService();
-        }
-
-        return questionService;
+    public QnaService(AnswerDao answerDao, QuestionDao questionDao) {
+        this.answerDao = answerDao;
+        this.questionDao = questionDao;
     }
 
     public void deleteQuestion(long questionId, User user) {
