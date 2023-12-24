@@ -1,88 +1,27 @@
 package com.example.myframework2.mvc.core.di.factory;
 
-import com.google.common.collect.Lists;
-import org.springframework.beans.BeanUtils;
+import com.google.common.collect.Sets;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.List;
 import java.util.Set;
 
-public class ConstructorInjector implements Injector {
-
-    private BeanFactory beanFactory;
+public class ConstructorInjector extends AbstractInjector {
 
     public ConstructorInjector(BeanFactory beanFactory) {
-        this.beanFactory = beanFactory;
+        super(beanFactory);
     }
 
     @Override
-    public void inject(Class<?> clazz) {
-        instantiateClass(clazz);
-        Set<?> injectedMethods = BeanFactoryUtils.getInjectedMethod(clazz);
-
-        for (Object injectedBean : injectedMethods) {
-            Method method = (Method) injectedBean;
-            Class<?>[] parameterTypes = method.getParameterTypes();
-            if (parameterTypes.length != 1) {
-                throw new IllegalStateException();
-            }
-
-            Object bean = instantiateClass(parameterTypes[0]);
-
-            try {
-                method.invoke(beanFactory.getBean(method.getDeclaringClass()), bean);
-            } catch (InvocationTargetException | IllegalAccessException e) {
-
-            }
-        }
+    Set<?> getInjectedBeans(Class<?> clazz) {
+        return Sets.newHashSet();
     }
 
-    private Object instantiateClass(Class<?> clazz) {
-        Class<?> concreateClass = findBeanClass(clazz, beanFactory.getPreInstanticateBeans());
-        Object bean = beanFactory.getBean(concreateClass);
-        if (bean != null) {
-            return bean;
-        }
-
-        Constructor<?> injectedConstructor = BeanFactoryUtils.getInjectedConstructor(clazz);
-        if (injectedConstructor == null) {
-            bean = BeanUtils.instantiateClass(clazz);
-            beanFactory.registerBean(clazz, bean);
-            return bean;
-        }
-
-        bean = instantiateConstructor(injectedConstructor);
-        beanFactory.registerBean(clazz, bean);
-        return bean;
+    @Override
+    Class<?> getBeanClass(Object injectedBean) {
+        return null;
     }
 
-    private Object instantiateConstructor(Constructor<?> constructor) {
-        Class<?>[] parameterTypes = constructor.getParameterTypes();
-        List<Object> args = Lists.newArrayList();
-        for (Class<?> clazz : parameterTypes) {
-            Class<?> concreteClazz = BeanFactoryUtils.findConcreteClass(clazz, beanFactory.getPreInstanticateBeans());
-            if (!beanFactory.getPreInstanticateBeans().contains(concreteClazz)) {
-                throw new IllegalStateException();
-            }
+    @Override
+    void inject(Object injectedBean, Object bean, BeanFactory beanFactory) {
 
-            Object bean = beanFactory.getBean(concreteClazz);
-            if (bean == null) {
-                bean = instantiateClass(concreteClazz);
-            }
-            args.add(bean);
-        }
-
-        return BeanUtils.instantiateClass(constructor, args.toArray());
-    }
-
-    private Class<?> findBeanClass(Class<?> clazz, Set<Class<?>> preInstanticateBeans) {
-        Class<?> concreteClazz = BeanFactoryUtils.findConcreteClass(clazz, preInstanticateBeans);
-        if (!preInstanticateBeans.contains(concreteClazz)) {
-            throw new IllegalStateException();
-        }
-
-        return concreteClazz;
     }
 }
