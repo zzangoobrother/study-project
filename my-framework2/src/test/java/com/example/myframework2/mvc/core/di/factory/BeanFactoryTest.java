@@ -1,34 +1,29 @@
 package com.example.myframework2.mvc.core.di.factory;
 
-import com.example.myframework2.mvc.core.annotation.Controller;
-import com.example.myframework2.mvc.core.annotation.Repository;
-import com.example.myframework2.mvc.core.annotation.Service;
 import com.example.myframework2.mvc.core.di.factory.example.MyQnaService;
+import com.example.myframework2.mvc.core.di.factory.example.MyUserService;
 import com.example.myframework2.mvc.core.di.factory.example.QnaController;
-import com.google.common.collect.Sets;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.reflections.Reflections;
 
-import java.lang.annotation.Annotation;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class BeanFactoryTest {
-    private Reflections reflections;
     private BeanFactory beanFactory;
 
     @BeforeEach
     void setup() {
-        reflections = new Reflections("com.example.myframework2.mvc.core.di.factory.example");
-        Set<Class<?>> preInstanticateClazz = getTypesAnnotatedWith(Controller.class, Service.class, Repository.class);
+        BeanScanner scanner = new BeanScanner("com.example.myframework2.mvc.core.di.factory.example");
+        Set<Class<?>> preInstanticateClazz = scanner.scan();
         beanFactory = new BeanFactory(preInstanticateClazz);
         beanFactory.initialize();
     }
 
     @Test
-    void di() throws Exception {
+    void constructorDi() throws Exception {
         QnaController qnaController = beanFactory.getBean(QnaController.class);
 
         assertNotNull(qnaController);
@@ -40,12 +35,15 @@ public class BeanFactoryTest {
 
     }
 
-    private Set<Class<?>> getTypesAnnotatedWith(Class<? extends Annotation>... annotations) {
-        Set<Class<?>> beans = Sets.newHashSet();
-        for (Class<? extends Annotation> annotation : annotations) {
-            beans.addAll(reflections.getTypesAnnotatedWith(annotation));
-        }
+    @Test
+    void fieldDi() {
+        MyUserService userService = beanFactory.getBean(MyUserService.class);
+        assertNotNull(userService);
+        assertNotNull(userService.getUserRepository());
+    }
 
-        return beans;
+    @AfterEach
+    void tearDown() {
+        beanFactory.clear();
     }
 }
