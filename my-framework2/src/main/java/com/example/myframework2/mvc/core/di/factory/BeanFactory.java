@@ -22,7 +22,7 @@ public class BeanFactory {
 
     public BeanFactory(Set<Class<?>> preInstanticateBeans) {
         this.preInstanticateBeans = preInstanticateBeans;
-        this.injectors = Arrays.asList(new FieldInjector(this));
+        this.injectors = Arrays.asList(new FieldInjector(this), new SetterInjector(this));
     }
 
     public <T> T getBean(Class<T> requiredType) {
