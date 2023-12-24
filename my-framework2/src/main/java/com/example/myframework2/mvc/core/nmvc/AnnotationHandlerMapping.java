@@ -2,6 +2,8 @@ package com.example.myframework2.mvc.core.nmvc;
 
 import com.example.myframework2.mvc.core.annotation.RequestMapping;
 import com.example.myframework2.mvc.core.annotation.RequestMethod;
+import com.example.myframework2.mvc.core.di.factory.BeanFactory;
+import com.example.myframework2.mvc.core.di.factory.BeanScanner;
 import com.example.myframework2.mvc.core.mvc.HandlerMapping;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -22,8 +24,11 @@ public class AnnotationHandlerMapping implements HandlerMapping {
     }
 
     public void initialize() {
-        ControllerScanner controllerScanner = new ControllerScanner(basePackage);
-        Map<Class<?>, Object> controllers = controllerScanner.getControllers();
+        BeanScanner scanner = new BeanScanner(basePackage);
+        BeanFactory beanFactory = new BeanFactory(scanner.scan());
+        beanFactory.initialize();
+        Map<Class<?>, Object> controllers = beanFactory.getControllers();
+
         Set<Method> methods = getRequestMappingMethods(controllers.keySet());
 
         methods.forEach(method -> {

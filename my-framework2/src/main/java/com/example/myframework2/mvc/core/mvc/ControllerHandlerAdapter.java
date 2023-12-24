@@ -1,7 +1,5 @@
 package com.example.myframework2.mvc.core.mvc;
 
-import com.example.myframework2.mvc.core.mvc.Controller;
-import com.example.myframework2.mvc.core.mvc.ModelAndView;
 import com.example.myframework2.mvc.core.nmvc.HandlerAdapter;
 
 import javax.servlet.http.HttpServletRequest;
