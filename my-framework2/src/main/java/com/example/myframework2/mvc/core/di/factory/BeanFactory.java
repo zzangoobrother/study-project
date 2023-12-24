@@ -1,12 +1,9 @@
 package com.example.myframework2.mvc.core.di.factory;
 
 import com.example.myframework2.mvc.core.annotation.Controller;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import org.springframework.beans.BeanUtils;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Constructor;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +19,7 @@ public class BeanFactory {
 
     public BeanFactory(Set<Class<?>> preInstanticateBeans) {
         this.preInstanticateBeans = preInstanticateBeans;
-        this.injectors = Arrays.asList(new FieldInjector(this), new SetterInjector(this));
+        this.injectors = Arrays.asList(new FieldInjector(this), new SetterInjector(this), new ConstructorInjector(this));
     }
 
     public <T> T getBean(Class<T> requiredType) {
@@ -49,43 +46,6 @@ public class BeanFactory {
         for (Injector injector : injectors) {
             injector.inject(clazz);
         }
-    }
-
-    private Object instantiateClass(Class<?> clazz) {
-        Object bean = beans.get(clazz);
-        if (bean != null) {
-            return bean;
-        }
-
-        Constructor<?> injectedConstructor = BeanFactoryUtils.getInjectedConstructor(clazz);
-        if (injectedConstructor == null) {
-            bean = BeanUtils.instantiateClass(clazz);
-            beans.put(clazz, bean);
-            return bean;
-        }
-
-        bean = instantiateConstructor(injectedConstructor);
-        beans.put(clazz, bean);
-        return bean;
-    }
-
-    private Object instantiateConstructor(Constructor<?> constructor) {
-        Class<?>[] parameterTypes = constructor.getParameterTypes();
-        List<Object> args = Lists.newArrayList();
-        for (Class<?> clazz : parameterTypes) {
-            Class<?> concreteClazz = BeanFactoryUtils.findConcreteClass(clazz, preInstanticateBeans);
-            if (!preInstanticateBeans.contains(concreteClazz)) {
-                throw new IllegalStateException();
-            }
-
-            Object bean = beans.get(constructor);
-            if (bean == null) {
-                bean = instantiateClass(concreteClazz);
-            }
-            args.add(bean);
-        }
-
-        return BeanUtils.instantiateClass(constructor, args.toArray());
     }
 
     public Map<Class<?>, Object> getControllers() {
