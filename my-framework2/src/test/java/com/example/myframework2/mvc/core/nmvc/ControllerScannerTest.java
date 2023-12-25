@@ -1,5 +1,6 @@
 package com.example.myframework2.mvc.core.nmvc;
 
+import com.example.myframework2.mvc.core.web.nmvc.ControllerScanner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;

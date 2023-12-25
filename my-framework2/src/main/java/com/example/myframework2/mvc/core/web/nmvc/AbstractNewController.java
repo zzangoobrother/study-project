@@ -1,8 +1,8 @@
-package com.example.myframework2.mvc.core.nmvc;
+package com.example.myframework2.mvc.core.web.nmvc;
 
-import com.example.myframework2.mvc.core.mvc.JsonView;
-import com.example.myframework2.mvc.core.mvc.JspView;
-import com.example.myframework2.mvc.core.mvc.ModelAndView;
+import com.example.myframework2.mvc.core.web.view.JsonView;
+import com.example.myframework2.mvc.core.web.view.JspView;
+import com.example.myframework2.mvc.core.web.view.ModelAndView;
 
 public abstract class AbstractNewController {
     protected ModelAndView jspView(String forwardUrl) {

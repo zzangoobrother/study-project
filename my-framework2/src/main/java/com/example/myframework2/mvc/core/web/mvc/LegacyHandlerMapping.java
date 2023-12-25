@@ -1,4 +1,4 @@
-package com.example.myframework2.mvc.core.mvc;
+package com.example.myframework2.mvc.core.web.mvc;
 
 import com.example.myframework2.mvc.board.dao.AnswerDao;
 import com.example.myframework2.mvc.board.dao.JdbcAnswerDao;

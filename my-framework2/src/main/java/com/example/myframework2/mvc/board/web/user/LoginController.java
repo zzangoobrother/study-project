@@ -2,8 +2,8 @@ package com.example.myframework2.mvc.board.web.user;
 
 import com.example.myframework2.mvc.board.dao.UserDao;
 import com.example.myframework2.mvc.board.model.User;
-import com.example.myframework2.mvc.core.mvc.AbstractController;
-import com.example.myframework2.mvc.core.mvc.ModelAndView;
+import com.example.myframework2.mvc.core.web.mvc.AbstractController;
+import com.example.myframework2.mvc.core.web.view.ModelAndView;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;

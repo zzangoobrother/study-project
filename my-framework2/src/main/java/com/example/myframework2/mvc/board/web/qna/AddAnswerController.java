@@ -4,8 +4,8 @@ import com.example.myframework2.mvc.board.dao.AnswerDao;
 import com.example.myframework2.mvc.board.dao.QuestionDao;
 import com.example.myframework2.mvc.board.model.Answer;
 import com.example.myframework2.mvc.board.model.Result;
-import com.example.myframework2.mvc.core.mvc.AbstractController;
-import com.example.myframework2.mvc.core.mvc.ModelAndView;
+import com.example.myframework2.mvc.core.web.mvc.AbstractController;
+import com.example.myframework2.mvc.core.web.view.ModelAndView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

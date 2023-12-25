@@ -6,8 +6,8 @@ import com.example.myframework2.mvc.board.util.UserSessionUtils;
 import com.example.myframework2.mvc.core.annotation.Controller;
 import com.example.myframework2.mvc.core.annotation.RequestMapping;
 import com.example.myframework2.mvc.core.annotation.RequestMethod;
-import com.example.myframework2.mvc.core.nmvc.AbstractNewController;
-import com.example.myframework2.mvc.core.mvc.ModelAndView;
+import com.example.myframework2.mvc.core.web.nmvc.AbstractNewController;
+import com.example.myframework2.mvc.core.web.view.ModelAndView;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;

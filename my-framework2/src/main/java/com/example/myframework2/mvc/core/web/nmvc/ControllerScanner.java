@@ -1,4 +1,4 @@
-package com.example.myframework2.mvc.core.nmvc;
+package com.example.myframework2.mvc.core.web.nmvc;
 
 import com.example.myframework2.mvc.core.annotation.Controller;
 import org.reflections.Reflections;

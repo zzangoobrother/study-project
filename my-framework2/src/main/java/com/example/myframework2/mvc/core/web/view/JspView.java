@@ -1,4 +1,4 @@
-package com.example.myframework2.mvc.core.mvc;
+package com.example.myframework2.mvc.core.web.view;
 
 import javax.servlet.RequestDispatcher;
 import javax.servlet.http.HttpServletRequest;

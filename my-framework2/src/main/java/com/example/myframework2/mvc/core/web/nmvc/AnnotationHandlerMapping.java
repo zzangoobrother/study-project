@@ -1,12 +1,10 @@
-package com.example.myframework2.mvc.core.nmvc;
+package com.example.myframework2.mvc.core.web.nmvc;
 
 import com.example.myframework2.mvc.core.annotation.Controller;
 import com.example.myframework2.mvc.core.annotation.RequestMapping;
 import com.example.myframework2.mvc.core.annotation.RequestMethod;
 import com.example.myframework2.mvc.core.di.factory.ApplicationContext;
-import com.example.myframework2.mvc.core.di.factory.BeanFactory;
-import com.example.myframework2.mvc.core.di.factory.ClasspathBeanDefinitionScanner;
-import com.example.myframework2.mvc.core.mvc.HandlerMapping;
+import com.example.myframework2.mvc.core.web.mvc.HandlerMapping;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.reflections.ReflectionUtils;
