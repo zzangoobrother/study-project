@@ -5,13 +5,17 @@ import com.example.myframework2.mvc.board.dao.QuestionDao;
 import com.example.myframework2.mvc.board.model.Answer;
 import com.example.myframework2.mvc.board.model.Question;
 import com.example.myframework2.mvc.board.model.User;
+import com.example.myframework2.mvc.core.annotation.Inject;
+import com.example.myframework2.mvc.core.annotation.Service;
 
 import java.util.List;
 
+@Service
 public class QnaService {
     private AnswerDao answerDao;
     private QuestionDao questionDao;
 
+    @Inject
     public QnaService(AnswerDao answerDao, QuestionDao questionDao) {
         this.answerDao = answerDao;
         this.questionDao = questionDao;

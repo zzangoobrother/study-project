@@ -1,38 +1,32 @@
 package com.example.myframework2.mvc.core.web.nmvc;
 
-import com.example.myframework2.mvc.core.mvc.*;
-import com.example.myframework2.mvc.core.web.mvc.ControllerHandlerAdapter;
 import com.example.myframework2.mvc.core.web.mvc.HandlerMapping;
-import com.example.myframework2.mvc.core.web.mvc.LegacyHandlerMapping;
 import com.example.myframework2.mvc.core.web.view.ModelAndView;
 import com.example.myframework2.mvc.core.web.view.View;
 import com.google.common.collect.Lists;
 
 import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 
-@WebServlet(name = "dispatcher", urlPatterns = "/", loadOnStartup = 1)
 public class DispatcherServlet extends HttpServlet {
 
     private List<HandlerMapping> mappings = Lists.newArrayList();
     private List<HandlerAdapter> handlerAdapters = Lists.newArrayList();
 
+    private HandlerMapping hm;
+
+    public DispatcherServlet(HandlerMapping hm) {
+        this.hm = hm;
+    }
+
     @Override
     public void init() throws ServletException {
-        LegacyHandlerMapping lhm = new LegacyHandlerMapping();
-        lhm.init();
-        AnnotationHandlerMapping ahm = new AnnotationHandlerMapping("com.example.myframework2.mvc");
-        ahm.initialize();
+        mappings.add(hm);
 
-        mappings.add(lhm);
-        mappings.add(ahm);
-
-        handlerAdapters.add(new ControllerHandlerAdapter());
         handlerAdapters.add(new HandlerExecutionHandlerAdapter());
     }
 

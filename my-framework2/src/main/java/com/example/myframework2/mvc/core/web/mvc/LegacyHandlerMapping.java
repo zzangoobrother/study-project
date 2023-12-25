@@ -21,7 +21,7 @@ public class LegacyHandlerMapping implements HandlerMapping {
         QuestionDao questionDao = new JdbcQuestionDao();
         QnaService qnaService = new QnaService(answerDao, questionDao);
 
-        controllers.put("/", new HomeController(questionDao));
+//        controllers.put("/", new HomeController(questionDao));
         controllers.put("/users/create", new CreateUserController());
         controllers.put("/users/form", new ForwardController("/user/form.jsp"));
         controllers.put("/users", new ListUserController());

@@ -47,7 +47,7 @@ public class BeanFactory implements BeanDefinitionRegistry {
         Set<Class<?>> beanClasses = getBeanClasses();
         Class<?> concreteClazz = BeanFactoryUtils.findConcreteClass(clazz, beanClasses);
         if (!beanClasses.contains(concreteClazz)) {
-            throw new IllegalStateException();
+            throw new IllegalStateException(clazz + "는 Bean이 아니다.");
         }
 
         return concreteClazz;

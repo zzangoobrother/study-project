@@ -1,11 +1,13 @@
 package com.example.myframework2.mvc.board.dao;
 
 import com.example.myframework2.mvc.board.model.Question;
+import com.example.myframework2.mvc.core.annotation.Repository;
 import com.example.myframework2.mvc.core.jdbc.*;
 
 import java.sql.*;
 import java.util.List;
 
+@Repository
 public class JdbcQuestionDao implements QuestionDao {
     private JdbcTemplate jdbcTemplate = JdbcTemplate.getInstance();
 

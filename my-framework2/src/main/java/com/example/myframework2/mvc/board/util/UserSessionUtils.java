@@ -35,4 +35,12 @@ public class UserSessionUtils {
 
         return target.equals(getUserSession(session));
     }
+
+    public static User getUserFromSession(HttpSession session) {
+        Object user = session.getAttribute(USER_SESSION_KEY);
+        if (user == null) {
+            return null;
+        }
+        return (User) user;
+    }
 }

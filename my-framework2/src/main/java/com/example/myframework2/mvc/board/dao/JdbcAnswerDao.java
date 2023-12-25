@@ -1,6 +1,7 @@
 package com.example.myframework2.mvc.board.dao;
 
 import com.example.myframework2.mvc.board.model.Answer;
+import com.example.myframework2.mvc.core.annotation.Repository;
 import com.example.myframework2.mvc.core.jdbc.JdbcTemplate;
 import com.example.myframework2.mvc.core.jdbc.KeyHolder;
 import com.example.myframework2.mvc.core.jdbc.PreparedStatementCreator;
@@ -9,6 +10,7 @@ import com.example.myframework2.mvc.core.jdbc.RowMapper;
 import java.sql.*;
 import java.util.List;
 
+@Repository
 public class JdbcAnswerDao implements AnswerDao {
     private JdbcTemplate jdbcTemplate = JdbcTemplate.getInstance();
 

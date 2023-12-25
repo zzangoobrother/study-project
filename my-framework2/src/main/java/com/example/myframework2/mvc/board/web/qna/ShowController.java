@@ -2,7 +2,6 @@ package com.example.myframework2.mvc.board.web.qna;
 
 import com.example.myframework2.mvc.board.dao.AnswerDao;
 import com.example.myframework2.mvc.board.dao.QuestionDao;
-import com.example.myframework2.mvc.core.mvc.*;
 import com.example.myframework2.mvc.core.web.mvc.AbstractController;
 import com.example.myframework2.mvc.core.web.view.ModelAndView;
 
