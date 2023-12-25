@@ -10,9 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
-import java.util.Set;
-
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class BeanFactoryTest {
@@ -22,9 +19,9 @@ public class BeanFactoryTest {
 
     @BeforeEach
     void setup() {
-        BeanScanner scanner = new BeanScanner("com.example.myframework2.mvc.core.di.factory.example");
-        Set<Class<?>> preInstanticateClazz = scanner.scan();
-        beanFactory = new BeanFactory(preInstanticateClazz);
+        beanFactory = new BeanFactory();
+        ClasspathBeanDefinitionScanner scanner = new ClasspathBeanDefinitionScanner(beanFactory);
+        scanner.doScan("com.example.myframework2.mvc.core.di.factory.example");
         beanFactory.initialize();
     }
 
@@ -54,15 +51,6 @@ public class BeanFactoryTest {
 
         assertNotNull(userController);
         assertNotNull(userController.getMyUserService());
-    }
-
-    @Test
-    void getConstorllers() {
-        Map<Class<?>, Object> controllers = beanFactory.getControllers();
-        Set<Class<?>> keys = controllers.keySet();
-        for (Class<?> clazz : keys) {
-            log.debug("Bean : {}", clazz);
-        }
     }
 
     @AfterEach

@@ -1,15 +1,18 @@
 package com.example.myframework2.mvc.core.nmvc;
 
+import com.example.myframework2.mvc.core.annotation.Controller;
 import com.example.myframework2.mvc.core.annotation.RequestMapping;
 import com.example.myframework2.mvc.core.annotation.RequestMethod;
+import com.example.myframework2.mvc.core.di.factory.ApplicationContext;
 import com.example.myframework2.mvc.core.di.factory.BeanFactory;
-import com.example.myframework2.mvc.core.di.factory.BeanScanner;
+import com.example.myframework2.mvc.core.di.factory.ClasspathBeanDefinitionScanner;
 import com.example.myframework2.mvc.core.mvc.HandlerMapping;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.reflections.ReflectionUtils;
 
 import javax.servlet.http.HttpServletRequest;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Set;
@@ -24,10 +27,8 @@ public class AnnotationHandlerMapping implements HandlerMapping {
     }
 
     public void initialize() {
-        BeanScanner scanner = new BeanScanner(basePackage);
-        BeanFactory beanFactory = new BeanFactory(scanner.scan());
-        beanFactory.initialize();
-        Map<Class<?>, Object> controllers = beanFactory.getControllers();
+        ApplicationContext applicationContext = new ApplicationContext(basePackage);
+        Map<Class<?>, Object> controllers = getControllers(applicationContext);
 
         Set<Method> methods = getRequestMappingMethods(controllers.keySet());
 
@@ -36,6 +37,18 @@ public class AnnotationHandlerMapping implements HandlerMapping {
             handlerExecutions.put(createHandlerKey(requestMapping),
                     new HandlerExecution(method, controllers.get(method.getDeclaringClass())));
         });
+    }
+
+    public Map<Class<?>, Object> getControllers(ApplicationContext applicationContext) {
+        Map<Class<?>, Object> controllers = Maps.newHashMap();
+        for (Class<?> clazz : applicationContext.getBeanClasses()) {
+            Annotation annotation = clazz.getAnnotation(Controller.class);
+            if (annotation != null) {
+                controllers.put(clazz, applicationContext.getBean(clazz));
+            }
+        }
+
+        return controllers;
     }
 
     private Set<Method> getRequestMappingMethods(Set<Class<?>> controllers) {
