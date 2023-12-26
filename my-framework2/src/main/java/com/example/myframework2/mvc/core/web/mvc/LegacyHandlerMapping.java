@@ -8,6 +8,7 @@ import com.example.myframework2.mvc.board.service.QnaService;
 import com.example.myframework2.mvc.board.web.HomeController;
 import com.example.myframework2.mvc.board.web.qna.*;
 import com.example.myframework2.mvc.board.web.user.*;
+import com.example.myframework2.mvc.core.jdbc.JdbcTemplate;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.HashMap;
@@ -17,8 +18,8 @@ public class LegacyHandlerMapping implements HandlerMapping {
     private Map<String, Controller> controllers = new HashMap<>();
 
     public void init() {
-        AnswerDao answerDao = new JdbcAnswerDao();
-        QuestionDao questionDao = new JdbcQuestionDao();
+        AnswerDao answerDao = new JdbcAnswerDao(new JdbcTemplate());
+        QuestionDao questionDao = new JdbcQuestionDao(new JdbcTemplate());
         QnaService qnaService = new QnaService(answerDao, questionDao);
 
 //        controllers.put("/", new HomeController(questionDao));

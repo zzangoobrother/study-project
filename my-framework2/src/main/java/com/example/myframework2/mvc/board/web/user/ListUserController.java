@@ -9,7 +9,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 public class ListUserController extends AbstractController {
-    private UserDao userDao = UserDao.getInstance();
+    private UserDao userDao;
 
     @Override
     public ModelAndView execute(HttpServletRequest request, HttpServletResponse response) {

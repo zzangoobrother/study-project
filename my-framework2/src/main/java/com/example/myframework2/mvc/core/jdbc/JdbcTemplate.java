@@ -1,5 +1,7 @@
 package com.example.myframework2.mvc.core.jdbc;
 
+import com.example.myframework2.mvc.core.annotation.Component;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -7,14 +9,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+@Component
 public class JdbcTemplate {
-    private static JdbcTemplate jdbcTemplate = new JdbcTemplate();
-
-    private JdbcTemplate() {}
-
-    public static JdbcTemplate getInstance() {
-        return jdbcTemplate;
-    }
 
     public void update(String sql, PreparedStatementSetter pss) throws RuntimeException {
         try (Connection con = ConnectionManager.getConnection();

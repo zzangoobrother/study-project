@@ -1,6 +1,7 @@
 package com.example.myframework2.mvc.board.dao;
 
 import com.example.myframework2.mvc.board.model.Answer;
+import com.example.myframework2.mvc.core.annotation.Inject;
 import com.example.myframework2.mvc.core.annotation.Repository;
 import com.example.myframework2.mvc.core.jdbc.JdbcTemplate;
 import com.example.myframework2.mvc.core.jdbc.KeyHolder;
@@ -12,7 +13,12 @@ import java.util.List;
 
 @Repository
 public class JdbcAnswerDao implements AnswerDao {
-    private JdbcTemplate jdbcTemplate = JdbcTemplate.getInstance();
+    private JdbcTemplate jdbcTemplate;
+
+    @Inject
+    public JdbcAnswerDao(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     @Override
     public Answer insert(Answer answer) {

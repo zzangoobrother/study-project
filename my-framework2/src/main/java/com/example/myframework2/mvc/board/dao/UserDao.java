@@ -1,6 +1,7 @@
 package com.example.myframework2.mvc.board.dao;
 
 import com.example.myframework2.mvc.board.model.User;
+import com.example.myframework2.mvc.core.annotation.Inject;
 import com.example.myframework2.mvc.core.annotation.Repository;
 import com.example.myframework2.mvc.core.jdbc.JdbcTemplate;
 
@@ -9,14 +10,11 @@ import java.util.List;
 
 @Repository
 public class UserDao {
-    private JdbcTemplate jdbcTemplate = JdbcTemplate.getInstance();
+    private final JdbcTemplate jdbcTemplate;
 
-    private static UserDao userDao = new UserDao();
-
-    private UserDao() {}
-
-    public static UserDao getInstance() {
-        return userDao;
+    @Inject
+    public UserDao(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public void insert(User user) {

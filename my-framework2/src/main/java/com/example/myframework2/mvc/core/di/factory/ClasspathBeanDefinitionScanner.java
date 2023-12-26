@@ -1,5 +1,6 @@
 package com.example.myframework2.mvc.core.di.factory;
 
+import com.example.myframework2.mvc.core.annotation.Component;
 import com.example.myframework2.mvc.core.annotation.Controller;
 import com.example.myframework2.mvc.core.annotation.Repository;
 import com.example.myframework2.mvc.core.annotation.Service;
@@ -18,7 +19,7 @@ public class ClasspathBeanDefinitionScanner {
 
     public void doScan(Object... basePackages) {
         Reflections reflections = new Reflections(basePackages);
-        Set<Class<?>> beanClasses = getTypesAnnotatedWith(reflections, Controller.class, Service.class, Repository.class);
+        Set<Class<?>> beanClasses = getTypesAnnotatedWith(reflections, Controller.class, Service.class, Repository.class, Component.class);
         for (Class<?> clazz : beanClasses) {
             beanDefinitionRegistry.registerBeanDefinition(clazz, new BeanDefinition(clazz));
         }

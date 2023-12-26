@@ -10,7 +10,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 public class LoginController extends AbstractController {
-    private UserDao userDao = UserDao.getInstance();
+    private UserDao userDao;
 
     @Override
     public ModelAndView execute(HttpServletRequest request, HttpServletResponse response) {
