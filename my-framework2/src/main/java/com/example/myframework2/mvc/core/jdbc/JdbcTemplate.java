@@ -1,7 +1,6 @@
 package com.example.myframework2.mvc.core.jdbc;
 
-import com.example.myframework2.mvc.core.annotation.Component;
-
+import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -9,8 +8,13 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-@Component
 public class JdbcTemplate {
+    private DataSource dataSource;
+
+    public JdbcTemplate(DataSource dataSource) {
+        super();
+        this.dataSource = dataSource;
+    }
 
     public void update(String sql, PreparedStatementSetter pss) throws RuntimeException {
         try (Connection con = ConnectionManager.getConnection();

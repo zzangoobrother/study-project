@@ -18,8 +18,8 @@ public class LegacyHandlerMapping implements HandlerMapping {
     private Map<String, Controller> controllers = new HashMap<>();
 
     public void init() {
-        AnswerDao answerDao = new JdbcAnswerDao(new JdbcTemplate());
-        QuestionDao questionDao = new JdbcQuestionDao(new JdbcTemplate());
+        AnswerDao answerDao = new JdbcAnswerDao(null);
+        QuestionDao questionDao = new JdbcQuestionDao(null);
         QnaService qnaService = new QnaService(answerDao, questionDao);
 
 //        controllers.put("/", new HomeController(questionDao));

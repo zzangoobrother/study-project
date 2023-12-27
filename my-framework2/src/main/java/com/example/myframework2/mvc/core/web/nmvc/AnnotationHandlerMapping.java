@@ -16,16 +16,15 @@ import java.util.Map;
 import java.util.Set;
 
 public class AnnotationHandlerMapping implements HandlerMapping {
-    private Object[] basePackage;
+    private ApplicationContext applicationContext;
 
     private Map<HandlerKey, HandlerExecution> handlerExecutions = Maps.newHashMap();
 
-    public AnnotationHandlerMapping(Object... basePackage) {
-        this.basePackage = basePackage;
+    public AnnotationHandlerMapping(ApplicationContext applicationContext) {
+        this.applicationContext = applicationContext;
     }
 
     public void initialize() {
-        ApplicationContext applicationContext = new ApplicationContext(basePackage);
         Map<Class<?>, Object> controllers = getControllers(applicationContext);
 
         Set<Method> methods = getRequestMappingMethods(controllers.keySet());

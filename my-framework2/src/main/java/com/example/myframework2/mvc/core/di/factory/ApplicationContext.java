@@ -2,21 +2,8 @@ package com.example.myframework2.mvc.core.di.factory;
 
 import java.util.Set;
 
-public class ApplicationContext {
-    private BeanFactory beanFactory;
+public interface ApplicationContext {
+    <T> T getBean(Class<T> clazz);
 
-    public ApplicationContext(Object... basePackages) {
-        this.beanFactory = new BeanFactory();
-        ClasspathBeanDefinitionScanner scanner = new ClasspathBeanDefinitionScanner(beanFactory);
-        scanner.doScan(basePackages);
-        beanFactory.initialize();
-    }
-
-    public <T> T getBean(Class<T> clazz) {
-        return beanFactory.getBean(clazz);
-    }
-
-    public Set<Class<?>> getBeanClasses() {
-        return beanFactory.getBeanClasses();
-    }
+    Set<Class<?>> getBeanClasses();
 }
