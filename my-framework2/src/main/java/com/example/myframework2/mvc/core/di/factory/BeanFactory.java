@@ -4,10 +4,13 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.springframework.beans.BeanUtils;
 
+import javax.annotation.PostConstruct;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 public class BeanFactory implements BeanDefinitionRegistry {
@@ -36,21 +39,56 @@ public class BeanFactory implements BeanDefinitionRegistry {
             return (T) bean;
         }
 
-        Class<?> concreteClass = findConcreteClass(clazz);
-        BeanDefinition beanDefinition = beanDefinitions.get(concreteClass);
+        BeanDefinition beanDefinition = beanDefinitions.get(clazz);
+        if (beanDefinition != null && beanDefinition instanceof AnnotatedBeanDefinition) {
+            Optional<Object> optionalBean = createAnnotatedBean(beanDefinition);
+            optionalBean.ifPresent(b -> beans.put(clazz, b));
+            initialize(bean, clazz);
+            return (T) optionalBean.orElse(null);
+        }
+
+        Optional<Class<?>> concreteClazz = BeanFactoryUtils.findConcreteClass(clazz, getBeanClasses());
+        if (!concreteClazz.isPresent()) {
+            return null;
+        }
+
+        beanDefinition = beanDefinitions.get(concreteClazz.get());
         bean = inject(beanDefinition);
-        beans.put(concreteClass, bean);
+        beans.put(concreteClazz.get(), bean);
+        initialize(bean, concreteClazz.get());
         return (T) bean;
     }
 
-    private Class<?> findConcreteClass(Class<?> clazz) {
-        Set<Class<?>> beanClasses = getBeanClasses();
-        Class<?> concreteClazz = BeanFactoryUtils.findConcreteClass(clazz, beanClasses);
-        if (!beanClasses.contains(concreteClazz)) {
-            throw new IllegalStateException(clazz + "는 Bean이 아니다.");
+    private Optional<Object> createAnnotatedBean(BeanDefinition beanDefinition) {
+        AnnotatedBeanDefinition abd = (AnnotatedBeanDefinition) beanDefinition;
+        Method method = abd.getMethod();
+        Object[] args = populateArguments(method.getParameterTypes());
+        return BeanFactoryUtils.invokeMethod(method, getBean(method.getDeclaringClass()), args);
+    }
+
+    private Object[] populateArguments(Class<?>[] paramTypes) {
+        List<Object> args = Lists.newArrayList();
+        for (Class<?> param : paramTypes) {
+            Object bean = getBean(param);
+            if (bean == null) {
+                throw new NullPointerException();
+            }
+
+            args.add(getBean(param));
         }
 
-        return concreteClazz;
+        return args.toArray();
+    }
+
+    private void initialize(Object bean, Class<?> beanClass) {
+        Set<Method> initializeMethods = BeanFactoryUtils.getBeanMethods(beanClass, PostConstruct.class);
+        if (initializeMethods.isEmpty()) {
+            return;
+        }
+        for (Method initializeMethod : initializeMethods) {
+            BeanFactoryUtils.invokeMethod(initializeMethod, bean,
+                    populateArguments(initializeMethod.getParameterTypes()));
+        }
     }
 
     private Object inject(BeanDefinition beanDefinition) {

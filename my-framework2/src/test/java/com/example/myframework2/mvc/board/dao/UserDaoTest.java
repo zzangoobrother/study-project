@@ -4,6 +4,7 @@ import com.example.myframework2.mvc.board.model.User;
 import com.example.myframework2.mvc.core.jdbc.ConnectionManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.init.DatabasePopulatorUtils;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
@@ -13,18 +14,21 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class UserDaoTest {
+    private UserDao userDao;
 
     @BeforeEach
     public void setup() {
         ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
         populator.addScript(new ClassPathResource("jwp.sql"));
         DatabasePopulatorUtils.execute(populator, ConnectionManager.getDataSource());
+
+        AnnotationConfigApplicationContext ac = new AnnotationConfigApplicationContext();
+        userDao = ac.getBean(UserDao.class);
     }
 
     @Test
     public void crud() throws Exception {
         User expected = new User("userId", "password", "name", "javajigi@email.com");
-        UserDao userDao = UserDao.getInstance();
         userDao.insert(expected);
         User actual = userDao.findByUserId(expected.getUserId());
         assertEquals(expected, actual);
@@ -37,7 +41,6 @@ class UserDaoTest {
 
     @Test
     public void findAll() throws Exception {
-        UserDao userDao = UserDao.getInstance();
         List<User> users = userDao.findAll();
         assertEquals(1, users.size());
     }
