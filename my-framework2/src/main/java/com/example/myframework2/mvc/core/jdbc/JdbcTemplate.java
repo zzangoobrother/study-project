@@ -17,7 +17,7 @@ public class JdbcTemplate {
     }
 
     public void update(String sql, PreparedStatementSetter pss) throws RuntimeException {
-        try (Connection con = ConnectionManager.getConnection();
+        try (Connection con = dataSource.getConnection();
              PreparedStatement pstmt = con.prepareStatement(sql)) {
             pss.setValues(pstmt);
             pstmt.executeUpdate();
@@ -31,7 +31,7 @@ public class JdbcTemplate {
     }
 
     public void update(PreparedStatementCreator psc, KeyHolder keyHolder) {
-        try (Connection con = ConnectionManager.getConnection()) {
+        try (Connection con = dataSource.getConnection()) {
             PreparedStatement ps = psc.createPreparedStatement(con);
             ps.executeUpdate();
 
@@ -48,7 +48,7 @@ public class JdbcTemplate {
 
     public <T> List<T> query(String sql, PreparedStatementSetter pss, RowMapper<T> rm) {
         ResultSet rs = null;
-        try (Connection con = ConnectionManager.getConnection();
+        try (Connection con = dataSource.getConnection();
              PreparedStatement pstmt = con.prepareStatement(sql)) {
             pss.setValues(pstmt);
 
