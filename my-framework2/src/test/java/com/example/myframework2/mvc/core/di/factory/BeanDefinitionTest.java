@@ -1,5 +1,8 @@
 package com.example.myframework2.mvc.core.di.factory;
 
+import com.example.myframework2.mvc.core.di.beans.factory.config.BeanDefinition;
+import com.example.myframework2.mvc.core.di.beans.factory.support.DefaultBeanDefinition;
+import com.example.myframework2.mvc.core.di.beans.factory.support.InjectType;
 import com.example.myframework2.mvc.core.di.factory.example.JdbcUserRepository;
 import com.example.myframework2.mvc.core.di.factory.example.MyQnaService;
 import com.example.myframework2.mvc.core.di.factory.example.MyUserController;
@@ -18,19 +21,19 @@ public class BeanDefinitionTest {
 
     @Test
     void getResolvedAutowireMode() {
-        BeanDefinition beanDefinition = new BeanDefinition(JdbcUserRepository.class);
+        BeanDefinition beanDefinition = new DefaultBeanDefinition(JdbcUserRepository.class);
         assertEquals(InjectType.INJECT_NO, beanDefinition.getResolvedInjectMode());
 
-        beanDefinition = new BeanDefinition(MyUserController.class);
+        beanDefinition = new DefaultBeanDefinition(MyUserController.class);
         assertEquals(InjectType.INJECT_FIELD, beanDefinition.getResolvedInjectMode());
 
-        beanDefinition = new BeanDefinition(MyQnaService.class);
+        beanDefinition = new DefaultBeanDefinition(MyQnaService.class);
         assertEquals(InjectType.INJECT_CONSTRUCTOR, beanDefinition.getResolvedInjectMode());
     }
 
     @Test
     void getInjectProperties() {
-        BeanDefinition beanDefinition = new BeanDefinition(MyUserController.class);
+        BeanDefinition beanDefinition = new DefaultBeanDefinition(MyUserController.class);
         Set<Field> injectFields = beanDefinition.getInjectFields();
         for (Field field : injectFields) {
             log.debug("inject field : {}", field);
@@ -39,7 +42,7 @@ public class BeanDefinitionTest {
 
     @Test
     void getConstorllers() {
-        BeanDefinition beanDefinition = new BeanDefinition(MyQnaService.class);
+        BeanDefinition beanDefinition = new DefaultBeanDefinition(MyQnaService.class);
         Set<Field> injectFields = beanDefinition.getInjectFields();
         assertEquals(0, injectFields.size());
         Constructor<?> constructor = beanDefinition.getInjectConstructor();

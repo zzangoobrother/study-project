@@ -1,4 +1,4 @@
-package com.example.myframework2.mvc.core.di.factory;
+package com.example.myframework2.mvc.core.di.beans.factory.support;
 
 import com.example.myframework2.mvc.core.annotation.Bean;
 import com.example.myframework2.mvc.core.annotation.Inject;

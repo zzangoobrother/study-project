@@ -1,5 +1,10 @@
-package com.example.myframework2.mvc.core.di.factory;
+package com.example.myframework2.mvc.core.di.context.support;
 
+import com.example.myframework2.mvc.core.di.beans.factory.support.BeanDefinitionReader;
+import com.example.myframework2.mvc.core.di.context.annotation.AnnotatedBeanDefinitionReader;
+import com.example.myframework2.mvc.core.di.context.ApplicationContext;
+import com.example.myframework2.mvc.core.di.context.annotation.ClasspathBeanDefinitionScanner;
+import com.example.myframework2.mvc.core.di.beans.factory.support.DefaultBeanFactory;
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,20 +16,20 @@ import java.util.Set;
 
 public class AnnotationConfigApplicationContext implements ApplicationContext {
     private static final Logger log = LoggerFactory.getLogger(AnnotationConfigApplicationContext.class);
-    private BeanFactory beanFactory;
+    private DefaultBeanFactory beanFactory;
 
     public AnnotationConfigApplicationContext(Class<?>... annotatedClasses) {
         Object[] basePackages = findBasePackages(annotatedClasses);
-        this.beanFactory = new BeanFactory();
-        AnnotatedBeanDefinitionReader abdr = new AnnotatedBeanDefinitionReader(beanFactory);
-        abdr.register(annotatedClasses);
+        this.beanFactory = new DefaultBeanFactory();
+        BeanDefinitionReader abdr = new AnnotatedBeanDefinitionReader(beanFactory);
+        abdr.loadBeanDefinitions(annotatedClasses);
 
         if (basePackages.length > 0) {
             ClasspathBeanDefinitionScanner scanner = new ClasspathBeanDefinitionScanner(beanFactory);
             scanner.doScan(basePackages);
         }
 
-        beanFactory.initialize();
+        beanFactory.preInstantiateSinglonetons();
     }
 
     private Object[] findBasePackages(Class<?>[] annotatedClasses) {

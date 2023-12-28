@@ -1,5 +1,6 @@
-package com.example.myframework2.mvc.core.di.factory;
+package com.example.myframework2.mvc.core.di.beans.factory.support;
 
+import com.example.myframework2.mvc.core.di.beans.factory.config.BeanDefinition;
 import com.google.common.collect.Sets;
 
 import java.lang.reflect.Constructor;
@@ -7,7 +8,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Set;
 
-public class BeanDefinition {
+public class DefaultBeanDefinition implements BeanDefinition {
 
     private Class<?> beanClazz;
 
@@ -15,7 +16,7 @@ public class BeanDefinition {
 
     private Set<Field> injectFields;
 
-    public BeanDefinition(Class<?> clazz) {
+    public DefaultBeanDefinition(Class<?> clazz) {
         this.beanClazz = clazz;
         injectConstructor = getInjectConstructor(clazz);
         injectFields = getInjectFields(clazz, injectConstructor);
@@ -62,18 +63,22 @@ public class BeanDefinition {
         return injectProperties;
     }
 
+    @Override
     public Constructor<?> getInjectConstructor() {
         return injectConstructor;
     }
 
+    @Override
     public Set<Field> getInjectFields() {
         return injectFields;
     }
 
-    public Class<?> getBeanClazz() {
+    @Override
+    public Class<?> getBeanClass() {
         return beanClazz;
     }
 
+    @Override
     public InjectType getResolvedInjectMode() {
         if (injectConstructor != null) {
             return InjectType.INJECT_CONSTRUCTOR;

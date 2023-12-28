@@ -1,5 +1,9 @@
 package com.example.myframework2.mvc.core.di.factory;
 
+import com.example.myframework2.mvc.core.di.beans.factory.support.BeanDefinitionReader;
+import com.example.myframework2.mvc.core.di.context.annotation.AnnotatedBeanDefinitionReader;
+import com.example.myframework2.mvc.core.di.context.annotation.ClasspathBeanDefinitionScanner;
+import com.example.myframework2.mvc.core.di.beans.factory.support.DefaultBeanFactory;
 import com.example.myframework2.mvc.di.examples.ExampleConfig;
 import com.example.myframework2.mvc.di.examples.IntegrationConfig;
 import com.example.myframework2.mvc.di.examples.JdbcUserRepository;
@@ -13,9 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class AnnotatedBeanDefinitionReaderTest {
     @Test
     void register_simple() {
-        BeanFactory beanFactory = new BeanFactory();
-        AnnotatedBeanDefinitionReader abdr = new AnnotatedBeanDefinitionReader(beanFactory);
-        abdr.register(ExampleConfig.class);
+        DefaultBeanFactory beanFactory = new DefaultBeanFactory();
+        BeanDefinitionReader abdr = new AnnotatedBeanDefinitionReader(beanFactory);
+        abdr.loadBeanDefinitions(ExampleConfig.class);
         beanFactory.initialize();
 
         assertNotNull(beanFactory.getBean(DataSource.class));
@@ -23,9 +27,9 @@ public class AnnotatedBeanDefinitionReaderTest {
 
     @Test
     void register_ClasspathBeanDefinitionScanner_통합() {
-        BeanFactory beanFactory = new BeanFactory();
-        AnnotatedBeanDefinitionReader abdr = new AnnotatedBeanDefinitionReader(beanFactory);
-        abdr.register(IntegrationConfig.class);
+        DefaultBeanFactory beanFactory = new DefaultBeanFactory();
+        BeanDefinitionReader abdr = new AnnotatedBeanDefinitionReader(beanFactory);
+        abdr.loadBeanDefinitions(IntegrationConfig.class);
 
         ClasspathBeanDefinitionScanner cbds = new ClasspathBeanDefinitionScanner(beanFactory);
         cbds.doScan("com.example.myframework2.mvc.di.examples");

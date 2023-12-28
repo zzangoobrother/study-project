@@ -1,9 +1,11 @@
 package com.example.myframework2.mvc.core.di.factory;
 
+import com.example.myframework2.mvc.core.di.context.annotation.ClasspathBeanDefinitionScanner;
 import com.example.myframework2.mvc.core.di.factory.example.MyQnaService;
 import com.example.myframework2.mvc.core.di.factory.example.MyUserController;
 import com.example.myframework2.mvc.core.di.factory.example.MyUserService;
 import com.example.myframework2.mvc.core.di.factory.example.QnaController;
+import com.example.myframework2.mvc.core.di.beans.factory.support.DefaultBeanFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,11 +17,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class BeanFactoryTest {
     private Logger log = LoggerFactory.getLogger(BeanFactoryTest.class);
 
-    private BeanFactory beanFactory;
+    private DefaultBeanFactory beanFactory;
 
     @BeforeEach
     void setup() {
-        beanFactory = new BeanFactory();
+        beanFactory = new DefaultBeanFactory();
         ClasspathBeanDefinitionScanner scanner = new ClasspathBeanDefinitionScanner(beanFactory);
         scanner.doScan("com.example.myframework2.mvc.core.di.factory.example");
         beanFactory.initialize();
