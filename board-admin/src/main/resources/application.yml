@@ -1,0 +1,19 @@
+debug: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+logging:
+  level:
+    com:
+      project:
+        adminboard: debug
+    org:
+      springframework:
+        web:
+          server: debug
+    org.hibernate.type.descriptor.sql.BasicBinder: trace
+
+
