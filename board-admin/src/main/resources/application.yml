@@ -16,4 +16,14 @@ logging:
           server: debug
     org.hibernate.type.descriptor.sql.BasicBinder: trace
 
+spring:
+  thymeleaf3:
+    decoupled-logic: true
 
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: jdbc:h2:mem:testdb
