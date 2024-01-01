@@ -1,0 +1,34 @@
+package com.project.adminboard.controller;
+
+import com.project.adminboard.config.SecurityConfig;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@DisplayName("컨트롤러 - 어드민 회원")
+@Import({SecurityConfig.class})
+@WebMvcTest(AdminUserAccountControllerTest.class)
+class AdminUserAccountControllerTest {
+
+    private final MockMvc mvc;
+
+    public AdminUserAccountControllerTest(@Autowired MockMvc mvc) {
+        this.mvc = mvc;
+    }
+
+    @DisplayName("[view][GET] 어드민 회원 리스트 - 정상 호출")
+    @Test
+    void givenAuthorizedUser_whenRequestingAdminMembersView_thenReturnsAdminMembersView() throws Exception {
+        mvc.perform(get("/admin/members"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+                .andExpect(view().name("admin/members"));
+    }
+}
