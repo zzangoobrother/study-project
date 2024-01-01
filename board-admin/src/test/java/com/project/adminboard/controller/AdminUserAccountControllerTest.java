@@ -14,7 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @DisplayName("컨트롤러 - 어드민 회원")
 @Import({SecurityConfig.class})
-@WebMvcTest(AdminUserAccountControllerTest.class)
+@WebMvcTest(AdminUserAccountController.class)
 class AdminUserAccountControllerTest {
 
     private final MockMvc mvc;
