@@ -8,12 +8,12 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-@RequestMapping("/management/user-account")
+@RequestMapping("/management/user-accounts")
 @Controller
 public class UserAccountManagementController {
 
     @GetMapping
     public String userAccounts(@PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable, Model model) {
-        return "management/userAccounts";
+        return "management/user-accounts";
     }
 }
