@@ -14,6 +14,6 @@ public class ArticleCommentManagementController {
 
     @GetMapping
     public String articleComments(@PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)Pageable pageable, Model model) {
-        return "management/articleComments";
+        return "management/article-comments";
     }
 }

@@ -26,9 +26,9 @@ class ArticleCommentManagementControllerTest {
     @DisplayName("[view][GET] 댓글 관리 페이지 - 정상 호출")
     @Test
     void givenNothing_whenRequestingArticleCommentManagementView_thenReturnsArticleCommentManagementView() throws Exception {
-        mvc.perform(get("/management/article-comment"))
+        mvc.perform(get("/management/article-comments"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
-                .andExpect(view().name("management/articleComments"));
+                .andExpect(view().name("management/article-comments"));
     }
 }

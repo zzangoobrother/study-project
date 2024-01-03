@@ -26,9 +26,9 @@ class UserAccountManagementControllerTest {
     @DisplayName("[view][GET] 회원 관리 페이지 - 정상 호출")
     @Test
     void givenNothing_whenRequestingUserAccountManagementView_thenReturnsUserAccountManagementView() throws Exception {
-        mvc.perform(get("/management/user-account"))
+        mvc.perform(get("/management/user-accounts"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
-                .andExpect(view().name("management/userAccounts"));
+                .andExpect(view().name("management/user-accounts"));
     }
 }
