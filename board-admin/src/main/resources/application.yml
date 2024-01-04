@@ -15,6 +15,7 @@ logging:
         web:
           server: debug
     org.hibernate.type.descriptor.sql.BasicBinder: trace
+    org.springframework.web.client.RestTemplate: debug
 
 spring:
   datasource:
@@ -27,6 +28,8 @@ spring:
       ddl-auto: create
   thymeleaf3:
     decoupled-logic: true
+
+project.board.url: http://localhost:8080
 
 ---
 spring:
