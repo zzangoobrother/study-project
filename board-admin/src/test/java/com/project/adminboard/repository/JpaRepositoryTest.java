@@ -31,7 +31,7 @@ class JpaRepositoryTest {
 
     @DisplayName("회원 정보 select 테스트")
     @Test
-    void giveUserAccounts_whenSelecting_thenWorksFine() {
+    void giveAdminAccounts_whenSelecting_thenWorksFine() {
         List<AdminAccount> adminAccounts = adminAccountRepository.findAll();
 
         assertThat(adminAccounts).isNotNull().hasSize(4);
@@ -39,7 +39,7 @@ class JpaRepositoryTest {
 
     @DisplayName("회원 정보 insert 테스트")
     @Test
-    void giveUserAccounts_whenInserting_thenWorksFine() {
+    void giveAdminAccounts_whenInserting_thenWorksFine() {
         long previousCount = adminAccountRepository.count();
         AdminAccount adminAccount = AdminAccount.of("test", "pw", Set.of(RoleType.DEVELOPER), null, null, null);
 
@@ -50,7 +50,7 @@ class JpaRepositoryTest {
 
     @DisplayName("회원 정보 update 테스트")
     @Test
-    void giveUserAccountAndRoleType_whenUpdating_thenWorksFine() {
+    void giveAdminAccountAndRoleType_whenUpdating_thenWorksFine() {
         AdminAccount adminAccount = adminAccountRepository.getReferenceById("choi");
         adminAccount.addRoleType(RoleType.DEVELOPER);
         adminAccount.addRoleType(List.of(RoleType.USER, RoleType.USER));
@@ -64,7 +64,7 @@ class JpaRepositoryTest {
 
     @DisplayName("회원 정보 delete 테스트")
     @Test
-    void giveUserAccount_whenDeleting_thenWorksFine() {
+    void giveAdminAccount_whenDeleting_thenWorksFine() {
         long previousCount = adminAccountRepository.count();
         AdminAccount adminAccount = adminAccountRepository.getReferenceById("choi");
 

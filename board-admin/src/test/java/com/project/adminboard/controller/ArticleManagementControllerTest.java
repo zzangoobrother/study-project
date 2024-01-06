@@ -1,7 +1,6 @@
 package com.project.adminboard.controller;
 
 import com.project.adminboard.config.SecurityConfig;
-import com.project.adminboard.domain.constant.RoleType;
 import com.project.adminboard.dto.ArticleDto;
 import com.project.adminboard.dto.UserAccountDto;
 import com.project.adminboard.service.ArticleManagementService;
@@ -17,7 +16,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 import static org.mockito.BDDMockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -108,7 +106,6 @@ class ArticleManagementControllerTest {
     private UserAccountDto createUserAccountDto() {
         return UserAccountDto.of(
                 "choiTest",
-                Set.of(RoleType.ADMIN),
                 "choi-test@email.com",
                 "choi-test",
                 "test memo"

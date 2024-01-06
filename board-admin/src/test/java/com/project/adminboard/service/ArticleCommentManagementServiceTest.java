@@ -1,7 +1,6 @@
 package com.project.adminboard.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.project.adminboard.domain.constant.RoleType;
 import com.project.adminboard.dto.ArticleCommentDto;
 import com.project.adminboard.dto.UserAccountDto;
 import com.project.adminboard.dto.properties.ProjectProperties;
@@ -22,7 +21,6 @@ import org.springframework.test.web.client.MockRestServiceServer;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -170,6 +168,6 @@ class ArticleCommentManagementServiceTest {
     }
 
     private UserAccountDto createUserAccountDto() {
-        return UserAccountDto.of("choiTest", Set.of(RoleType.ADMIN), "choi@email.com", "choi-test", "test memo");
+        return UserAccountDto.of("choiTest", "choi@email.com", "choi-test", "test memo");
     }
 }
