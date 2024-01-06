@@ -21,7 +21,7 @@
       <attr sel="tr[0]" th:each="comment : ${comments}">
         <attr sel="td[0]" th:text="${comment.id}" />
         <attr sel="td[1]/a" th:text="${comment.content}" th:href="@{#}" th:data-id="${comment.id}" />
-        <attr sel="td[2]" th:text="${comment.userAccount.nickname}" />
+        <attr sel="td[2]" th:text="${comment.adminAccount.nickname}" />
         <attr sel="td[3]/time" th:datetime="${comment.createdAt}" th:text="${#temporals.format(comment.createdAt, 'yyyy-MM-dd HH:mm:ss')}" />
       </attr>
     </attr>

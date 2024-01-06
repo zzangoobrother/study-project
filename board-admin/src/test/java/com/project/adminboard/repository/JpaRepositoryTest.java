@@ -1,6 +1,6 @@
 package com.project.adminboard.repository;
 
-import com.project.adminboard.domain.UserAccount;
+import com.project.adminboard.domain.AdminAccount;
 import com.project.adminboard.domain.constant.RoleType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,40 +23,40 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 class JpaRepositoryTest {
 
-    private final UserAccountRepository userAccountRepository;
+    private final AdminAccountRepository adminAccountRepository;
 
-    public JpaRepositoryTest(@Autowired UserAccountRepository userAccountRepository) {
-        this.userAccountRepository = userAccountRepository;
+    public JpaRepositoryTest(@Autowired AdminAccountRepository adminAccountRepository) {
+        this.adminAccountRepository = adminAccountRepository;
     }
 
     @DisplayName("회원 정보 select 테스트")
     @Test
     void giveUserAccounts_whenSelecting_thenWorksFine() {
-        List<UserAccount> userAccounts = userAccountRepository.findAll();
+        List<AdminAccount> adminAccounts = adminAccountRepository.findAll();
 
-        assertThat(userAccounts).isNotNull().hasSize(4);
+        assertThat(adminAccounts).isNotNull().hasSize(4);
     }
 
     @DisplayName("회원 정보 insert 테스트")
     @Test
     void giveUserAccounts_whenInserting_thenWorksFine() {
-        long previousCount = userAccountRepository.count();
-        UserAccount userAccount = UserAccount.of("test", "pw", Set.of(RoleType.DEVELOPER), null, null, null);
+        long previousCount = adminAccountRepository.count();
+        AdminAccount adminAccount = AdminAccount.of("test", "pw", Set.of(RoleType.DEVELOPER), null, null, null);
 
-        userAccountRepository.save(userAccount);
+        adminAccountRepository.save(adminAccount);
 
-        assertThat(userAccountRepository.count()).isEqualTo(previousCount + 1);
+        assertThat(adminAccountRepository.count()).isEqualTo(previousCount + 1);
     }
 
     @DisplayName("회원 정보 update 테스트")
     @Test
     void giveUserAccountAndRoleType_whenUpdating_thenWorksFine() {
-        UserAccount userAccount = userAccountRepository.getReferenceById("choi");
-        userAccount.addRoleType(RoleType.DEVELOPER);
-        userAccount.addRoleType(List.of(RoleType.USER, RoleType.USER));
-        userAccount.removeRoleType(RoleType.ADMIN);
+        AdminAccount adminAccount = adminAccountRepository.getReferenceById("choi");
+        adminAccount.addRoleType(RoleType.DEVELOPER);
+        adminAccount.addRoleType(List.of(RoleType.USER, RoleType.USER));
+        adminAccount.removeRoleType(RoleType.ADMIN);
 
-        UserAccount updateAccount = userAccountRepository.saveAndFlush(userAccount);
+        AdminAccount updateAccount = adminAccountRepository.saveAndFlush(adminAccount);
 
         assertThat(updateAccount).hasFieldOrPropertyWithValue("userId", "choi")
                 .hasFieldOrPropertyWithValue("roleTypes", Set.of(RoleType.DEVELOPER, RoleType.USER));
@@ -65,12 +65,12 @@ class JpaRepositoryTest {
     @DisplayName("회원 정보 delete 테스트")
     @Test
     void giveUserAccount_whenDeleting_thenWorksFine() {
-        long previousCount = userAccountRepository.count();
-        UserAccount userAccount = userAccountRepository.getReferenceById("choi");
+        long previousCount = adminAccountRepository.count();
+        AdminAccount adminAccount = adminAccountRepository.getReferenceById("choi");
 
-        userAccountRepository.delete(userAccount);
+        adminAccountRepository.delete(adminAccount);
 
-        assertThat(userAccountRepository.count()).isEqualTo(previousCount - 1);
+        assertThat(adminAccountRepository.count()).isEqualTo(previousCount - 1);
     }
 
     @EnableJpaAuditing

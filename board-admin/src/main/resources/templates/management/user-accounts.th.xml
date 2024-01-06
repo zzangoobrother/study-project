@@ -20,13 +20,13 @@
     </attr>
 
     <attr sel="tbody" th:remove="all-but-first">
-      <attr sel="tr[0]" th:each="userAccount : ${userAccounts}">
-        <attr sel="td[0]/a" th:text="${userAccount.userId}" th:href="@{#}" th:data-id="${userAccount.userId}" />
-        <attr sel="td[1]" th:text="${userAccount.nickname}" />
-        <attr sel="td[2]" th:text="${userAccount.email}" />
-        <attr sel="td[3]" th:text="${userAccount.memo}" />
-        <attr sel="td[4]" th:text="${userAccount.createdBy}" />
-        <attr sel="td[5]/time" th:datetime="${userAccount.createdAt}" th:text="${#temporals.format(userAccount.createdAt, 'yyyy-MM-dd HH:mm:ss')}" />
+      <attr sel="tr[0]" th:each="adminAccount : ${adminAccounts}">
+        <attr sel="td[0]/a" th:text="${adminAccount.userId}" th:href="@{#}" th:data-id="${adminAccount.userId}" />
+        <attr sel="td[1]" th:text="${adminAccount.nickname}" />
+        <attr sel="td[2]" th:text="${adminAccount.email}" />
+        <attr sel="td[3]" th:text="${adminAccount.memo}" />
+        <attr sel="td[4]" th:text="${adminAccount.createdBy}" />
+        <attr sel="td[5]/time" th:datetime="${adminAccount.createdAt}" th:text="${#temporals.format(adminAccount.createdAt, 'yyyy-MM-dd HH:mm:ss')}" />
       </attr>
     </attr>
   </attr>

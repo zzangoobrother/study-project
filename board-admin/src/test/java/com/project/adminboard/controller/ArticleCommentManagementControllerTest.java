@@ -3,7 +3,6 @@ package com.project.adminboard.controller;
 import com.project.adminboard.config.SecurityConfig;
 import com.project.adminboard.domain.constant.RoleType;
 import com.project.adminboard.dto.ArticleCommentDto;
-import com.project.adminboard.dto.ArticleDto;
 import com.project.adminboard.dto.UserAccountDto;
 import com.project.adminboard.service.ArticleCommentManagementService;
 import org.junit.jupiter.api.DisplayName;
@@ -110,7 +109,6 @@ class ArticleCommentManagementControllerTest {
     private UserAccountDto createUserAccountDto() {
         return UserAccountDto.of(
                 "choiTest",
-                "pw",
                 Set.of(RoleType.ADMIN),
                 "choi-test@email.com",
                 "choi-test",

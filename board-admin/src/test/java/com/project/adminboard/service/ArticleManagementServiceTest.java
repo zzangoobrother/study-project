@@ -138,7 +138,7 @@ class ArticleManagementServiceTest {
         }
 
         private UserAccountDto createUserAccountDto() {
-            return UserAccountDto.of("choiTest", "pw", Set.of(RoleType.ADMIN), "choi@email.com", "choi-test", "test memo");
+            return UserAccountDto.of("choiTest", Set.of(RoleType.ADMIN), "choi@email.com", "choi-test", "test memo");
         }
     }
 }
