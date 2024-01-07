@@ -86,6 +86,24 @@
         });
     </script>
 
+    <script>
+        $(document).ready(() => {
+            $('#layout-modal').on('show.bs.modal', (event) => {
+                const id = $(event.relatedTarget).data('id');
+
+                fetch(`/management/articles/${id}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        $('.modal-title').text(data.title);
+                        $('.modal-body pre').text(data.content);
+                        $('.modal-footer form').attr('action', `/management/articles/${id}`);
+                    })
+                    .catch(error => {
+                        console.error('게시글 로딩 실패: ', error);
+                    });
+            });
+        });
+    </script>
 
 <!--/* 페이지 전용 스크립트 */-->
 </body>
