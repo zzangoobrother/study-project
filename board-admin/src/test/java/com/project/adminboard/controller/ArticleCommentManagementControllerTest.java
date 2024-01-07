@@ -37,6 +37,7 @@ class ArticleCommentManagementControllerTest {
         this.mvc = mvc;
     }
 
+    @WithMockUser(username = "tester", roles = "USER")
     @DisplayName("[view][GET] 댓글 관리 페이지 - 정상 호출")
     @Test
     void givenNothing_whenRequestingArticleCommentManagementView_thenReturnsArticleCommentManagementView() throws Exception {
