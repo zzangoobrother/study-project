@@ -15,7 +15,7 @@ function sendMessage() {
     const message = $('#input-message').val();
 
     $(".direct-chat-messages").append(`
-        <div class="direct-chat-msg">
+        <div class="direct-chat-msg">현
             <div class="direct-chat-infos clearfix">
                 <span class="direct-chat-name float-left">Uno</span>
             </div>
