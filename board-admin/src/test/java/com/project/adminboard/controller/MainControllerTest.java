@@ -1,5 +1,6 @@
 package com.project.adminboard.controller;
 
+import com.project.adminboard.config.GlocalControllerConfig;
 import com.project.adminboard.config.TestSecurityConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,7 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @DisplayName("View 루트 컨트롤러")
-@Import({TestSecurityConfig.class})
+@Import({TestSecurityConfig.class, GlocalControllerConfig.class})
 @WebMvcTest(MainController.class)
 class MainControllerTest {
 

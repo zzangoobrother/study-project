@@ -1,5 +1,6 @@
 package com.project.adminboard.controller;
 
+import com.project.adminboard.config.GlocalControllerConfig;
 import com.project.adminboard.config.SecurityConfig;
 import com.project.adminboard.config.TestSecurityConfig;
 import com.project.adminboard.domain.constant.RoleType;
@@ -28,7 +29,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @DisplayName("컨트롤러 - 어드민 회원")
-@Import({SecurityConfig.class})
+@Import({SecurityConfig.class, GlocalControllerConfig.class})
 @WebMvcTest(AdminAccountController.class)
 class AdminAccountControllerTest {
 
@@ -49,6 +50,7 @@ class AdminAccountControllerTest {
                 .willReturn(createAdminAccountDto());
     }
 
+    @WithMockUser(username = "tester", roles = "USER")
     @DisplayName("[view][GET] 어드민 회원 페이지 - 정상 호출")
     @Test
     void givenAuthorizedUser_whenRequestingAdminMembersView_thenReturnsAdminMembersView() throws Exception {
