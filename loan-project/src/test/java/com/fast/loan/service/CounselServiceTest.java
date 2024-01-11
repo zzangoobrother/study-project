@@ -2,6 +2,8 @@ package com.fast.loan.service;
 
 import com.fast.loan.domain.Counsel;
 import com.fast.loan.dto.CounselDTO;
+import com.fast.loan.exception.BaseException;
+import com.fast.loan.exception.ResultType;
 import com.fast.loan.repository.CounselRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,7 +13,10 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.modelmapper.ModelMapper;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -28,7 +33,7 @@ class CounselServiceTest {
     private ModelMapper modelMapper;
 
     @Test
-    void Should_returnResponseOfNewCounselEntity_When_RequestCounsel() {
+    void should_returnResponseOfNewCounselEntity_When_RequestCounsel() {
         Counsel counsel = Counsel.builder()
                 .name("Member Choi")
                 .cellPhone("010-1111-1222")
@@ -54,5 +59,29 @@ class CounselServiceTest {
         CounselDTO.Response actual = counselService.create(request);
 
         assertThat(actual.getName()).isSameAs(request.getName());
+    }
+
+    @Test
+    void should_ReturnResponseOfExistCounselEntity_When_RequestExistCounselId() {
+        Long findId = 1L;
+
+        Counsel counsel = Counsel.builder()
+                .counselId(1L)
+                .build();
+
+        when(counselRepository.findById(findId)).thenReturn(Optional.ofNullable(counsel));
+
+        CounselDTO.Response response = counselService.get(findId);
+
+        assertThat(response.getCounselId()).isSameAs(findId);
+    }
+
+    @Test
+    void should_ThrowException_When_RequestNotExistCounselId() {
+        Long findId = 2L;
+
+        when(counselRepository.findById(findId)).thenThrow(new BaseException(ResultType.SYSTEM_ERROR));
+
+        assertThrows(BaseException.class, () -> counselService.get(findId));
     }
 }
