@@ -107,4 +107,20 @@ class CounselServiceTest {
         assertThat(response.getCounselId()).isSameAs(findId);
         assertThat(response.getName()).isSameAs(request.getName());
     }
+
+    @Test
+    void should_DeletedCounselEntity_When_RequestDeleteExistCounselInfo() {
+        Long targetId = 1L;
+
+        Counsel counsel = Counsel.builder()
+                .counselId(1L)
+                .build();
+
+        when(counselRepository.save(ArgumentMatchers.any(Counsel.class))).thenReturn(counsel);
+        when(counselRepository.findById(targetId)).thenReturn(Optional.ofNullable(counsel));
+
+        counselService.delete(targetId);
+
+        assertThat(counsel.getIsDeleted()).isTrue();
+    }
 }
