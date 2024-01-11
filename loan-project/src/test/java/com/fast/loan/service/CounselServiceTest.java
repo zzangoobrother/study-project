@@ -7,6 +7,7 @@ import com.fast.loan.exception.ResultType;
 import com.fast.loan.repository.CounselRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -83,5 +84,27 @@ class CounselServiceTest {
         when(counselRepository.findById(findId)).thenThrow(new BaseException(ResultType.SYSTEM_ERROR));
 
         assertThrows(BaseException.class, () -> counselService.get(findId));
+    }
+
+    @Test
+    void should_ReturnUpdatedResponseOfExistCounselEntity_When_RequestUpdateExistCounselInfo() {
+        Long findId = 1L;
+
+        Counsel counsel = Counsel.builder()
+                .counselId(1L)
+                .name("Member Choi")
+                .build();
+
+        CounselDTO.Request request = CounselDTO.Request.builder()
+                .name("Member Kang")
+                .build();
+
+        when(counselRepository.save(ArgumentMatchers.any(Counsel.class))).thenReturn(counsel);
+        when(counselRepository.findById(findId)).thenReturn(Optional.ofNullable(counsel));
+
+        CounselDTO.Response response = counselService.update(findId, request);
+
+        assertThat(response.getCounselId()).isSameAs(findId);
+        assertThat(response.getName()).isSameAs(request.getName());
     }
 }
