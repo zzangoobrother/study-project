@@ -18,5 +18,12 @@ spring:
     console:
       path: /h2-console
       enabled: true
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10Mb
+      location: ~/IdeaProjects/study-project
+
 logging.level:
     org.hibernate.SQL: debug
