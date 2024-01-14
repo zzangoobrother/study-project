@@ -2,6 +2,7 @@ package com.fast.loan.service;
 
 import com.fast.loan.domain.Application;
 import com.fast.loan.domain.Judgment;
+import com.fast.loan.dto.ApplicationDTO;
 import com.fast.loan.dto.JudgmentDTO;
 import com.fast.loan.repository.ApplicationRepository;
 import com.fast.loan.repository.JudgmentRepository;
@@ -127,5 +128,27 @@ class JudgmentServiceImplTest {
         judgmentService.delete(1L);
 
         assertThat(judgment.getIsDeleted()).isTrue();
+    }
+
+    @Test
+    void should_ReturnUpdateResponseOfExistApplicationEntity_When_RequestGrantApprovalAmountOfJudgmentInfo() {
+        Judgment judgment = Judgment.builder()
+                .judgmentId(1L)
+                .applicationId(1L)
+                .approvalAmount(BigDecimal.valueOf(5000000))
+                .build();
+
+        Application application = Application.builder()
+                .applicationId(1L)
+                .build();
+
+        when(judgmentRepository.findById(1L)).thenReturn(Optional.ofNullable(judgment));
+        when(applicationRepository.findById(1L)).thenReturn(Optional.ofNullable(application));
+        when(applicationRepository.save(ArgumentMatchers.any(Application.class))).thenReturn(application);
+
+        ApplicationDTO.GrantAmount response = judgmentService.grant(1L);
+
+        assertThat(response.getApplicationId()).isSameAs(application.getApplicationId());
+        assertThat(response.getApprovalAmount()).isSameAs(judgment.getApprovalAmount());
     }
 }

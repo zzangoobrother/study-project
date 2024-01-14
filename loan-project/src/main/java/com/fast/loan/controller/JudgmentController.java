@@ -1,5 +1,6 @@
 package com.fast.loan.controller;
 
+import com.fast.loan.dto.ApplicationDTO;
 import com.fast.loan.dto.JudgmentDTO;
 import com.fast.loan.dto.ResponseDTO;
 import com.fast.loan.service.JudgmentService;
@@ -37,5 +38,10 @@ public class JudgmentController {
     public ResponseDTO<Void> delete(@PathVariable Long judgmentId) {
         judgmentService.delete(judgmentId);
         return ResponseDTO.ok();
+    }
+
+    @PatchMapping("/{judgmentId}/grants")
+    public ResponseDTO<ApplicationDTO.GrantAmount> grant(@PathVariable Long judgmentId) {
+        return ResponseDTO.ok(judgmentService.grant(judgmentId));
     }
 }
