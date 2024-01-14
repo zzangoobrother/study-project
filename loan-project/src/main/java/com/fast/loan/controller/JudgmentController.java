@@ -32,4 +32,10 @@ public class JudgmentController {
     public ResponseDTO<JudgmentDTO.Response> update(@PathVariable Long judgmentId, @RequestBody JudgmentDTO.Request request) {
         return ResponseDTO.ok(judgmentService.update(judgmentId, request));
     }
+
+    @DeleteMapping("/{judgmentId}")
+    public ResponseDTO<Void> delete(@PathVariable Long judgmentId) {
+        judgmentService.delete(judgmentId);
+        return ResponseDTO.ok();
+    }
 }

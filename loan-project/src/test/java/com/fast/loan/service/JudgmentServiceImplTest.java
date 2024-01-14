@@ -114,4 +114,18 @@ class JudgmentServiceImplTest {
         assertThat(response.getName()).isSameAs(request.getName());
         assertThat(response.getApprovalAmount()).isSameAs(request.getApprovalAmount());
     }
+
+    @Test
+    void should_DeletedJudgmentEntity_When_RequestDeleteExistJudgmentInfo() {
+        Judgment judgment = Judgment.builder()
+                .judgmentId(1L)
+                .build();
+
+        when(judgmentRepository.findById(1L)).thenReturn(Optional.ofNullable(judgment));
+        when(judgmentRepository.save(ArgumentMatchers.any(Judgment.class))).thenReturn(judgment);
+
+        judgmentService.delete(1L);
+
+        assertThat(judgment.getIsDeleted()).isTrue();
+    }
 }
