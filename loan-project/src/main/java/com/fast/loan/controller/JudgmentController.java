@@ -27,4 +27,9 @@ public class JudgmentController {
     public ResponseDTO<JudgmentDTO.Response> getJudgmentOfApplication(@PathVariable Long applicationId) {
         return ResponseDTO.ok(judgmentService.getJudgmentOfApplication(applicationId));
     }
+
+    @PutMapping("/{judgmentId}")
+    public ResponseDTO<JudgmentDTO.Response> update(@PathVariable Long judgmentId, @RequestBody JudgmentDTO.Request request) {
+        return ResponseDTO.ok(judgmentService.update(judgmentId, request));
+    }
 }

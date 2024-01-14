@@ -9,4 +9,6 @@ public interface JudgmentService {
     JudgmentDTO.Response get(Long judgmentId);
 
     JudgmentDTO.Response getJudgmentOfApplication(Long applicationId);
+
+    JudgmentDTO.Response update(Long judgmentId, JudgmentDTO.Request request);
 }

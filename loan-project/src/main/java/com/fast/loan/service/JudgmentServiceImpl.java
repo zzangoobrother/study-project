@@ -48,6 +48,18 @@ public class JudgmentServiceImpl implements JudgmentService {
         return modelMapper.map(judgment, JudgmentDTO.Response.class);
     }
 
+    @Override
+    public JudgmentDTO.Response update(Long judgmentId, JudgmentDTO.Request request) {
+        Judgment judgment = judgmentRepository.findById(judgmentId).orElseThrow(() -> new BaseException(ResultType.SYSTEM_ERROR));
+
+        judgment.setName(request.getName());
+        judgment.setApprovalAmount(request.getApprovalAmount());
+
+        judgmentRepository.save(judgment);
+
+        return modelMapper.map(judgment, JudgmentDTO.Response.class);
+    }
+
     private boolean isPresentApplication(Long applicationId) {
         return applicationRepository.findById(applicationId).isPresent();
     }
