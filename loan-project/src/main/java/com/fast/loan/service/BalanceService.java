@@ -1,0 +1,7 @@
+package com.fast.loan.service;
+
+import com.fast.loan.dto.BalanceDTO;
+
+public interface BalanceService {
+    BalanceDTO.Response create(Long applicationId, BalanceDTO.Request request);
+}
