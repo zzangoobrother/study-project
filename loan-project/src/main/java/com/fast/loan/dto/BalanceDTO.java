@@ -32,6 +32,20 @@ public class BalanceDTO {
     @Builder
     @Getter
     @Setter
+    public static class RepaymentRequest {
+        private RepaymentType type;
+        private BigDecimal repaymentAmount;
+
+        public enum RepaymentType {
+            ADD, REMOVE;
+        }
+    }
+
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Getter
+    @Setter
     public static class Response {
         private Long balanceId;
         private Long applicationId;
