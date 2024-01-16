@@ -11,4 +11,6 @@ public interface RepaymentService {
     List<RepaymentDTO.ListResponse> get(Long applicationId);
 
     RepaymentDTO.UpdateResponse update(Long repaymentId, RepaymentDTO.Request request);
+
+    void delete(Long repaymentId);
 }
