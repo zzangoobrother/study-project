@@ -27,4 +27,10 @@ public class InternalController extends AbstractController{
     public ResponseDTO<EntryDTO.UpdateResponse> update(@PathVariable Long entryId, @RequestBody EntryDTO.Request request) {
         return ok(entryService.update(entryId, request));
     }
+
+    @DeleteMapping("/entries/{entryId}")
+    public ResponseDTO<Void> delete(@PathVariable Long entryId) {
+        entryService.delete(entryId);
+        return ok();
+    }
 }

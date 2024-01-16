@@ -26,14 +26,14 @@ public class EntryServiceImpl implements EntryService {
 
     @Override
     public EntryDTO.Response create(Long applicationId, EntryDTO.Request request) {
-       if (!isContractedApplication(applicationId)) {
-           throw new BaseException(ResultType.SYSTEM_ERROR);
-       }
+        if (!isContractedApplication(applicationId)) {
+            throw new BaseException(ResultType.SYSTEM_ERROR);
+        }
 
         Entry entry = modelMapper.map(request, Entry.class);
-       entry.setApplicationId(applicationId);
+        entry.setApplicationId(applicationId);
 
-       entryRepository.save(entry);
+        entryRepository.save(entry);
 
         balanceService.create(applicationId,
                 BalanceDTO.Request.builder()
@@ -76,6 +76,21 @@ public class EntryServiceImpl implements EntryService {
                 .beforeEntryAmount(beforeEntryAmount)
                 .afterEntryAmount(request.getEntryAmount())
                 .build();
+    }
+
+    @Override
+    public void delete(Long entryId) {
+        Entry entry = entryRepository.findById(entryId).orElseThrow(() -> new BaseException(ResultType.SYSTEM_ERROR));
+
+        entry.setIsDeleted(true);
+        entryRepository.save(entry);
+
+        Long applicationId = entry.getApplicationId();
+        BigDecimal beforeEntryAmount = entry.getEntryAmount();
+        balanceService.update(applicationId, BalanceDTO.UpdateRequest.builder()
+                .beforeEntryAmount(beforeEntryAmount)
+                .afterEntryAmount(BigDecimal.ZERO)
+                .build());
     }
 
     private boolean isContractedApplication(Long applicationId) {

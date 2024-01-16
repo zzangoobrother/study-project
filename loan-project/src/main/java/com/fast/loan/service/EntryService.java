@@ -8,4 +8,6 @@ public interface EntryService {
     EntryDTO.Response get(Long applicationId);
 
     EntryDTO.UpdateResponse update(Long entryId, EntryDTO.Request request);
+
+    void delete(Long entryId);
 }
