@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -56,6 +57,36 @@ public class RepaymentServiceImpl implements RepaymentService {
         return repayments.stream()
                 .map(repayment -> modelMapper.map(repayment, RepaymentDTO.ListResponse.class))
                 .toList();
+    }
+
+    @Override
+    public RepaymentDTO.UpdateResponse update(Long repaymentId, RepaymentDTO.Request request) {
+        Repayment repayment = repaymentRepository.findById(repaymentId).orElseThrow(() -> new BaseException(ResultType.SYSTEM_ERROR));
+
+        Long applicationId = repayment.getApplicationId();
+        BigDecimal beforeRepaymentAmount = repayment.getRepaymentAmount();
+
+        balanceService.repaymentUpdate(applicationId, BalanceDTO.RepaymentRequest.builder()
+                .repaymentAmount(beforeRepaymentAmount)
+                .type(BalanceDTO.RepaymentRequest.RepaymentType.ADD)
+                .build());
+
+        repayment.setRepaymentAmount(request.getRepaymentAmount());
+        repaymentRepository.save(repayment);
+
+        BalanceDTO.Response response = balanceService.repaymentUpdate(applicationId, BalanceDTO.RepaymentRequest.builder()
+                .repaymentAmount(request.getRepaymentAmount())
+                .type(BalanceDTO.RepaymentRequest.RepaymentType.REMOVE)
+                .build());
+
+        return RepaymentDTO.UpdateResponse.builder()
+                .applicationId(applicationId)
+                .beforeRepaymentAmount(beforeRepaymentAmount)
+                .afterRepaymentAmount(repayment.getRepaymentAmount())
+                .balance(response.getBalance())
+                .createdAt(repayment.getCreatedAt())
+                .updatedAt(repayment.getUpdatedAt())
+                .build();
     }
 
     private boolean isRepayableApplication(Long applicationId) {
