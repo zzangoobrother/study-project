@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -47,6 +48,14 @@ public class RepaymentServiceImpl implements RepaymentService {
         response.setBalance(updateBalance.getBalance());
 
         return response;
+    }
+
+    @Override
+    public List<RepaymentDTO.ListResponse> get(Long applicationId) {
+        List<Repayment> repayments = repaymentRepository.findAllByApplicationId(applicationId);
+        return repayments.stream()
+                .map(repayment -> modelMapper.map(repayment, RepaymentDTO.ListResponse.class))
+                .toList();
     }
 
     private boolean isRepayableApplication(Long applicationId) {
