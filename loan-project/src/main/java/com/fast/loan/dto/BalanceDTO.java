@@ -21,6 +21,17 @@ public class BalanceDTO {
     @Builder
     @Getter
     @Setter
+    public static class UpdateRequest {
+        private Long applicationId;
+        private BigDecimal beforeEntryAmount;
+        private BigDecimal afterEntryAmount;
+    }
+
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Getter
+    @Setter
     public static class Response {
         private Long balanceId;
         private Long applicationId;
