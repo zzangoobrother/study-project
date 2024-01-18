@@ -2,7 +2,6 @@ package com.fast.loan.service;
 
 import com.fast.loan.domain.AcceptTerms;
 import com.fast.loan.domain.Application;
-import com.fast.loan.domain.Judgment;
 import com.fast.loan.domain.Terms;
 import com.fast.loan.dto.ApplicationDTO;
 import com.fast.loan.exception.BaseException;
