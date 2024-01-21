@@ -1,0 +1,16 @@
+spring:
+  redis:
+    host: 54.180.156.185
+    port: 6379
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    display-request-duration: true # try it out 클릭 시 응답으로 소요 시간 표시
+    tags-sorter: alpha # 태그 간 오름차순으로 정렬
+    syntax-highlight:
+      theme: nord
+    persist-authorization: true # 새로고침/브라우저 닫기를 수행하더라도 데이터 유지
+    path: /swagger-ui.html
+  pre-loading-enabled: true # 사전 세팅
