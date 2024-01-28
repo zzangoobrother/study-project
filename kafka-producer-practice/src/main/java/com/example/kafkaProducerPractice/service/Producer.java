@@ -17,4 +17,8 @@ public class Producer {
     public void pub(String msg) {
         kafkaTemplate.send(topicName, msg);
     }
+
+    public void sendJoinedMessage(String topicName, Object msg) {
+        kafkaTemplate.send(topicName, msg);
+    }
 }
