@@ -2,6 +2,7 @@ package com.example.kafkaProducerPractice.config;
 
 import com.example.kafkaProducerPractice.util.CustomSerializer;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.streams.StreamsConfig;
@@ -31,6 +32,9 @@ public class KafkaConfig {
         myConfig.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
         myConfig.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
         myConfig.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 3);
+        myConfig.put(StreamsConfig.producerPrefix(ProducerConfig.ACKS_CONFIG), "all");
+        myConfig.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 2);
+        myConfig.put(StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG, 1);
 
         return new KafkaStreamsConfiguration(myConfig);
     }

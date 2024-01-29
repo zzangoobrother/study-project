@@ -15,8 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 @Getter
 public class AdEvaluationService {
@@ -94,5 +93,41 @@ public class AdEvaluationService {
         };
 
         adTable.join(purchaseLogOneKTable, tableStreamJoiner).toStream().to("AdEvaluationComplete", Produced.with(Serdes.String(), effectOrNotSerde));
+    }
+
+    public void sendNewMsg() {
+        PurchaseLog tempPurchaseLog = new PurchaseLog();
+        WatchingAdLog tempWatchingAdLog = new WatchingAdLog();
+
+        // purchaseLog
+        Random random = new Random();
+        int userNumber = random.nextInt(9999);
+        int randomOrderNumber = random.nextInt(9999);
+        int randomProductNumber = random.nextInt(9999);
+        int randomPriceNumber = random.nextInt(90000) + 10000;
+        int watchingTime = random.nextInt(55) + 5;
+
+        tempPurchaseLog.setUserId("uid" + String.format("%05d", userNumber));
+        tempPurchaseLog.setPurchasedDt("2024010107000");
+        tempPurchaseLog.setOrderId("od-" + String.format("%05d", randomOrderNumber));
+        List<Map<String, String>> tempProductInfo = new ArrayList<>();
+        Map<String, String> tempProduct = new HashMap<>();
+        for (int i = 0; i < random.nextInt(9) + 1; i++) {
+            tempProduct.put("productId", "pg-" + String.format("%05d", randomProductNumber));
+            tempProduct.put("price", String.format("{0:D4}", randomPriceNumber));
+            tempProductInfo.add(tempProduct);
+        }
+
+        tempPurchaseLog.setProductInfo(tempProductInfo);
+
+        tempWatchingAdLog.setUserId("uid-" + String.format("%05d", userNumber));
+        tempWatchingAdLog.setProductId("pg-" + String.format("%05d", randomProductNumber));
+        tempWatchingAdLog.setAdId("ad-" + String.format("%05d", randomProductNumber));
+        tempWatchingAdLog.setAdType("banner");
+        tempWatchingAdLog.setWatchingTime(String.valueOf(watchingTime));
+        tempWatchingAdLog.setWatchingDt("2024010107000");
+
+        producer.sendJoinedMessage("purchaseLog", tempPurchaseLog);
+        producer.sendJoinedMessage("adLog", tempWatchingAdLog);
     }
 }

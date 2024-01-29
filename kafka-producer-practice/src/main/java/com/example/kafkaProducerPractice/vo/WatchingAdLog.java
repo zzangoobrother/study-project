@@ -1,8 +1,10 @@
 package com.example.kafkaProducerPractice.vo;
 
 import lombok.Getter;
+import lombok.Setter;
 
 @Getter
+@Setter
 public class WatchingAdLog {
 
     String userId;
