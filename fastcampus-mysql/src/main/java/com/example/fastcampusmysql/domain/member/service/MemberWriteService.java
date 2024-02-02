@@ -14,7 +14,7 @@ public class MemberWriteService {
         this.memberRepository = memberRepository;
     }
 
-    public void create(RegisterMemberCommand command) {
+    public Member register(RegisterMemberCommand command) {
         /*
             회원 정보 등록
             이메일, 닉네임, 생년월일
@@ -26,6 +26,6 @@ public class MemberWriteService {
                 .email(command.email())
                 .build();
 
-        memberRepository.save(member);
+        return memberRepository.save(member);
     }
 }
