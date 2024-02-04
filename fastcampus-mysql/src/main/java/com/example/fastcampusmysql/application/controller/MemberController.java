@@ -1,4 +1,4 @@
-package com.example.fastcampusmysql.controller;
+package com.example.fastcampusmysql.application.controller;
 
 import com.example.fastcampusmysql.domain.member.dto.MemberDto;
 import com.example.fastcampusmysql.domain.member.dto.MemberNicknameHistoryDto;
