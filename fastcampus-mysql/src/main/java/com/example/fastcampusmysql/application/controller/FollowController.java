@@ -24,8 +24,8 @@ public class FollowController {
         createFollowMemberUsecase.execute(fromId, toId);
     }
 
-    @GetMapping("/members/{fromId}}")
-    public List<MemberDto> create(@PathVariable Long fromId) {
+    @GetMapping("/members/{fromId}")
+    public List<MemberDto> get(@PathVariable Long fromId) {
         return getFollowingMemberUsecase.execute(fromId);
     }
 }
