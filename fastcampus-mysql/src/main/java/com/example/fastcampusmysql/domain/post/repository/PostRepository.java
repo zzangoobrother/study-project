@@ -87,6 +87,39 @@ public class PostRepository {
         return jdbcTemplate.queryForObject(sql, params, Long.class);
     }
 
+    public List<Post> findAllByMemberIdAndOrderByIdDesc(Long memberId, int size) {
+        var sql = String.format("""
+                select *
+                from %s
+                where memberId = :memberId
+                order by  id desc
+                limit :size
+                """, TABLE);
+
+        var params = new MapSqlParameterSource()
+                .addValue("memberId", memberId)
+                .addValue("size", size);
+
+        return jdbcTemplate.query(sql, params, rowMapper);
+    }
+
+    public List<Post> findAllByLessThanMemberIdAndOrderByIdDesc(Long id, Long memberId, int size) {
+        var sql = String.format("""
+                select *
+                from %s
+                where memberId = :memberId and id < :id
+                order by  id desc
+                limit :size
+                """, TABLE);
+
+        var params = new MapSqlParameterSource()
+                .addValue("memberId", memberId)
+                .addValue("id", id)
+                .addValue("size", size);
+
+        return jdbcTemplate.query(sql, params, rowMapper);
+    }
+
     public Post save(Post post) {
         if (post.getId() == null) {
             return insert(post);
