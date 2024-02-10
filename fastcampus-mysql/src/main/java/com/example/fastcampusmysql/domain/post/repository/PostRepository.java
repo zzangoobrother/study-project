@@ -103,6 +103,43 @@ public class PostRepository {
         return jdbcTemplate.query(sql, params, rowMapper);
     }
 
+    public List<Post> findAllByMemberIdAndOrderByIdDesc(List<Long> memberIds, int size) {
+        if (memberIds.isEmpty()) {
+            return List.of();
+        }
+
+        var sql = String.format("""
+                select *
+                from %s
+                where memberId in (:memberIds)
+                order by  id desc
+                limit :size
+                """, TABLE);
+
+        var params = new MapSqlParameterSource()
+                .addValue("memberIds", memberIds)
+                .addValue("size", size);
+
+        return jdbcTemplate.query(sql, params, rowMapper);
+    }
+
+    public List<Post> findAllByInId(List<Long> postIds) {
+        if (postIds.isEmpty()) {
+            return List.of();
+        }
+
+        var sql = String.format("""
+                select *
+                from %s
+                where id in (:ids)
+                """, TABLE);
+
+        var params = new MapSqlParameterSource()
+                .addValue("ids", postIds);
+
+        return jdbcTemplate.query(sql, params, rowMapper);
+    }
+
     public List<Post> findAllByLessThanMemberIdAndOrderByIdDesc(Long id, Long memberId, int size) {
         var sql = String.format("""
                 select *
@@ -114,6 +151,27 @@ public class PostRepository {
 
         var params = new MapSqlParameterSource()
                 .addValue("memberId", memberId)
+                .addValue("id", id)
+                .addValue("size", size);
+
+        return jdbcTemplate.query(sql, params, rowMapper);
+    }
+
+    public List<Post> findAllByLessThanMemberIdAndOrderByIdDesc(Long id, List<Long> memberIds, int size) {
+        if (memberIds.isEmpty()) {
+            return List.of();
+        }
+
+        var sql = String.format("""
+                select *
+                from %s
+                where memberId in (:memberIds) and id < :id
+                order by  id desc
+                limit :size
+                """, TABLE);
+
+        var params = new MapSqlParameterSource()
+                .addValue("memberIds", memberIds)
                 .addValue("id", id)
                 .addValue("size", size);
 

@@ -35,6 +35,13 @@ public class FollowRepository {
         return jdbcTemplate.query(sql, params, rowMapper);
     }
 
+    public List<Follow> findAllByToMemberId(Long toMemberId) {
+        var sql = String.format("select * from %s where toMemberId = ?", TABLE);
+        var params = new MapSqlParameterSource("toMemberId", toMemberId);
+
+        return jdbcTemplate.query(sql, params, rowMapper);
+    }
+
     public Follow save(Follow follow) {
         if (follow.getId() == null) {
             return insert(follow);

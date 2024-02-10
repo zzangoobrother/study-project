@@ -11,7 +11,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.OptionalLong;
 
 @Service
 public class PostReadService {
@@ -32,12 +31,7 @@ public class PostReadService {
     public PageCursor<Post> getPosts(Long memberId, CusorRequest request) {
         var posts  = findAllBy(memberId, request);
 
-        var nextKey = posts.stream()
-                .mapToLong(post -> post.getId())
-                .min()
-                .orElse(CusorRequest.NONE_KEY);
-
-        return new PageCursor<>(request.next(nextKey), posts);
+        return getNextKey(posts, request);
     }
 
     private List<Post> findAllBy(Long memberId, CusorRequest request) {
@@ -46,5 +40,32 @@ public class PostReadService {
         }
 
         return postRepository.findAllByMemberIdAndOrderByIdDesc(memberId, request.size());
+    }
+
+    public PageCursor<Post> getPosts(List<Long> memberIds, CusorRequest request) {
+        var posts  = findAllBy(memberIds, request);
+
+        return getNextKey(posts, request);
+    }
+
+    public List<Post> getPosts(List<Long> postIds) {
+        return postRepository.findAllByInId(postIds);
+    }
+
+    private List<Post> findAllBy(List<Long> memberIds, CusorRequest request) {
+        if (request.hasKey()) {
+            return postRepository.findAllByLessThanMemberIdAndOrderByIdDesc(request.key(), memberIds, request.size());
+        }
+
+        return postRepository.findAllByMemberIdAndOrderByIdDesc(memberIds, request.size());
+    }
+
+    private PageCursor<Post> getNextKey(List<Post> posts, CusorRequest request) {
+        var nextKey = posts.stream()
+                .mapToLong(post -> post.getId())
+                .min()
+                .orElse(CusorRequest.NONE_KEY);
+
+        return new PageCursor<>(request.next(nextKey), posts);
     }
 }
