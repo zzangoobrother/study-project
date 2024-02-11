@@ -1,14 +1,12 @@
 package com.example.fastcampusmysql.domain.post.repository;
 
 import com.example.fastcampusmysql.domain.PageHelper;
-import com.example.fastcampusmysql.domain.member.entity.Member;
 import com.example.fastcampusmysql.domain.post.dto.DailyPostCount;
 import com.example.fastcampusmysql.domain.post.dto.DailyPostCountRequest;
 import com.example.fastcampusmysql.domain.post.entity.Post;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
@@ -22,6 +20,7 @@ import java.sql.ResultSet;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @RequiredArgsConstructor
 @Repository
@@ -35,6 +34,7 @@ public class PostRepository {
             .memberId(resultSet.getLong("memberId"))
             .contents(resultSet.getString("contents"))
             .createdDate(resultSet.getObject("createdDate", LocalDate.class))
+            .likeCount(resultSet.getLong("likeCount"))
             .createdAt(resultSet.getObject("createdAt", LocalDateTime.class))
             .build();
 
@@ -74,6 +74,19 @@ public class PostRepository {
 
 
         return new PageImpl(posts, pageable, getCount(memberId));
+    }
+
+    public Optional<Post> findById(Long postId, Boolean requiredLock) {
+        var sql = String.format("""
+                select * from %s where id: postId
+                """, TABLE);
+
+        if (requiredLock) {
+            sql += "for update";
+        }
+        var params = new MapSqlParameterSource("postId", postId);
+        var nullablePost = jdbcTemplate.queryForObject(sql, params, rowMapper);
+        return Optional.ofNullable(nullablePost);
     }
 
     private long getCount(Long memberId) {
@@ -183,7 +196,7 @@ public class PostRepository {
             return insert(post);
         }
 
-        throw new UnsupportedOperationException("Post는 갱신을 지원하지 않습니다.");
+        return update(post);
     }
 
     public void bulkInsert(List<Post> posts) {
@@ -211,5 +224,20 @@ public class PostRepository {
                 .createdDate(post.getCreatedDate())
                 .createdAt(post.getCreatedAt())
                 .build();
+    }
+
+    private Post update(Post post) {
+        var sql = String.format("""
+                update %s 
+                set memberId = :memberId,
+                    contents = :contents,
+                    createdDate = :createdDate,
+                    likeCount = likeCount
+                    createdAt = createdAt
+                where id = :id
+                """, TABLE);
+        var params = new BeanPropertySqlParameterSource(post);
+        jdbcTemplate.update(sql, params);
+        return post;
     }
 }

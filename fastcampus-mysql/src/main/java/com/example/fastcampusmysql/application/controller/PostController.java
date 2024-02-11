@@ -56,4 +56,9 @@ public class PostController {
     public PageCursor<Post> getTimeline(@PathVariable Long memberId, CusorRequest request) {
         return getTimeLinePostUsecase.executeByTimeline(memberId, request);
     }
+
+    @PostMapping("/{postId}/like")
+    public void likePost(Long postId) {
+        postWriteService.likePost(postId);
+    }
 }

@@ -6,6 +6,7 @@ import com.example.fastcampusmysql.domain.post.dto.PostCommand;
 import com.example.fastcampusmysql.domain.post.service.PostWriteService;
 import com.example.fastcampusmysql.domain.post.service.TimelineWriteService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class CreatePostUsecase {
@@ -19,6 +20,7 @@ public class CreatePostUsecase {
         this.timelineWriteService = timelineWriteService;
     }
 
+    @Transactional
     public Long execute(PostCommand postCommand) {
         var postId = postWriteService.create(postCommand);
 

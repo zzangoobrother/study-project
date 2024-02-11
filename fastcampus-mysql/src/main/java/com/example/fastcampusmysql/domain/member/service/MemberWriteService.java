@@ -6,6 +6,7 @@ import com.example.fastcampusmysql.domain.member.entity.MemberNicknameHistory;
 import com.example.fastcampusmysql.domain.member.repository.MemberNicknameHistoryRepository;
 import com.example.fastcampusmysql.domain.member.repository.MemberRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class MemberWriteService {
@@ -18,6 +19,7 @@ public class MemberWriteService {
         this.memberNicknameHistoryRepository = memberNicknameHistoryRepository;
     }
 
+    @Transactional
     public Member register(RegisterMemberCommand command) {
         /*
             회원 정보 등록
@@ -37,6 +39,7 @@ public class MemberWriteService {
         return saveMember;
     }
 
+    @Transactional
     public void cheangeNickname(Long memberId, String nickname) {
         var member = memberRepository.findById(memberId).orElseThrow();
 
