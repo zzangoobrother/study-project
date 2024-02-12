@@ -2,7 +2,9 @@ package com.example.fastcampusmysql.domain.post.service;
 
 import com.example.fastcampusmysql.domain.post.dto.DailyPostCount;
 import com.example.fastcampusmysql.domain.post.dto.DailyPostCountRequest;
+import com.example.fastcampusmysql.domain.post.dto.PostDto;
 import com.example.fastcampusmysql.domain.post.entity.Post;
+import com.example.fastcampusmysql.domain.post.repository.PostLikeRepository;
 import com.example.fastcampusmysql.domain.post.repository.PostRepository;
 import com.example.fastcampusmysql.util.CusorRequest;
 import com.example.fastcampusmysql.util.PageCursor;
@@ -15,17 +17,23 @@ import java.util.List;
 @Service
 public class PostReadService {
     private final PostRepository postRepository;
+    private final PostLikeRepository postLikeRepository;
 
-    public PostReadService(PostRepository postRepository) {
+    public PostReadService(PostRepository postRepository, PostLikeRepository postLikeRepository) {
         this.postRepository = postRepository;
+        this.postLikeRepository = postLikeRepository;
     }
 
     public List<DailyPostCount> getDailyPostCount(DailyPostCountRequest request) {
         return postRepository.groupByCreatedDate(request);
     }
 
-    public Page<Post> getPosts(Long memberId, Pageable pageable) {
-        return postRepository.findAllByMemberId(memberId, pageable);
+    public Page<PostDto> getPosts(Long memberId, Pageable pageable) {
+        return postRepository.findAllByMemberId(memberId, pageable).map(post -> toDto(post));
+    }
+
+    private PostDto toDto(Post post) {
+        return new PostDto(post.getId(), post.getContents(), post.getCreatedAt(), postLikeRepository.getCount(post.getId()));
     }
 
     public PageCursor<Post> getPosts(Long memberId, CusorRequest request) {
@@ -50,6 +58,10 @@ public class PostReadService {
 
     public List<Post> getPosts(List<Long> postIds) {
         return postRepository.findAllByInId(postIds);
+    }
+
+    public Post getPosts(Long postId) {
+        return postRepository.findById(postId, false).orElseThrow();
     }
 
     private List<Post> findAllBy(List<Long> memberIds, CusorRequest request) {

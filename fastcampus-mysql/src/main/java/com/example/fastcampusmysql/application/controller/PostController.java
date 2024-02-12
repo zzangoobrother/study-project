@@ -1,10 +1,12 @@
 package com.example.fastcampusmysql.application.controller;
 
+import com.example.fastcampusmysql.application.usecase.CreatePostLikeUsacase;
 import com.example.fastcampusmysql.application.usecase.CreatePostUsecase;
 import com.example.fastcampusmysql.application.usecase.GetTimeLinePostUsecase;
 import com.example.fastcampusmysql.domain.post.dto.DailyPostCount;
 import com.example.fastcampusmysql.domain.post.dto.DailyPostCountRequest;
 import com.example.fastcampusmysql.domain.post.dto.PostCommand;
+import com.example.fastcampusmysql.domain.post.dto.PostDto;
 import com.example.fastcampusmysql.domain.post.entity.Post;
 import com.example.fastcampusmysql.domain.post.service.PostReadService;
 import com.example.fastcampusmysql.domain.post.service.PostWriteService;
@@ -24,12 +26,14 @@ public class PostController {
     private final PostReadService postReadService;
     private final GetTimeLinePostUsecase getTimeLinePostUsecase;
     private final CreatePostUsecase createPostUsecase;
+    private final CreatePostLikeUsacase createPostLikeUsacase;
 
-    public PostController(PostWriteService postWriteService, PostReadService postReadService, GetTimeLinePostUsecase getTimeLinePostUsecase, CreatePostUsecase createPostUsecase) {
+    public PostController(PostWriteService postWriteService, PostReadService postReadService, GetTimeLinePostUsecase getTimeLinePostUsecase, CreatePostLikeUsacase createPostLikeUsacase, CreatePostUsecase createPostUsecase) {
         this.postWriteService = postWriteService;
         this.postReadService = postReadService;
         this.getTimeLinePostUsecase = getTimeLinePostUsecase;
         this.createPostUsecase = createPostUsecase;
+        this.createPostLikeUsacase = createPostLikeUsacase;
     }
 
     @PostMapping
@@ -43,7 +47,7 @@ public class PostController {
     }
 
     @GetMapping("/members/{memberId}")
-    public Page<Post> getPosts(@PathVariable Long memberId, Pageable pageable) {
+    public Page<PostDto> getPosts(@PathVariable Long memberId, Pageable pageable) {
         return postReadService.getPosts(memberId, pageable);
     }
 
@@ -57,9 +61,14 @@ public class PostController {
         return getTimeLinePostUsecase.executeByTimeline(memberId, request);
     }
 
-    @PostMapping("/{postId}/like")
+    @PostMapping("/{postId}/like/v1")
     public void likePost(Long postId) {
 //        postWriteService.likePost(postId);
         postWriteService.likePostByOptimisticLock(postId);
+    }
+
+    @PostMapping("/{postId}/like/v2")
+    public void likePost(Long postId, @RequestParam Long memberId) {
+        createPostLikeUsacase.execute(postId, memberId);
     }
 }
