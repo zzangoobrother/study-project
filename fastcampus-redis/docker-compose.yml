@@ -21,3 +21,46 @@ services:
       - 6380:6379
     depends_on:
       - my-redis-a
+
+  redis-sentinel-1:
+    container_name: sentinel1
+    image: 'bitnami/redis-sentinel:latest'
+    environment:
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=3000
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_MASTER_SET=mymaster
+      - REDIS_SENTINEL_QUORUM=2
+    ports:
+      - 26379:26379
+    depends_on:
+      - my-redis-a
+      - my-redis-b
+  redis-sentinel-2:
+    container_name: sentinel2
+    image: 'bitnami/redis-sentinel:latest'
+    environment:
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=3000
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_MASTER_SET=mymaster
+      - REDIS_SENTINEL_QUORUM=2
+    ports:
+      - 26380:26379
+    depends_on:
+      - my-redis-a
+      - my-redis-b
+  redis-sentinel-3:
+    container_name: sentinel3
+    image: 'bitnami/redis-sentinel:latest'
+    environment:
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=3000
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_MASTER_SET=mymaster
+      - REDIS_SENTINEL_QUORUM=2
+    ports:
+      - 26381:26379
+    depends_on:
+      - my-redis-a
+      - my-redis-b
