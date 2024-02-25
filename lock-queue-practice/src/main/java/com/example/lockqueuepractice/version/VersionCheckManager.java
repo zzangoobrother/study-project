@@ -25,6 +25,8 @@ public class VersionCheckManager {
         if (forceUpdateMap.get(os).contains(appVer)) {
             return false;
         }
+
+        return true;
     }
 
     public Boolean needUpdate(String os, String appVer) {

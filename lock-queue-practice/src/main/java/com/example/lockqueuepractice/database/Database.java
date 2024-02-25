@@ -38,4 +38,8 @@ public class Database {
 
         return db.get(id);
     }
+
+    public void remove() {
+        db.clear();
+    }
 }
