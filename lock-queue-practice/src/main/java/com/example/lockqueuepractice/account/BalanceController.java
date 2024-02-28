@@ -7,31 +7,25 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class BalanceController {
     private final Database db;
-    private final EventPublisher publisher;
+    private final BalanceService balanceService;
 
-    public BalanceController(Database db, EventPublisher publisher) {
+    public BalanceController(Database db, BalanceService balanceService) {
         this.db = db;
-        this.publisher = publisher;
+        this.balanceService = balanceService;
     }
 
     @GetMapping("/balance/{id}")
     public Account balance(@PathVariable Long id) {
-        return db.balance(id);
+        return balanceService.balance(id);
     }
 
     @PostMapping("/deposit/{id}")
     public Account deposit(@PathVariable Long id, @RequestBody BalanceRequest request) {
-        Account account = db.balance(id);
-        publisher.publish(new Deposit(id, request.amount(), "deposit"));
-        return account;
+        return balanceService.deposit(id, request.amount());
     }
 
     @PostMapping("/withdraw/{id}")
     public Account withdraw(@PathVariable Long id, @RequestBody BalanceRequest request) {
-        Account account = db.balance(id);
-
-        publisher.publish(new Deposit(id, request.amount(), "withdraw"));
-
-        return db.balance(id);
+        return balanceService.withdraw(id, request.amount());
     }
 }

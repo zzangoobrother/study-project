@@ -3,7 +3,6 @@ package com.example.lockqueuepractice.account;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -14,7 +13,7 @@ public class LockHandler {
 
     private Map<String, ReentrantLock> lock = new ConcurrentHashMap<>();
 
-    public <T> T runOnLockByDeposit(Long key, Long amount, String type, Supplier<T> execute) {
+    public <T> T runOnLockByDeposit(Long key, Supplier<T> execute) {
         ReentrantLock reentrantLockDeposit = lock.computeIfAbsent("deposit-" + key, (k) -> new ReentrantLock());
         ReentrantLock reentrantLockWithdraw = lock.computeIfAbsent("withdraw-" + key, (k) -> new ReentrantLock());
 
@@ -23,6 +22,9 @@ public class LockHandler {
                 throw new IllegalStateException("입금이 불가능합니다.");
             }
 
+            reentrantLockDeposit.lock();
+            reentrantLockWithdraw.lock();
+
             return execute.get();
         } catch (RuntimeException e) {
 
@@ -30,22 +32,24 @@ public class LockHandler {
             reentrantLockWithdraw.unlock();
             reentrantLockDeposit.unlock();
         }
+
+        return null;
     }
 
-    public <T> T runOnLockByWithdraw(Long key, Long amount, String type, Supplier<T> execute) {
+    public <T> T runOnLockByWithdraw(Long key, Supplier<T> execute) {
+        ReentrantLock reentrantLockDeposit = lock.computeIfAbsent("deposit-" + key, (k) -> new ReentrantLock());
+        ReentrantLock reentrantLockWithdraw = lock.computeIfAbsent("withdraw-" + key, (k) -> new ReentrantLock());
+
         try {
-            if (!concurrentClient.add(CONCURRENT_KEY + key)) {
-                throw new RuntimeException("입금할 수 없습니다.");
-            }
+            reentrantLockDeposit.lock();
+            reentrantLockWithdraw.lock();
 
             return execute.get();
         } catch (RuntimeException e) {
-            if ("withdraw".equals(type)) {
-                queue.offer(new Deposit(key, amount, type));
-            }
-            System.out.println("입금 중복 처리");
+
         } finally {
-            concurrentClient.remove(CONCURRENT_KEY + key);
+            reentrantLockWithdraw.unlock();
+            reentrantLockDeposit.unlock();
         }
 
         return null;

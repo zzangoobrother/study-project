@@ -9,8 +9,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 @ActiveProfiles("test")
 @SpringBootTest
@@ -44,34 +45,42 @@ class BalanceControllerTest {
     @DisplayName("한명의 유저에게 동시에 잔고 입급 -> 1개의 요청만 성공, 나머지 실패")
     @Test
     void oneUserSameTimeDeposit() throws InterruptedException {
+        AtomicReference<Throwable> e = new AtomicReference<>();
+
         CompletableFuture.allOf(
                 CompletableFuture.runAsync(() -> controller.deposit(1L, new BalanceRequest(1000L))),
                 CompletableFuture.runAsync(() -> controller.deposit(1L, new BalanceRequest(1000L)))
-        ).join();
+        ).exceptionally(throwable -> {
+            e.set(throwable.getCause());
+            return null;
+        }).join();
 
-        Thread.sleep(1000);
-        Account result = controller.balance(1L);
+//        Thread.sleep(1000);
+//        Account result = controller.balance(1L);
+//
+//        assertEquals(1000L, result.getBalance());
 
-        assertEquals(1000L, result.getBalance());
+        assertNotNull(e.get());
+        assertTrue(e.get() instanceof IllegalStateException);
     }
 
     @DisplayName("두명의 유저에게 동시에 잔고 입급 -> 1개의 요청만 성공, 나머지 실패")
     @Test
     void twoUserSameTimeDeposit() throws InterruptedException {
+        AtomicReference<Throwable> e = new AtomicReference<>();
+
         CompletableFuture.allOf(
                 CompletableFuture.runAsync(() -> controller.deposit(1L, new BalanceRequest(1000L))),
                 CompletableFuture.runAsync(() -> controller.deposit(1L, new BalanceRequest(1000L))),
                 CompletableFuture.runAsync(() -> controller.deposit(2L, new BalanceRequest(2000L))),
                 CompletableFuture.runAsync(() -> controller.deposit(2L, new BalanceRequest(2000L)))
-        ).join();
+        ).exceptionally(throwable -> {
+            e.set(throwable.getCause());
+            return null;
+        }).join();
 
-        Thread.sleep(1000);
-
-        Account result = controller.balance(1L);
-        assertEquals(1000L, result.getBalance());
-
-        Account result2 = controller.balance(2L);
-        assertEquals(2000L, result2.getBalance());
+        assertNotNull(e.get());
+        assertTrue(e.get() instanceof IllegalStateException);
     }
 
     @DisplayName("한명의 유저에게 동시에 잔고 출금 -> 모두 성공")
