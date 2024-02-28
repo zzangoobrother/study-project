@@ -25,19 +25,17 @@ public class BalanceService {
         ReentrantLock reentrantLockDeposit = lock.computeIfAbsent("deposit-" + id, (k) -> new ReentrantLock());
         ReentrantLock reentrantLockWithdraw = lock.computeIfAbsent("withdraw-" + id, (k) -> new ReentrantLock());
 
-        if (reentrantLockDeposit.isLocked()) {
+        if (!reentrantLockWithdraw.isLocked() && reentrantLockDeposit.isLocked()) {
             throw new IllegalStateException("입금이 불가능합니다.");
         }
 
         try {
             reentrantLockDeposit.lock();
-            reentrantLockWithdraw.lock();
 
             Account account = db.balance(id);
             db.balance(id, account.getBalance() + amount);
             return db.balance(id);
         } finally {
-            reentrantLockWithdraw.unlock();
             reentrantLockDeposit.unlock();
         }
     }
