@@ -55,11 +55,6 @@ class BalanceControllerTest {
             return null;
         }).join();
 
-//        Thread.sleep(1000);
-//        Account result = controller.balance(1L);
-//
-//        assertEquals(1000L, result.getBalance());
-
         assertNotNull(e.get());
         assertTrue(e.get() instanceof IllegalStateException);
     }

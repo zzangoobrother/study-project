@@ -11,15 +11,15 @@ public class Account {
         this.updateNano = updateNano;
     }
 
+    public Long addBalance(Long balance) {
+        return this.balance += balance;
+    }
+
+    public Long minusBalance(Long balance) {
+        return this.balance -= balance;
+    }
+
     public Long getBalance() {
-        return this.balance;
-    }
-
-    public Long getUpdateMilli() {
-        return updateMilli;
-    }
-
-    public Long getUpdateNano() {
-        return updateNano;
+        return balance;
     }
 }

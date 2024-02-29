@@ -33,7 +33,7 @@ public class BalanceService {
             reentrantLockDeposit.lock();
 
             Account account = db.balance(id);
-            db.balance(id, account.getBalance() + amount);
+            db.balance(id, account.addBalance(amount));
             return db.balance(id);
         } finally {
             reentrantLockDeposit.unlock();
@@ -49,7 +49,7 @@ public class BalanceService {
             reentrantLockWithdraw.lock();
 
             Account account = db.balance(id);
-            db.balance(id, account.getBalance() - amount);
+            db.balance(id, account.minusBalance(amount));
             return db.balance(id);
         } finally {
             reentrantLockWithdraw.unlock();
