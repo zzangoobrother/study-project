@@ -1,21 +1,28 @@
 version: '2'
+
 services:
   zookeeper:
-    container_name: local-zookeeper
-    image: wurstmeister/zookeeper:3.4.6
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
     ports:
-      - "2181:2181"
+      - "22181:2181"
+
   kafka:
-    container_name: local-kafka
-    image: wurstmeister/kafka:2.13-2.8.1
+    image: confluentinc/cp-kafka:latest
     depends_on:
       - zookeeper
     ports:
-      - "9092:9092"
+      - "29092:29092"
     environment:
-      KAFKA_ADVERTISED_HOST_NAME: 127.0.0.1 # 싱글 브로커 환경
-      KAFKA_ADVERTISED_PORT: 9092
-      KAFKA_CREATE_TOPICS: "chat:1:1" # Topic 명 : Partition 개수 : Replica 개수
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0

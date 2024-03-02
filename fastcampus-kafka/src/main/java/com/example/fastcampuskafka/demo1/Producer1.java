@@ -9,7 +9,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import java.util.Properties;
 
 public class Producer1 {
-    private final static String BOOTSTART_SERVER = "localhost:9092";
+    private final static String BOOTSTART_SERVER = "localhost:29092";
     private final static String TOPIC_NAME = "topic5";
 
     public static void main(String[] args) throws Exception {

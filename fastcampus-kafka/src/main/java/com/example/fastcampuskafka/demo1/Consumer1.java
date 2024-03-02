@@ -11,7 +11,7 @@ import java.util.Arrays;
 import java.util.Properties;
 
 public class Consumer1 {
-    private final static String BOOTSTART_SERVER = "localhost:9092";
+    private final static String BOOTSTART_SERVER = "localhost:29092";
     private final static String TOPIC_NAME = "topic5";
     private final static String GROUP_ID = "group_one";
 

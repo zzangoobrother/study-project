@@ -1,5 +1,6 @@
-package com.example.fastcampuskafka.demo2;
+package com.example.fastcampuskafka.config;
 
+import com.example.fastcampuskafka.demo2.MyMessage;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.context.annotation.Bean;
@@ -14,7 +15,7 @@ import java.util.Map;
 
 @Configuration
 public class KafkaProducerConfig {
-    private static final String BOOTSTRAP_SERVER = "localhost:9092";
+    private static final String BOOTSTRAP_SERVER = "localhost:29092";
 
     @Bean
     public ProducerFactory<String, String> producerFactory() {
