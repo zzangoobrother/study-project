@@ -1,4 +1,4 @@
-package com.example.fastcampuskafkaconsumer;
+package com.example.fastcampuskafkaconsumer.demo1;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;

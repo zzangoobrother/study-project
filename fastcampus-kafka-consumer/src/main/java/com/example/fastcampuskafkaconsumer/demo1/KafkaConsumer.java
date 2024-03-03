@@ -1,4 +1,4 @@
-package com.example.fastcampuskafkaconsumer;
+package com.example.fastcampuskafkaconsumer.demo1;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

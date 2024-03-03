@@ -1,4 +1,4 @@
-package com.example.fastcampuskafkaconsumer;
+package com.example.fastcampuskafkaconsumer.demo1;
 
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
