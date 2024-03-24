@@ -1,5 +1,6 @@
 package com.example.domain.entity;
 
+import com.example.enums.VendorStatus;
 import lombok.Getter;
 
 import javax.persistence.*;
