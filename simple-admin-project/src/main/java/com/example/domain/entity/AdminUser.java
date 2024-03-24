@@ -2,12 +2,15 @@ package com.example.domain.entity;
 
 import com.example.enums.AdminUserPermission;
 import com.example.enums.AdminUserRole;
+import com.example.service.dto.AdminUserFormDTO;
 import lombok.Getter;
+import lombok.Setter;
 
 import javax.persistence.*;
 import java.time.OffsetDateTime;
 
 @Getter
+@Setter
 @Entity
 @Table(name = "users", schema = "ecommerce")
 public class AdminUser {
@@ -45,4 +48,20 @@ public class AdminUser {
 
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
+
+    public static AdminUser createAdminUser(AdminUserFormDTO adminUserFormDTO) {
+        AdminUser adminUser = new AdminUser();
+        adminUser.setUsername(adminUserFormDTO.username());
+        adminUser.setPassword(adminUserFormDTO.password1());
+        adminUser.setEmail(adminUserFormDTO.email());
+        adminUser.setRole(AdminUserRole.USER);
+        adminUser.setPermission(AdminUserPermission.ALL);
+
+        OffsetDateTime now = OffsetDateTime.now();
+        adminUser.setCreatedAt(now);
+        adminUser.setUpdatedAt(now);
+        adminUser.setActivated(true);
+
+        return adminUser;
+    }
 }
