@@ -1,8 +1,10 @@
 package com.example.domain.customer;
 
+import com.example.controller.dto.CustomerRegisterDTO;
 import com.example.enums.CustomerPermission;
 import com.example.enums.ECommerceRole;
 import lombok.Getter;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import javax.persistence.*;
 import java.time.OffsetDateTime;
@@ -42,4 +44,19 @@ public class Customer {
     private OffsetDateTime createdAt = OffsetDateTime.now();
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt = OffsetDateTime.now();
+
+    public static Customer createGeneralCustomer(CustomerRegisterDTO customerRegisterDTO, PasswordEncoder passwordEncoder) {
+
+        Customer customer = new Customer();
+        customer.phoneNumber = customerRegisterDTO.phoneNumber();
+        customer.email = customerRegisterDTO.email();
+        customer.name = customerRegisterDTO.username();
+        customer.address = customerRegisterDTO.address();
+        customer.age = customerRegisterDTO.age();
+        customer.permission = CustomerPermission.GENERAL;
+        customer.role = ECommerceRole.CUSTOMER;
+        customer.password = passwordEncoder.encode(customerRegisterDTO.password1());
+
+        return customer;
+    }
 }
