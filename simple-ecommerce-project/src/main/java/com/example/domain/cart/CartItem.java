@@ -1,14 +1,19 @@
 package com.example.domain.cart;
 
+import com.example.domain.BaseEntity;
 import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import javax.persistence.*;
 
+@Setter
+@Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "cart_items", schema = "ecommerce")
-public class CartItem {
+public class CartItem extends BaseEntity {
 
     private static final int INIT_QUANTITY = 1;
     private  static final long INIT_CART_ITEM_ID = 0L;
@@ -38,5 +43,9 @@ public class CartItem {
     public static CartItem of(Long cartId, Long productId) {
         CartItem cartItem = new CartItem(INIT_CART_ITEM_ID, cartId, productId, INIT_QUANTITY);
         return cartItem;
+    }
+
+    public void delete() {
+        this.isDeleted = true;
     }
 }
