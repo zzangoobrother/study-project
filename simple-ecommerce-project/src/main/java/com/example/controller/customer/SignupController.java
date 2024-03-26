@@ -1,6 +1,6 @@
 package com.example.controller.customer;
 
-import com.example.controller.dto.CustomerRegisterDTO;
+import com.example.controller.dto.customer.CustomerRegisterDTO;
 import com.example.domain.customer.Customer;
 import com.example.service.customer.CustomerService;
 import lombok.extern.slf4j.Slf4j;

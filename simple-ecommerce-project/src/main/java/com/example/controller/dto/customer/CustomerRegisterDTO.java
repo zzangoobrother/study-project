@@ -1,4 +1,4 @@
-package com.example.controller.dto;
+package com.example.controller.dto.customer;
 
 public record CustomerRegisterDTO(
         String username,

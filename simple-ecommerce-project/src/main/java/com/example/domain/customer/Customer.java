@@ -1,6 +1,6 @@
 package com.example.domain.customer;
 
-import com.example.controller.dto.CustomerRegisterDTO;
+import com.example.controller.dto.customer.CustomerRegisterDTO;
 import com.example.enums.CustomerPermission;
 import com.example.enums.ECommerceRole;
 import lombok.Getter;
