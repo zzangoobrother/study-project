@@ -3,11 +3,13 @@ package com.example.domain.entity;
 import com.example.enums.OrderStatus;
 import com.example.enums.PayType;
 import lombok.Getter;
+import lombok.Setter;
 
 import javax.persistence.*;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
+@Setter
 @Getter
 @Entity
 @Table(name = "orders", schema = "ecommerce")

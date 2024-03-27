@@ -105,4 +105,16 @@ public class CartService {
                 () -> new NotFoundCartException("고객의 장바구니 정보를 얻을 수 없습니다. 다시 시도하시기 바랍니다.")
         );
     }
+
+    public void empty(Long customerId) {
+        Optional<Cart> optionalCart = cartRepository.findByCustomerIdAndIsDeletedIsFalse(customerId);
+        if (optionalCart.isEmpty()) {
+            throw new NotFoundCartException("고객의 장바구니 정보를 얻을 수 없습니다. 다시 시도하시기 바랍니다.");
+        }
+        Cart cart = optionalCart.get();
+        List<CartItem> optionalCartItems = cartItemRepository.findAllByCartIdAndIsDeletedIsFalse(cart.getCartId());
+        optionalCartItems.stream().forEach(cartItem -> {
+            cartItem.delete();
+        });
+    }
 }
