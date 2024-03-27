@@ -1,4 +1,4 @@
-package com.example.controller.order;
+package com.example.controller.dto.order;
 
 import com.example.enums.PayType;
 import lombok.Getter;
