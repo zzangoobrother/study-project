@@ -1,9 +1,11 @@
 package com.example.domain.cart;
 
 import com.example.enums.DeliveryType;
+import lombok.Getter;
 
 import java.math.BigDecimal;
 
+@Getter
 public class CartItemProduct {
     private Long cartId;
     private Long cartItemId;

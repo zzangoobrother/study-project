@@ -99,4 +99,10 @@ public class CartService {
         }
         return optionalCartItem;
     }
+
+    public Cart getCartById(Long cartId) {
+        return cartRepository.findById(cartId).orElseThrow(
+                () -> new NotFoundCartException("고객의 장바구니 정보를 얻을 수 없습니다. 다시 시도하시기 바랍니다.")
+        );
+    }
 }
