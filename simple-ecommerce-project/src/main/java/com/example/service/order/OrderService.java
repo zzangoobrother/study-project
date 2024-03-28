@@ -1,9 +1,12 @@
 package com.example.service.order;
 
+import com.example.controller.dto.customer.CustomerDTO;
 import com.example.domain.cart.CartItemProduct;
 import com.example.domain.customer.Customer;
 import com.example.domain.order.Order;
 import com.example.domain.order.OrderItem;
+import com.example.domain.order.OrderItemDetail;
+import com.example.domain.order.OrderSheet;
 import com.example.domain.product.Product;
 import com.example.enums.PayType;
 import com.example.exception.NotFoundProductException;
@@ -104,5 +107,28 @@ public class OrderService {
         orderItem.setPrice(product.getPrice());
         orderItem.setQuantity(DIRECT_ORDER_QUANTITY);
         return orderItem;
+    }
+
+    public Optional<OrderSheet> createOrderSheet(Long orderId) {
+        Optional<Order> optionalOrder = orderRepository.findById(orderId);
+        if (optionalOrder.isEmpty()) {
+            return Optional.empty();
+        }
+        Order order = optionalOrder.get();
+        Optional<Customer> optionalCustomer = this.customerRepository.findById(order.getCustomerId());
+        if (optionalCustomer.isEmpty()) {
+            return Optional.empty();
+        };
+
+        List<OrderItemDetail> allOrderItemDetails = orderItemRepository.findAllOrderItemDetails(order.getOrderId());
+        OrderSheet orderSheet = OrderSheet.of(
+                orderId,
+                order.getCreatedAt(),
+                CustomerDTO.of(optionalCustomer.get()),
+                order.getDeliveryAddress(),
+                order.getAmount(),
+                allOrderItemDetails
+        );
+        return Optional.of(orderSheet);
     }
 }
