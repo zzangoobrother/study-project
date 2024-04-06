@@ -19,3 +19,7 @@ spring:
       hibernate:
         format_sql: true
         show_sql: true
+
+apis:
+  order-api:
+    url: http://localhost:8081/providers/order-api/v1/orders
