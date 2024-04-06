@@ -16,6 +16,9 @@ public class RouteConfiguration {
                 .route("path_route_hello", r -> r.path("/gateway-hello")
                         .filters(f -> f.rewritePath("/gateway-hello", "/microwervice-hello"))
                         .uri(MICROSERVICE_HOST_8080))
+                .route("add-header-route", r -> r.path("/get")
+                        .filters(f -> f.addRequestHeader("role", "hello-api"))
+                        .uri(MICROSERVICE_HOST_8080))
                 .build();
     }
 }
