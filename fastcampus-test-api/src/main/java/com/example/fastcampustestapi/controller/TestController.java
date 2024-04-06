@@ -10,4 +10,9 @@ public class TestController {
     public String hello() {
         return "Hello Get";
     }
+
+    @GetMapping("/microwervice-hello")
+    public String microServiceHello() {
+        return "Micro Service Hello Get";
+    }
 }

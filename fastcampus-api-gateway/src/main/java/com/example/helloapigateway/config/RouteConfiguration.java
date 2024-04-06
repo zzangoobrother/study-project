@@ -13,6 +13,9 @@ public class RouteConfiguration {
     public RouteLocator helloRouteLocator(RouteLocatorBuilder builder) {
         return builder.routes()
                 .route("path_simple_hello", r -> r.path("/hello").uri(MICROSERVICE_HOST_8080))
+                .route("path_route_hello", r -> r.path("/gateway-hello")
+                        .filters(f -> f.rewritePath("/gateway-hello", "/microwervice-hello"))
+                        .uri(MICROSERVICE_HOST_8080))
                 .build();
     }
 }
