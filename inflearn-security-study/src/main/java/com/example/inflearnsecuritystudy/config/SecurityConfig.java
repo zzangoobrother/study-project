@@ -5,15 +5,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
+import javax.servlet.http.HttpSession;
 
 @Slf4j
 @Configuration
@@ -33,20 +26,24 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .usernameParameter("userId")
                 .passwordParameter("passwd")
                 .loginProcessingUrl("/login_proc")
-                .successHandler(new AuthenticationSuccessHandler() {
-                    @Override
-                    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
-                        log.info("authentication" + authentication.getName());
-                        response.sendRedirect("/");
-                    }
+                .successHandler((request, response, authentication) -> {
+                    log.info("authentication" + authentication.getName());
+                    response.sendRedirect("/");
                 })
-                .failureHandler(new AuthenticationFailureHandler() {
-                    @Override
-                    public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException, ServletException {
-                        log.info("exception" + exception.getMessage());
-                        response.sendRedirect("/");
-                    }
+                .failureHandler((request, response, exception) -> {
+                    log.info("exception" + exception.getMessage());
+                    response.sendRedirect("/");
                 })
                 .permitAll();
+
+        http.logout()
+                .logoutUrl("/logout")
+                .logoutSuccessUrl("/login")
+                .addLogoutHandler((request, response, authentication) -> {
+                    HttpSession session = request.getSession();
+                    session.invalidate();
+                })
+                .logoutSuccessHandler((request, response, authentication) -> response.sendRedirect("/login"))
+                .deleteCookies("remember-me");
     }
 }
