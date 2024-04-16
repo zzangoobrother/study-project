@@ -8,6 +8,7 @@ import org.springframework.security.config.annotation.authentication.builders.Au
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
 import org.springframework.security.web.savedrequest.RequestCache;
@@ -18,7 +19,7 @@ import javax.servlet.http.HttpSession;
 @Slf4j
 @Configuration
 @EnableWebSecurity
-@Order(1)
+//@Order(1)
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Autowired
@@ -34,8 +35,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http.authorizeRequests()
-                .antMatchers("/login").permitAll()
-                .antMatchers("/user").hasRole("USER")
+//                .antMatchers("/user").hasRole("USER")
                 .antMatchers("/admin/pay").hasRole("ADMIN")
                 .antMatchers("/admin/**").access("hasRole('ADMIN') or hasRole('SYS')")
                 .anyRequest()
@@ -59,11 +59,11 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                     log.info("exception" + exception.getMessage());
                     response.sendRedirect("/");
                 })
-                .permitAll()
-                .and()
-                .exceptionHandling()
-                .authenticationEntryPoint((request, response, authException) -> response.sendRedirect("/login"))
-                .accessDeniedHandler((request, response, accessDeniedException) -> response.sendRedirect("/denied"));
+                .permitAll();
+//                .and()
+//                .exceptionHandling()
+//                .authenticationEntryPoint((request, response, authException) -> response.sendRedirect("/login"))
+//                .accessDeniedHandler((request, response, accessDeniedException) -> response.sendRedirect("/denied"));
 
         http.logout()
                 .logoutUrl("/logout")
@@ -85,18 +85,20 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .changeSessionId()
                 .maximumSessions(1)
                 .maxSessionsPreventsLogin(true);
+
+        SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL);
     }
 }
 
-@Configuration
-@Order(0)
-class SecurityConfig2 extends WebSecurityConfigurerAdapter {
-
-    protected void configure(HttpSecurity http) throws Exception {
-        http.antMatcher("/other/**")
-                .authorizeRequests()
-                .anyRequest().authenticated()
-                .and()
-                .httpBasic();
-    }
-}
+//@Configuration
+//@Order(0)
+//class SecurityConfig2 extends WebSecurityConfigurerAdapter {
+//
+//    protected void configure(HttpSecurity http) throws Exception {
+//        http.antMatcher("/other/**")
+//                .authorizeRequests()
+//                .anyRequest().authenticated()
+//                .and()
+//                .httpBasic();
+//    }
+//}
