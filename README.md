@@ -5,6 +5,12 @@
 - <a href='https://github.com/zzangoobrother/study-project/tree/master/my-framework' target='_blank' >my-framework</a>
   - https://jojoldu.tistory.com/231 블로그를 보고 xunit 을 만드는 경험을 한다.
   - xunit을 사용하여 tdd로 자바 웹 프로그래밍 Next Step 을 학습한다.
+    
+- 멀티모듈 연습
+  - module-api
+  - module-domain
+  - storage (db)
+  - support (log)
 
 ### 인프런 강의
 - 실습으로 배우는 선착순 이벤트 시스템
