@@ -6,9 +6,31 @@
 <div th:replace="layout/top::header"></div>
 
 <div class="container">
-    <br/><br/>
-    <div class="jumbotron">
-        <h1>Access Denied</h1>
+    <div class="row align-items-start">
+        <nav class="col-md-2 d-none d_md_block bg-light sidebar">
+            <div class="sidebar-sticky">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <div style="padding-top: 10px;" class="nav flex-column nav-pills" aria-orientation="vertical">
+                            <a th:href="@{/}" style="margin: 5px;" class="nav-link text-primary">메인으로</a>
+                            <a th:href="@{/mypage}" style="margin: 5px;" class="nav-link text-primary">마이페이지</a>
+                            <a th:href="@{/message}" style="margin: 5px;" class="nav-link text-primary">유저</a>
+                            <a th:href="@{/config}" style="margin: 5px;" class="nav-link text-primary">설정</a>
+                        </div>
+                    </li>
+                </ul>
+
+            </div>
+
+        </nav>
+        <div style="padding-top: 50px;" class="col">
+            <div class="container text-center">
+                <h1><span th:text="${username}" class="alert alert-danger"/> 접근 제한</h1>
+                <br/>
+                <h3 th:text="${exception}"/>
+            </div>
+
+        </div>
     </div>
 </div>
 <div th:replace="layout/footer::footer"></div>
