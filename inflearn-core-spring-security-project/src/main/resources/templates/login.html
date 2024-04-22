@@ -24,10 +24,10 @@
                 <div class="form-group">
                     Remember Me<input type="checkbox" name="remember-me" />
                 </div>
-                <!--<div th:if="${param.error}" class="form-group">
-                    <span th:text="${session[SPRING_SECURITY_LAST_EXCEPTION]}"
+                <div th:if="${param.error}" class="form-group">
+                    <span th:text="${param.exception}"
                           class="alert alert-danger">잘못된 아이디나 암호입니다</span>
-                </div>-->
+                </div>
                 <button type="submit" class="btn btn-lg btn-primary btn-block">로그인</button>
 <!--                <button type="submit" onclick="formLogin()" id="formbtn" class="btn btn-lg btn-primary btn-block">로그인</button>-->
             </form>
