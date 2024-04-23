@@ -29,7 +29,7 @@ public class AjaxLoginProcessingFilter extends AbstractAuthenticationProcessingF
         }
 
         AccountDto accountDto = objectMapper.readValue(request.getReader(), AccountDto.class);
-        if (StringUtils.hasText(accountDto.getUsername()) || StringUtils.hasText(accountDto.getPassword())) {
+        if (!StringUtils.hasText(accountDto.getUsername()) || !StringUtils.hasText(accountDto.getPassword())) {
             throw new IllegalArgumentException("Username or Password is empty");
         }
 

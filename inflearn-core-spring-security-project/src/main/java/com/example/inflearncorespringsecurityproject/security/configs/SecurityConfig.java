@@ -2,6 +2,7 @@ package com.example.inflearncorespringsecurityproject.security.configs;
 
 import com.example.inflearncorespringsecurityproject.security.handler.CustomAccessDeniedHandler;
 import com.example.inflearncorespringsecurityproject.security.provider.CustomAuthenticationProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,7 +32,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     private final AuthenticationSuccessHandler authenticationSuccessHandler;
     private final AuthenticationFailureHandler authenticationFailureHandler;
 
-    public SecurityConfig(UserDetailsService userDetailsService, AuthenticationDetailsSource authenticationDetailsSource, AuthenticationSuccessHandler authenticationSuccessHandler, AuthenticationFailureHandler authenticationFailureHandler) {
+    public SecurityConfig(UserDetailsService userDetailsService, AuthenticationDetailsSource authenticationDetailsSource,
+                          @Qualifier("customAuthenticationSuccessHandler") AuthenticationSuccessHandler authenticationSuccessHandler, @Qualifier("customAuthenticationFailureHandler") AuthenticationFailureHandler authenticationFailureHandler) {
         this.userDetailsService = userDetailsService;
         this.authenticationDetailsSource = authenticationDetailsSource;
         this.authenticationSuccessHandler = authenticationSuccessHandler;
