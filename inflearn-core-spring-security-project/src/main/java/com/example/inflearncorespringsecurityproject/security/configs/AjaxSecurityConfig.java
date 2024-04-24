@@ -1,6 +1,8 @@
 package com.example.inflearncorespringsecurityproject.security.configs;
 
+import com.example.inflearncorespringsecurityproject.security.common.AjaxLoginAuthenticationEntryPoint;
 import com.example.inflearncorespringsecurityproject.security.filter.AjaxLoginProcessingFilter;
+import com.example.inflearncorespringsecurityproject.security.handler.AjaxAccessDeniedHandler;
 import com.example.inflearncorespringsecurityproject.security.handler.AjaxAuthenticationFailureHandler;
 import com.example.inflearncorespringsecurityproject.security.handler.AjaxAuthenticationSuccessHandler;
 import com.example.inflearncorespringsecurityproject.security.provider.AjaxAuthenticationProvider;
@@ -13,6 +15,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -62,10 +65,20 @@ public class AjaxSecurityConfig extends WebSecurityConfigurerAdapter {
     protected void configure(HttpSecurity http) throws Exception {
         http.antMatcher("/api/**")
                 .authorizeRequests()
+                .antMatchers("/api/messages").hasRole("MANAGER")
                 .anyRequest().authenticated();
 
         http.addFilterBefore(ajaxLoginProcessingFilter(), UsernamePasswordAuthenticationFilter.class);
 
+        http.exceptionHandling()
+                .authenticationEntryPoint(new AjaxLoginAuthenticationEntryPoint())
+                .accessDeniedHandler(ajaxAccessDeniedHandler());
+
         http.csrf().disable();
+    }
+
+    @Bean
+    public AccessDeniedHandler ajaxAccessDeniedHandler() {
+        return new AjaxAccessDeniedHandler();
     }
 }
