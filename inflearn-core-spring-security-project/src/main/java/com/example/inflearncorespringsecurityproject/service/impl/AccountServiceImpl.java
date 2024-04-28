@@ -1,6 +1,6 @@
 package com.example.inflearncorespringsecurityproject.service.impl;
 
-import com.example.inflearncorespringsecurityproject.domain.Account;
+import com.example.inflearncorespringsecurityproject.domain.entity.Account;
 import com.example.inflearncorespringsecurityproject.repository.UserRepository;
 import com.example.inflearncorespringsecurityproject.service.AccountService;
 import org.springframework.stereotype.Service;

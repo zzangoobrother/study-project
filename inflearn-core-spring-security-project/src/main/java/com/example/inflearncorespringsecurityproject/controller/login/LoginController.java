@@ -1,6 +1,6 @@
 package com.example.inflearncorespringsecurityproject.controller.login;
 
-import com.example.inflearncorespringsecurityproject.domain.Account;
+import com.example.inflearncorespringsecurityproject.domain.entity.Account;
 import com.example.inflearncorespringsecurityproject.security.token.AjaxAuthenticationToken;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

@@ -93,5 +93,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .successHandler(authenticationSuccessHandler)
                 .failureHandler(authenticationFailureHandler)
                 .permitAll();
+
+        http.csrf().disable();
     }
 }

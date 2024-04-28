@@ -1,7 +1,7 @@
 package com.example.inflearncorespringsecurityproject.controller.user;
 
-import com.example.inflearncorespringsecurityproject.domain.Account;
-import com.example.inflearncorespringsecurityproject.domain.AccountDto;
+import com.example.inflearncorespringsecurityproject.domain.entity.Account;
+import com.example.inflearncorespringsecurityproject.domain.dto.AccountDto;
 import com.example.inflearncorespringsecurityproject.service.AccountService;
 import org.modelmapper.ModelMapper;
 import org.springframework.security.crypto.password.PasswordEncoder;

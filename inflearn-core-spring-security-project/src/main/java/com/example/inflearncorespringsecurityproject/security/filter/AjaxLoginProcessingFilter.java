@@ -1,6 +1,6 @@
 package com.example.inflearncorespringsecurityproject.security.filter;
 
-import com.example.inflearncorespringsecurityproject.domain.AccountDto;
+import com.example.inflearncorespringsecurityproject.domain.dto.AccountDto;
 import com.example.inflearncorespringsecurityproject.security.token.AjaxAuthenticationToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.security.core.Authentication;

@@ -1,6 +1,6 @@
 package com.example.inflearncorespringsecurityproject.service;
 
-import com.example.inflearncorespringsecurityproject.domain.Account;
+import com.example.inflearncorespringsecurityproject.domain.entity.Account;
 
 public interface AccountService {
 

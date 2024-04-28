@@ -1,6 +1,6 @@
 package com.example.inflearncorespringsecurityproject.security.service;
 
-import com.example.inflearncorespringsecurityproject.domain.Account;
+import com.example.inflearncorespringsecurityproject.domain.entity.Account;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 
