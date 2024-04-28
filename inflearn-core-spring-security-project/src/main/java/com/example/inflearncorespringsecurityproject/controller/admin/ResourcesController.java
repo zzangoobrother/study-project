@@ -4,6 +4,7 @@ import com.example.inflearncorespringsecurityproject.domain.dto.ResourcesDto;
 import com.example.inflearncorespringsecurityproject.domain.entity.Resources;
 import com.example.inflearncorespringsecurityproject.domain.entity.Role;
 import com.example.inflearncorespringsecurityproject.repository.RoleRepository;
+import com.example.inflearncorespringsecurityproject.security.metadatasource.UrlFilterInvocationSecurityMetaDatasSource;
 import com.example.inflearncorespringsecurityproject.service.ResourcesService;
 import com.example.inflearncorespringsecurityproject.service.RoleService;
 import org.modelmapper.ModelMapper;
@@ -23,11 +24,13 @@ public class ResourcesController {
     private final ResourcesService resourcesService;
     private final RoleRepository roleRepository;
     private final RoleService roleService;
+    private final UrlFilterInvocationSecurityMetaDatasSource urlFilterInvocationSecurityMetaDatasSource;
 
-    public ResourcesController(ResourcesService resourcesService, RoleRepository roleRepository, RoleService roleService) {
+    public ResourcesController(ResourcesService resourcesService, RoleRepository roleRepository, RoleService roleService, UrlFilterInvocationSecurityMetaDatasSource urlFilterInvocationSecurityMetaDatasSource) {
         this.resourcesService = resourcesService;
         this.roleRepository = roleRepository;
         this.roleService = roleService;
+        this.urlFilterInvocationSecurityMetaDatasSource = urlFilterInvocationSecurityMetaDatasSource;
     }
 
     @GetMapping("/admin/resources")
@@ -48,6 +51,8 @@ public class ResourcesController {
         resources.setRoleSet(roles);
 
         resourcesService.createResources(resources);
+
+        urlFilterInvocationSecurityMetaDatasSource.reload();
 
         return "redirect:/admin/resources";
     }
@@ -81,8 +86,9 @@ public class ResourcesController {
 
     @GetMapping("/admin/resources/delete/{id}")
     public String removeResources(@PathVariable Long id) {
-        Resources resources = resourcesService.getResources(id);
         resourcesService.deleteResources(id);
+
+        urlFilterInvocationSecurityMetaDatasSource.reload();
 
         return "redirect:/admin/resources";
     }

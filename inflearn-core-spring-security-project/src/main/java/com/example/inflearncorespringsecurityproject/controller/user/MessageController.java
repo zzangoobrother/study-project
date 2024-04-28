@@ -9,7 +9,7 @@ public class MessageController {
 
     @GetMapping("/messages")
     public String messages() {
-        return "/user/messages";
+        return "user/messages";
     }
 
     @ResponseBody

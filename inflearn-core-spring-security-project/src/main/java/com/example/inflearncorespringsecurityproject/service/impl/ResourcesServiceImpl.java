@@ -6,6 +6,7 @@ import com.example.inflearncorespringsecurityproject.service.ResourcesService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -29,6 +30,7 @@ public class ResourcesServiceImpl implements ResourcesService {
         return resourcesRepository.findAll(Sort.by(Sort.Order.asc("orderNum")));
     }
 
+    @Transactional
     @Override
     public void createResources(Resources resources) {
         resourcesRepository.save(resources);
