@@ -1,8 +1,10 @@
 package com.example.inflearncorespringsecurityproject.security.configs;
 
+import com.example.inflearncorespringsecurityproject.security.factory.UrlResourcesMapFactoryBean;
 import com.example.inflearncorespringsecurityproject.security.handler.CustomAccessDeniedHandler;
 import com.example.inflearncorespringsecurityproject.security.metadatasource.UrlFilterInvocationSecurityMetaDatasSource;
 import com.example.inflearncorespringsecurityproject.security.provider.CustomAuthenticationProvider;
+import com.example.inflearncorespringsecurityproject.service.SecurityResourceService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
@@ -38,13 +40,15 @@ import java.util.List;
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
     private final UserDetailsService userDetailsService;
+    private final SecurityResourceService securityResourceService;
     private final AuthenticationDetailsSource authenticationDetailsSource;
     private final AuthenticationSuccessHandler authenticationSuccessHandler;
     private final AuthenticationFailureHandler authenticationFailureHandler;
 
-    public SecurityConfig(UserDetailsService userDetailsService, AuthenticationDetailsSource authenticationDetailsSource,
+    public SecurityConfig(UserDetailsService userDetailsService, SecurityResourceService securityResourceService, AuthenticationDetailsSource authenticationDetailsSource,
                           @Qualifier("customAuthenticationSuccessHandler") AuthenticationSuccessHandler authenticationSuccessHandler, @Qualifier("customAuthenticationFailureHandler") AuthenticationFailureHandler authenticationFailureHandler) {
         this.userDetailsService = userDetailsService;
+        this.securityResourceService = securityResourceService;
         this.authenticationDetailsSource = authenticationDetailsSource;
         this.authenticationSuccessHandler = authenticationSuccessHandler;
         this.authenticationFailureHandler = authenticationFailureHandler;
@@ -93,11 +97,14 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Bean
-    protected FilterInvocationSecurityMetadataSource urlFilterInvocationSecurityMetadataSource() {
-        return new UrlFilterInvocationSecurityMetaDatasSource();
+    protected FilterInvocationSecurityMetadataSource urlFilterInvocationSecurityMetadataSource() throws Exception {
+        return new UrlFilterInvocationSecurityMetaDatasSource(urlResourcesMapFactoryBean().getObject());
     }
 
-
+    @Bean
+    protected UrlResourcesMapFactoryBean urlResourcesMapFactoryBean() {
+        return new UrlResourcesMapFactoryBean(securityResourceService);
+    }
 
     @Override
     public AuthenticationManager authenticationManagerBean() throws Exception {

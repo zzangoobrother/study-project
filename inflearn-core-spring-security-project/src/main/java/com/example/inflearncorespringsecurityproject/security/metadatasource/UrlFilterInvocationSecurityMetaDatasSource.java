@@ -1,5 +1,6 @@
 package com.example.inflearncorespringsecurityproject.security.metadatasource;
 
+import com.example.inflearncorespringsecurityproject.security.factory.UrlResourcesMapFactoryBean;
 import org.springframework.security.access.ConfigAttribute;
 import org.springframework.security.access.SecurityConfig;
 import org.springframework.security.web.FilterInvocation;
@@ -12,7 +13,11 @@ import java.util.*;
 
 public class UrlFilterInvocationSecurityMetaDatasSource implements FilterInvocationSecurityMetadataSource {
 
-    private Map<RequestMatcher, List<ConfigAttribute>> requestMap = new LinkedHashMap<>();
+    private Map<RequestMatcher, List<ConfigAttribute>> requestMap;
+
+    public UrlFilterInvocationSecurityMetaDatasSource(Map<RequestMatcher, List<ConfigAttribute>> requestMap) {
+        this.requestMap = requestMap;
+    }
 
     @Override
     public Collection<ConfigAttribute> getAttributes(Object object) throws IllegalArgumentException {
