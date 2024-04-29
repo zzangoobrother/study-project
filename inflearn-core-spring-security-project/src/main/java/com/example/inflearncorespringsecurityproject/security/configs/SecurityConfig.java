@@ -1,6 +1,7 @@
 package com.example.inflearncorespringsecurityproject.security.configs;
 
 import com.example.inflearncorespringsecurityproject.security.factory.UrlResourcesMapFactoryBean;
+import com.example.inflearncorespringsecurityproject.security.filter.PermitAllFilter;
 import com.example.inflearncorespringsecurityproject.security.handler.CustomAccessDeniedHandler;
 import com.example.inflearncorespringsecurityproject.security.metadatasource.UrlFilterInvocationSecurityMetaDatasSource;
 import com.example.inflearncorespringsecurityproject.security.provider.CustomAuthenticationProvider;
@@ -38,6 +39,8 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+    private String[] permitAllResources = {"/", "/login", "/user/login/**"};
 
     private final UserDetailsService userDetailsService;
     private final SecurityResourceService securityResourceService;
@@ -79,7 +82,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Bean
     protected FilterSecurityInterceptor customFilterSecurityInterceptor() throws Exception {
-        FilterSecurityInterceptor filterSecurityInterceptor = new FilterSecurityInterceptor();
+        FilterSecurityInterceptor filterSecurityInterceptor = new PermitAllFilter(permitAllResources);
         filterSecurityInterceptor.setSecurityMetadataSource(urlFilterInvocationSecurityMetadataSource());
         filterSecurityInterceptor.setAccessDecisionManager(affirmativeBased());
         filterSecurityInterceptor.setAuthenticationManager(authenticationManagerBean());
