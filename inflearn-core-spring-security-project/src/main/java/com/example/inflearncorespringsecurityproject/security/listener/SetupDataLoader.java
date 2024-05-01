@@ -3,7 +3,9 @@ package com.example.inflearncorespringsecurityproject.security.listener;
 import com.example.inflearncorespringsecurityproject.domain.entity.Account;
 import com.example.inflearncorespringsecurityproject.domain.entity.Resources;
 import com.example.inflearncorespringsecurityproject.domain.entity.Role;
+import com.example.inflearncorespringsecurityproject.domain.entity.RoleHierarchy;
 import com.example.inflearncorespringsecurityproject.repository.ResourcesRepository;
+import com.example.inflearncorespringsecurityproject.repository.RoleHierarchyRepository;
 import com.example.inflearncorespringsecurityproject.repository.RoleRepository;
 import com.example.inflearncorespringsecurityproject.repository.UserRepository;
 import org.springframework.context.ApplicationListener;
@@ -25,13 +27,16 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
 
     private final RoleRepository roleRepository;
 
+    private final RoleHierarchyRepository roleHierarchyRepository;
+
     private final ResourcesRepository resourcesRepository;
 
     private final PasswordEncoder passwordEncoder;
 
-    public SetupDataLoader(UserRepository userRepository, RoleRepository roleRepository, ResourcesRepository resourcesRepository, PasswordEncoder passwordEncoder) {
+    public SetupDataLoader(UserRepository userRepository, RoleRepository roleRepository, RoleHierarchyRepository roleHierarchyRepository, ResourcesRepository resourcesRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
+        this.roleHierarchyRepository = roleHierarchyRepository;
         this.resourcesRepository = resourcesRepository;
         this.passwordEncoder = passwordEncoder;
     }
@@ -59,7 +64,14 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
         roles.add(adminRole);
         createResourceIfNotFound("/admin/**", "", roles, "url");
         Account account = createUserIfNotFound("admin", "pass", "admin@gmail.com", 10,  roles);
-        
+
+        Role managerRole = createRoleIfNotFound("ROLE_MANAGER", "매니저");
+
+        createRoleHierarchyIfNotFound(managerRole, adminRole);
+
+        Role childRole = createRoleIfNotFound("ROLE_USER", "회원");
+        createRoleHierarchyIfNotFound(childRole, managerRole);
+
 //        Set<Role> roles1 = new HashSet<>();
 //
 //        Role managerRole = createRoleIfNotFound("ROLE_MANAGER", "매니저");
@@ -123,5 +135,27 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
                     .build();
         }
         return resourcesRepository.save(resources);
+    }
+
+    @Transactional
+    public void createRoleHierarchyIfNotFound(Role childRole, Role parentRole) {
+
+        RoleHierarchy roleHierarchy = roleHierarchyRepository.findByChildName(parentRole.getRoleName());
+        if (roleHierarchy == null) {
+            roleHierarchy = RoleHierarchy.builder()
+                    .childName(parentRole.getRoleName())
+                    .build();
+        }
+        RoleHierarchy parentRoleHierarchy = roleHierarchyRepository.save(roleHierarchy);
+
+        roleHierarchy = roleHierarchyRepository.findByChildName(childRole.getRoleName());
+        if (roleHierarchy == null) {
+            roleHierarchy = RoleHierarchy.builder()
+                    .childName(childRole.getRoleName())
+                    .build();
+        }
+
+        RoleHierarchy childRoleHierarchy = roleHierarchyRepository.save(roleHierarchy);
+        childRoleHierarchy.setParentName(parentRoleHierarchy);
     }
 }
