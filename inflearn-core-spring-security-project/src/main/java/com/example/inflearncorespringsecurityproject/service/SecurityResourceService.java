@@ -9,4 +9,6 @@ import java.util.Map;
 public interface SecurityResourceService {
 
     Map<RequestMatcher, List<ConfigAttribute>> getResourceList();
+
+    List<String> getAccessIpList();
 }

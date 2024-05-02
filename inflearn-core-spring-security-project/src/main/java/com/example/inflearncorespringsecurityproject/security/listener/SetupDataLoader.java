@@ -1,13 +1,7 @@
 package com.example.inflearncorespringsecurityproject.security.listener;
 
-import com.example.inflearncorespringsecurityproject.domain.entity.Account;
-import com.example.inflearncorespringsecurityproject.domain.entity.Resources;
-import com.example.inflearncorespringsecurityproject.domain.entity.Role;
-import com.example.inflearncorespringsecurityproject.domain.entity.RoleHierarchy;
-import com.example.inflearncorespringsecurityproject.repository.ResourcesRepository;
-import com.example.inflearncorespringsecurityproject.repository.RoleHierarchyRepository;
-import com.example.inflearncorespringsecurityproject.repository.RoleRepository;
-import com.example.inflearncorespringsecurityproject.repository.UserRepository;
+import com.example.inflearncorespringsecurityproject.domain.entity.*;
+import com.example.inflearncorespringsecurityproject.repository.*;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -31,13 +25,16 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
 
     private final ResourcesRepository resourcesRepository;
 
+    private final AccessIpRepository accessIpRepository;
+
     private final PasswordEncoder passwordEncoder;
 
-    public SetupDataLoader(UserRepository userRepository, RoleRepository roleRepository, RoleHierarchyRepository roleHierarchyRepository, ResourcesRepository resourcesRepository, PasswordEncoder passwordEncoder) {
+    public SetupDataLoader(UserRepository userRepository, RoleRepository roleRepository, RoleHierarchyRepository roleHierarchyRepository, ResourcesRepository resourcesRepository, AccessIpRepository accessIpRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.roleHierarchyRepository = roleHierarchyRepository;
         this.resourcesRepository = resourcesRepository;
+        this.accessIpRepository = accessIpRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -52,6 +49,7 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
         }
 
         setupSecurityResources();
+        setupAccessIpData();
 
         alreadySetup = true;
     }
@@ -157,5 +155,16 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
 
         RoleHierarchy childRoleHierarchy = roleHierarchyRepository.save(roleHierarchy);
         childRoleHierarchy.setParentName(parentRoleHierarchy);
+    }
+
+    private void setupAccessIpData() {
+        AccessIp byIpAddress = accessIpRepository.findByIpAddress("127.0.0.1");
+        if (byIpAddress == null) {
+            AccessIp accessIp = AccessIp.builder()
+                    .ipAddress("172.0.0.1")
+                    .build();
+            accessIpRepository.save(accessIp);
+        }
+
     }
 }

@@ -11,12 +11,12 @@ public class AccountDto {
     private String id;
     private String username;
     private String email;
-    private int age;
+    private Integer age;
     private String password;
     private List<String> roles;
 
     @Builder
-    public AccountDto(String id, String username, String email, int age, String password, List<String> roles) {
+    public AccountDto(String id, String username, String email, Integer age, String password, List<String> roles) {
         this.id = id;
         this.username = username;
         this.email = email;

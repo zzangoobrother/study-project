@@ -1,6 +1,8 @@
 package com.example.inflearncorespringsecurityproject.service.impl;
 
+import com.example.inflearncorespringsecurityproject.domain.entity.AccessIp;
 import com.example.inflearncorespringsecurityproject.domain.entity.Resources;
+import com.example.inflearncorespringsecurityproject.repository.AccessIpRepository;
 import com.example.inflearncorespringsecurityproject.repository.ResourcesRepository;
 import com.example.inflearncorespringsecurityproject.service.SecurityResourceService;
 import org.springframework.security.access.ConfigAttribute;
@@ -18,9 +20,11 @@ import java.util.Map;
 public class SecurityResourceServiceImpl implements SecurityResourceService {
 
     private final ResourcesRepository resourcesRepository;
+    private final AccessIpRepository accessIpRepository;
 
-    public SecurityResourceServiceImpl(ResourcesRepository resourcesRepository) {
+    public SecurityResourceServiceImpl(ResourcesRepository resourcesRepository, AccessIpRepository accessIpRepository) {
         this.resourcesRepository = resourcesRepository;
+        this.accessIpRepository = accessIpRepository;
     }
 
 
@@ -36,5 +40,12 @@ public class SecurityResourceServiceImpl implements SecurityResourceService {
         });
 
         return result;
+    }
+
+    @Override
+    public List<String> getAccessIpList() {
+        return accessIpRepository.findAll().stream()
+                .map(AccessIp::getIpAddress)
+                .toList();
     }
 }

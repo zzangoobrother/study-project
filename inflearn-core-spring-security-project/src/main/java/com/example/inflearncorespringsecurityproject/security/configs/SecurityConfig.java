@@ -5,6 +5,7 @@ import com.example.inflearncorespringsecurityproject.security.filter.PermitAllFi
 import com.example.inflearncorespringsecurityproject.security.handler.CustomAccessDeniedHandler;
 import com.example.inflearncorespringsecurityproject.security.metadatasource.UrlFilterInvocationSecurityMetaDatasSource;
 import com.example.inflearncorespringsecurityproject.security.provider.CustomAuthenticationProvider;
+import com.example.inflearncorespringsecurityproject.security.voter.IpAddressVoter;
 import com.example.inflearncorespringsecurityproject.service.SecurityResourceService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
@@ -13,15 +14,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.access.AccessDecisionManager;
 import org.springframework.security.access.AccessDecisionVoter;
-import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.access.vote.AffirmativeBased;
 import org.springframework.security.access.vote.RoleHierarchyVoter;
-import org.springframework.security.access.vote.RoleVoter;
 import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -36,10 +36,10 @@ import org.springframework.security.web.authentication.AuthenticationFailureHand
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
-@Order(1)
+//@Order(1)
+@EnableGlobalMethodSecurity(securedEnabled = true, prePostEnabled = true)
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
@@ -101,6 +101,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
     private List<AccessDecisionVoter<?>> getAccessDecistionVoters() {
         List<AccessDecisionVoter<? extends Object>> accessDecisionVoters = new ArrayList<>();
+        accessDecisionVoters.add(new IpAddressVoter(securityResourceService)); // 해당 ip 접근 먼저 확인 해야 함, 등록 순으로 확인 함
         accessDecisionVoters.add(roleVoter());
 
         return accessDecisionVoters;
