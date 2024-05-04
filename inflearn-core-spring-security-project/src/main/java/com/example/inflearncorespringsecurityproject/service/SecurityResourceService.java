@@ -10,5 +10,7 @@ public interface SecurityResourceService {
 
     Map<RequestMatcher, List<ConfigAttribute>> getResourceList();
 
+    Map<String, List<ConfigAttribute>> getMethodResourceList();
+
     List<String> getAccessIpList();
 }

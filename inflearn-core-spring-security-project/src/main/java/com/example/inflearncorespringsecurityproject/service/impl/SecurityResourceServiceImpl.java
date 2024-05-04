@@ -43,6 +43,20 @@ public class SecurityResourceServiceImpl implements SecurityResourceService {
     }
 
     @Override
+    public Map<String, List<ConfigAttribute>> getMethodResourceList() {
+        Map<String, List<ConfigAttribute>> result = new LinkedHashMap<>();
+        List<Resources> resources = resourcesRepository.findAllMethodResources();
+        resources.forEach(re -> {
+            List<ConfigAttribute> configAttributes = new ArrayList<>();
+            re.getRoleSet().forEach(role -> configAttributes.add(new SecurityConfig(role.getRoleName())));
+
+            result.put(re.getResourceName(), configAttributes);
+        });
+
+        return result;
+    }
+
+    @Override
     public List<String> getAccessIpList() {
         return accessIpRepository.findAll().stream()
                 .map(AccessIp::getIpAddress)
