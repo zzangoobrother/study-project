@@ -39,7 +39,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 //@Order(1)
-@EnableGlobalMethodSecurity(securedEnabled = true, prePostEnabled = true)
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
