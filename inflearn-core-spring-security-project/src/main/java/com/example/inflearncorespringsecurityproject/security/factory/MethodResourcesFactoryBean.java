@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 
 public class MethodResourcesFactoryBean implements FactoryBean<Map<String, List<ConfigAttribute>>> {
+
+    private String resourceType;
     private Map<String, List<ConfigAttribute>> resourceMap;
 
     private final SecurityResourceService securityResourceService;
@@ -27,7 +29,11 @@ public class MethodResourcesFactoryBean implements FactoryBean<Map<String, List<
     }
 
     private void init() {
-        resourceMap = securityResourceService.getMethodResourceList();
+        if ("method".equals(resourceType)) {
+            resourceMap = securityResourceService.getMethodResourceList();
+        } else if ("pointcut".equals(resourceType)) {
+            resourceMap = securityResourceService.getPointcutResourceList();
+        }
     }
 
     @Override
@@ -38,5 +44,9 @@ public class MethodResourcesFactoryBean implements FactoryBean<Map<String, List<
     @Override
     public boolean isSingleton() {
         return true;
+    }
+
+    public void setResourceType(String resourceType) {
+        this.resourceType = resourceType;
     }
 }

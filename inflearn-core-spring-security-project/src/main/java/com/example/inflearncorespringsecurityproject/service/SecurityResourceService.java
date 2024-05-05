@@ -13,4 +13,6 @@ public interface SecurityResourceService {
     Map<String, List<ConfigAttribute>> getMethodResourceList();
 
     List<String> getAccessIpList();
+
+    Map<String, List<ConfigAttribute>> getPointcutResourceList();
 }
