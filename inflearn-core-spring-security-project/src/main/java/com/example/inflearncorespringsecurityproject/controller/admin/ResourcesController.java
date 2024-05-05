@@ -5,6 +5,7 @@ import com.example.inflearncorespringsecurityproject.domain.entity.Resources;
 import com.example.inflearncorespringsecurityproject.domain.entity.Role;
 import com.example.inflearncorespringsecurityproject.repository.RoleRepository;
 import com.example.inflearncorespringsecurityproject.security.metadatasource.UrlFilterInvocationSecurityMetaDatasSource;
+import com.example.inflearncorespringsecurityproject.service.MethodSecurityService;
 import com.example.inflearncorespringsecurityproject.service.ResourcesService;
 import com.example.inflearncorespringsecurityproject.service.RoleService;
 import org.modelmapper.ModelMapper;
@@ -25,12 +26,14 @@ public class ResourcesController {
     private final RoleRepository roleRepository;
     private final RoleService roleService;
     private final UrlFilterInvocationSecurityMetaDatasSource urlFilterInvocationSecurityMetaDatasSource;
+    private final MethodSecurityService methodSecurityService;
 
-    public ResourcesController(ResourcesService resourcesService, RoleRepository roleRepository, RoleService roleService, UrlFilterInvocationSecurityMetaDatasSource urlFilterInvocationSecurityMetaDatasSource) {
+    public ResourcesController(ResourcesService resourcesService, RoleRepository roleRepository, RoleService roleService, UrlFilterInvocationSecurityMetaDatasSource urlFilterInvocationSecurityMetaDatasSource, MethodSecurityService methodSecurityService) {
         this.resourcesService = resourcesService;
         this.roleRepository = roleRepository;
         this.roleService = roleService;
         this.urlFilterInvocationSecurityMetaDatasSource = urlFilterInvocationSecurityMetaDatasSource;
+        this.methodSecurityService = methodSecurityService;
     }
 
     @GetMapping("/admin/resources")
@@ -42,7 +45,7 @@ public class ResourcesController {
     }
 
     @PostMapping("/admin/resources")
-    public String createResources(ResourcesDto resourcesDto) {
+    public String createResources(ResourcesDto resourcesDto) throws Exception {
         ModelMapper modelMapper = new ModelMapper();
         Role role = roleRepository.findByRoleName(resourcesDto.getRoleName());
         Set<Role> roles = new HashSet<>();
@@ -52,7 +55,11 @@ public class ResourcesController {
 
         resourcesService.createResources(resources);
 
-        urlFilterInvocationSecurityMetaDatasSource.reload();
+        if ("url".equals(resourcesDto.getResourceType())) {
+            urlFilterInvocationSecurityMetaDatasSource.reload();
+        } else {
+            methodSecurityService.addMethodSecured(resourcesDto.getResourceName(), resourcesDto.getRoleName());
+        }
 
         return "redirect:/admin/resources";
     }
@@ -85,10 +92,15 @@ public class ResourcesController {
     }
 
     @GetMapping("/admin/resources/delete/{id}")
-    public String removeResources(@PathVariable Long id) {
+    public String removeResources(@PathVariable Long id) throws Exception {
+        Resources resources = resourcesService.getResources(id);
         resourcesService.deleteResources(id);
 
-        urlFilterInvocationSecurityMetaDatasSource.reload();
+        if ("url".equals(resources.getResourceType())) {
+            urlFilterInvocationSecurityMetaDatasSource.reload();
+        } else {
+            methodSecurityService.removeMethodSecured(resources.getResourceName());
+        }
 
         return "redirect:/admin/resources";
     }

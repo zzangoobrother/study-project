@@ -1,10 +1,12 @@
 package com.example.inflearncorespringsecurityproject.security.configs;
 
 import com.example.inflearncorespringsecurityproject.security.factory.MethodResourcesFactoryBean;
+import com.example.inflearncorespringsecurityproject.security.interceptor.CustomMethodSecurityInterceptor;
 import com.example.inflearncorespringsecurityproject.security.processor.ProtectPointcutPostProcessor;
 import com.example.inflearncorespringsecurityproject.service.SecurityResourceService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.access.intercept.RunAsManager;
 import org.springframework.security.access.method.MapBasedMethodSecurityMetadataSource;
 import org.springframework.security.access.method.MethodSecurityMetadataSource;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
@@ -51,6 +53,20 @@ public class MethodSecurityConfig extends GlobalMethodSecurityConfiguration {
         ProtectPointcutPostProcessor protectPointcutPostProcessor = new ProtectPointcutPostProcessor(mapBasedMethodSecurityMetadataSource());
         protectPointcutPostProcessor.setPointcutMap(pointcutResourcesMapFactoryBean().getObject());
         return protectPointcutPostProcessor;
+    }
+
+    @Bean
+    public CustomMethodSecurityInterceptor customMethodSecurityInterceptor(MapBasedMethodSecurityMetadataSource methodSecurityMetadataSource) {
+        CustomMethodSecurityInterceptor customMethodSecurityInterceptor = new CustomMethodSecurityInterceptor();
+        customMethodSecurityInterceptor.setAccessDecisionManager(accessDecisionManager());
+        customMethodSecurityInterceptor.setAfterInvocationManager(afterInvocationManager());
+        customMethodSecurityInterceptor.setSecurityMetadataSource(methodSecurityMetadataSource);
+        RunAsManager runAsManager = runAsManager();
+        if (runAsManager != null) {
+            customMethodSecurityInterceptor.setRunAsManager(runAsManager);
+        }
+
+        return customMethodSecurityInterceptor;
     }
 
 //    @Bean
