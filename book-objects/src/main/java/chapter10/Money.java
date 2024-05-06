@@ -14,7 +14,7 @@ public class Money {
         return new Money(BigDecimal.valueOf(amount));
     }
 
-    public Money times(long percent) {
+    public Money times(double percent) {
         return new Money(amount.multiply(BigDecimal.valueOf(percent)));
     }
 
