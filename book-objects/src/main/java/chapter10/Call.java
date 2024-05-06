@@ -1,4 +1,4 @@
-package chapter10.v1;
+package chapter10;
 
 import java.time.Duration;
 import java.time.LocalDateTime;

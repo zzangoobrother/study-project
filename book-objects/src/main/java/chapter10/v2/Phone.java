@@ -1,4 +1,4 @@
-package chapter10.v1;
+package chapter10.v2;
 
 import chapter10.Call;
 import chapter10.Money;
