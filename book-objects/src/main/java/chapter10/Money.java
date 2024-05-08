@@ -22,6 +22,10 @@ public class Money {
         return new Money(this.amount.add(amount.getAmount()));
     }
 
+    public Money minus(Money amount) {
+        return new Money(this.amount.subtract(amount.getAmount()));
+    }
+
     public BigDecimal getAmount() {
         return amount;
     }

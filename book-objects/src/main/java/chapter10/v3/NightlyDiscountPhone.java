@@ -46,6 +46,6 @@ public class NightlyDiscountPhone {
             }
         }
 
-        return result.plus(result.times(taxRate));
+        return result.minus(result.times(taxRate));
     }
 }
