@@ -26,10 +26,12 @@ public class OrderService {
     }
 
     @Transactional
-    public void create(Long productId, int quantity) {
+    public void create(Long productId, Long userId, int quantity) {
         LocalDateTime now = LocalDateTime.now();
-        orderRepository.save(new Order(UUID.randomUUID(), now));
+        UUID uuid = UUID.randomUUID();
+
+        orderRepository.save(new Order(uuid, userId, now));
         orderDetailRepository.save(new OrderDetail(productId, quantity, now));
-        eventOutboxRepository.save(new EventOutbox(UUID.randomUUID()));
+        eventOutboxRepository.save(new EventOutbox(uuid));
     }
 }

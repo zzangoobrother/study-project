@@ -16,14 +16,18 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "code")
+    @Column(name = "code", columnDefinition = "BINARY(16)")
     private UUID code;
+
+    @Column(name = "user_id")
+    private Long userId;
 
     @Column(name = "create_at")
     private LocalDateTime createAt;
 
-    public Order(UUID code, LocalDateTime createAt) {
+    public Order(UUID code, Long userId, LocalDateTime createAt) {
         this.code = code;
+        this.userId = userId;
         this.createAt = createAt;
     }
 }

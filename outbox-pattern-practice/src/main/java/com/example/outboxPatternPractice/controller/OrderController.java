@@ -17,6 +17,6 @@ public class OrderController {
 
     @PostMapping("/api/orders")
     public void create(@RequestBody CreateOrderRequest request) {
-        orderService.create(request.productId(), request.quantity());
+        orderService.create(request.productId(), request.userId(), request.quantity());
     }
 }
