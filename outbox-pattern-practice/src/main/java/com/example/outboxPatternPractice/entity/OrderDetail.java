@@ -15,6 +15,9 @@ public class OrderDetail {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "order_id")
+    private Long orderId;
+
     @Column(name = "product_id")
     private Long productId;
 
@@ -24,7 +27,7 @@ public class OrderDetail {
     @Column(name = "create_at")
     private LocalDateTime createAt;
 
-    public OrderDetail(Long productId, int quantity, LocalDateTime createAt) {
+    public OrderDetail(Long orderId, Long productId, int quantity, LocalDateTime createAt) {
         this.productId = productId;
         this.quantity = quantity;
         this.createAt = createAt;

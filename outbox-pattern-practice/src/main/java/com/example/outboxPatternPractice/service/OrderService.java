@@ -30,8 +30,8 @@ public class OrderService {
         LocalDateTime now = LocalDateTime.now();
         UUID uuid = UUID.randomUUID();
 
-        orderRepository.save(new Order(uuid, userId, now));
-        orderDetailRepository.save(new OrderDetail(productId, quantity, now));
+        Order order = orderRepository.save(new Order(uuid, userId, now));
+        orderDetailRepository.save(new OrderDetail(order.getId(), productId, quantity, now));
         eventOutboxRepository.save(new EventOutbox(uuid));
     }
 }
