@@ -1,11 +1,13 @@
-package com.example.outboxPatternPractice.entity;
+package com.example.outboxPatternConsumerPractice.entity;
 
 import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
 
+@Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "orders_detail")
 @Entity
@@ -28,7 +30,6 @@ public class OrderDetail {
     private LocalDateTime createAt;
 
     public OrderDetail(Long orderId, Long productId, int quantity, LocalDateTime createAt) {
-        this.orderId = orderId;
         this.productId = productId;
         this.quantity = quantity;
         this.createAt = createAt;
