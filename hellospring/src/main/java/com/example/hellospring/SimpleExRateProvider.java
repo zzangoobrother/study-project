@@ -3,7 +3,7 @@ package com.example.hellospring;
 import java.io.IOException;
 import java.math.BigDecimal;
 
-public class SimpleExRateProvider implements ExRateProvider {
+class SimpleExRateProvider implements ExRateProvider {
 
     @Override
     public BigDecimal getExRate(String currency) throws IOException {
