@@ -1,5 +1,6 @@
-package com.example.hellospring;
+package com.example.hellospring.exrate;
 
+import com.example.hellospring.payment.ExRateProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.BufferedReader;
@@ -10,7 +11,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.stream.Collectors;
 
-class WebApiExRateProvider implements ExRateProvider {
+public class WebApiExRateProvider implements ExRateProvider {
 
     @Override
     public BigDecimal getExRate(String currency) throws IOException {

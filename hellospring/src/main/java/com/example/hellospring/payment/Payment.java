@@ -1,4 +1,4 @@
-package com.example.hellospring;
+package com.example.hellospring.payment;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
