@@ -16,10 +16,6 @@ public class ExRateProviderStub implements ExRateProvider {
         return exRate;
     }
 
-    public BigDecimal getExRate() {
-        return exRate;
-    }
-
     public void setExRate(BigDecimal exRate) {
         this.exRate = exRate;
     }
