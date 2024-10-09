@@ -1,17 +1,16 @@
 package com.example.hellospring.exrate;
 
+import com.example.hellospring.api.ApiExecutor;
+import com.example.hellospring.api.ErApiExRateExtractor;
+import com.example.hellospring.api.ExRateExtractor;
+import com.example.hellospring.api.SimpleApiExecutor;
 import com.example.hellospring.payment.ExRateProvider;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.math.BigDecimal;
-import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.stream.Collectors;
 
 public class WebApiExRateProvider implements ExRateProvider {
 
@@ -19,6 +18,10 @@ public class WebApiExRateProvider implements ExRateProvider {
     public BigDecimal getExRate(String currency) {
         String url = "https://open.er-api.com/v6/latest/" + currency;
 
+        return runApiForExRate(url, new SimpleApiExecutor(), new ErApiExRateExtractor());
+    }
+
+    private static BigDecimal runApiForExRate(String url, ApiExecutor apiExecutor, ExRateExtractor exRateExtractor) {
         // 환율 가져오기
         // https://open.er-api.com/v6/latest/USD
         URI uri;
@@ -30,18 +33,13 @@ public class WebApiExRateProvider implements ExRateProvider {
 
         String response;
         try {
-            HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
-                response = br.lines().collect(Collectors.joining());
-            }
+            response = apiExecutor.execute(uri);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
         try {
-            ObjectMapper mapper = new ObjectMapper();
-            ExRateData data = mapper.readValue(response, ExRateData.class);
-            return data.rates().get("KRW");
+            return exRateExtractor.extractExRate(response);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
