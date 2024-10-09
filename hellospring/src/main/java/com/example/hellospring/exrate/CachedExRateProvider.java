@@ -2,7 +2,6 @@ package com.example.hellospring.exrate;
 
 import com.example.hellospring.payment.ExRateProvider;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -19,7 +18,7 @@ public class CachedExRateProvider implements ExRateProvider {
     }
 
     @Override
-    public BigDecimal getExRate(String currency) throws IOException {
+    public BigDecimal getExRate(String currency) {
         if (!cachedExRate.containsKey(currency) || cacheExpiryTime.isBefore(LocalDateTime.now())) {
             BigDecimal exRate = target.getExRate(currency);
             cachedExRate.put(currency, exRate);

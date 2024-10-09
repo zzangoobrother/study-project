@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -30,7 +29,7 @@ class PaymentServiceSpringTest {
 
     @Test
     @DisplayName("prepare 메소드가 요구사항 3가지를 잘 충족했는지 검증")
-    void convertedAmount() throws IOException {
+    void convertedAmount() {
         Payment payment = paymentService.prepare(1L, "USD", BigDecimal.TEN);
 
         // 환율정보 가져온다
@@ -47,7 +46,7 @@ class PaymentServiceSpringTest {
     }
 
     @Test
-    void validUntil() throws IOException {
+    void validUntil() {
         Payment payment = paymentService.prepare(1L, "USD", BigDecimal.TEN);
 
         // valid until의 prepare() 30분 뒤로 설정됐는가?
