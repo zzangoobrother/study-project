@@ -1,5 +1,8 @@
 package com.example.helloboot;
 
+import org.springframework.stereotype.Service;
+
+@Service
 class SimpleHelloService implements HelloService {
 
     @Override
