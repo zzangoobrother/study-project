@@ -4,8 +4,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Objects;
-
 @RestController
 public class HelloController {
 
@@ -17,6 +15,9 @@ public class HelloController {
 
     @GetMapping("/hello")
     public String hello(@RequestParam(name = "name") String name) {
-        return helloService.sayHello(Objects.requireNonNull(name));
+        if (name == null || name.isEmpty()) {
+            throw new IllegalArgumentException();
+        }
+        return helloService.sayHello(name);
     }
 }
