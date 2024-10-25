@@ -1,3 +1,9 @@
+package reservation.service;
+
+import generic.Money;
+import reservation.domain.*;
+import reservation.persistence.*;
+
 import java.util.List;
 
 public class ReservationService {
@@ -7,10 +13,18 @@ public class ReservationService {
     private DiscountConditionDAO discountConditionDAO;
     private ReservationDAO reservationDAO;
 
+    public ReservationService(ScreeningDAO screeningDAO, MovieDAO movieDAO, DiscountPolicyDAO discountPolicyDAO, DiscountConditionDAO discountConditionDAO, ReservationDAO reservationDAO) {
+        this.screeningDAO = screeningDAO;
+        this.movieDAO = movieDAO;
+        this.discountPolicyDAO = discountPolicyDAO;
+        this.discountConditionDAO = discountConditionDAO;
+        this.reservationDAO = reservationDAO;
+    }
+
     public Reservation reserveScreening(Long customerId, Long screeningId, Integer audienceCount) {
         Screening screening = screeningDAO.selectScreening(screeningId);
         Movie movie = movieDAO.selectMovie(screening.getMovieId());
-        DiscountPolicy policy = discountPolicyDAO.selectDiscountPolice(movie.getId());
+        DiscountPolicy policy = discountPolicyDAO.selectDiscountPolicy(movie.getId());
         List<DiscountCondition> conditions = discountConditionDAO.selectDiscountConditions(policy.getId());
 
         DiscountCondition condition = findDiscountCondition(screening, conditions);
@@ -24,12 +38,14 @@ public class ReservationService {
 
         Reservation reservation = makeReservation(customerId, screeningId, audienceCount, fee);
         reservationDAO.insert(reservation);
+
+        return reservation;
     }
 
     private DiscountCondition findDiscountCondition(Screening screening, List<DiscountCondition> conditions) {
         for (DiscountCondition condition : conditions) {
             if (condition.isPeriodCondition()) {
-                if (screening.isPlayedIn(condition.getDayOfWeek(), condition.getStartTime(), condition.getEndTime())) {
+                if (screening.isPayedIn(condition.getDayOfWeek(), condition.getStartTime(), condition.getEndTime())) {
                     return condition;
                 }
             } else {
@@ -43,10 +59,10 @@ public class ReservationService {
     }
 
     private Money calculateDiscount(DiscountPolicy policy, Movie movie) {
-        if (policy.isAmountPolice()) {
+        if (policy.isAmountPolicy()) {
             return policy.getAmount();
-        } else if (policy.isPercentPolice()) {
-            return movie.getFee().times(plicy.getPercent());
+        } else if (policy.isPercentPolicy()) {
+            return movie.getFee().times(policy.getPercent());
         }
 
         return Money.ZERO;
