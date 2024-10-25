@@ -31,7 +31,25 @@ public class DiscountCondition {
         this.sequence = sequence;
     }
 
-    public boolean isPeriodCondition() {
+    public boolean isSatisFiedBy(Screening screening) {
+        if (isPeriodCondition()) {
+            if (screening.isPayedIn(this.getDayOfWeek(), this.getStartTime(), this.getEndTime())) {
+                return true;
+            } else {
+                if (this.getSequence().equals(screening.getSequence())) {
+                    return true;
+                }
+            }
+        } else {
+            if (this.sequence.equals(screening.getSequence())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean isPeriodCondition() {
         return ConditionType.PERIOD_CONDITION.equals(conditionType);
     }
 
@@ -39,59 +57,23 @@ public class DiscountCondition {
         return ConditionType.SEQUENCE_CONDITION.equals(conditionType);
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
     public Long getPolicyId() {
         return policyId;
-    }
-
-    public void setPolicyId(Long policyId) {
-        this.policyId = policyId;
-    }
-
-    public ConditionType getConditionType() {
-        return conditionType;
-    }
-
-    public void setConditionType(ConditionType conditionType) {
-        this.conditionType = conditionType;
     }
 
     public DayOfWeek getDayOfWeek() {
         return dayOfWeek;
     }
 
-    public void setDayOfWeek(DayOfWeek dayOfWeek) {
-        this.dayOfWeek = dayOfWeek;
-    }
-
     public LocalTime getStartTime() {
         return startTime;
-    }
-
-    public void setStartTime(LocalTime startTime) {
-        this.startTime = startTime;
     }
 
     public LocalTime getEndTime() {
         return endTime;
     }
 
-    public void setEndTime(LocalTime endTime) {
-        this.endTime = endTime;
-    }
-
     public Integer getSequence() {
         return sequence;
-    }
-
-    public void setSequence(Integer sequence) {
-        this.sequence = sequence;
     }
 }
