@@ -4,8 +4,6 @@ import generic.Money;
 import reservation.domain.*;
 import reservation.persistence.*;
 
-import java.util.List;
-
 public class ReservationService {
     private ScreeningDAO screeningDAO;
     private MovieDAO movieDAO;
@@ -25,12 +23,11 @@ public class ReservationService {
         Screening screening = screeningDAO.selectScreening(screeningId);
         Movie movie = movieDAO.selectMovie(screening.getMovieId());
         DiscountPolicy policy = discountPolicyDAO.selectDiscountPolicy(movie.getId());
-        List<DiscountCondition> conditions = discountConditionDAO.selectDiscountConditions(policy.getId());
 
-        DiscountCondition condition = findDiscountCondition(screening, conditions);
+        boolean found = policy.findDiscountCondition(screening);
 
         Money fee;
-        if (condition != null) {
+        if (found) {
             fee = movie.getFee().minus(policy.calculateDiscount(movie));
         } else {
             fee = movie.getFee();
@@ -40,16 +37,6 @@ public class ReservationService {
         reservationDAO.insert(reservation);
 
         return reservation;
-    }
-
-    private DiscountCondition findDiscountCondition(Screening screening, List<DiscountCondition> conditions) {
-        for (DiscountCondition condition : conditions) {
-            if (condition.isSatisFiedBy(screening)) {
-                return condition;
-            }
-        }
-
-        return null;
     }
 
     private Reservation makeReservation(Long customerId, Long screeningId, Integer audienceCount, Money fee) {

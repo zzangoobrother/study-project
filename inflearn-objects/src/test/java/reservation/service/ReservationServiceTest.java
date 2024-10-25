@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -51,16 +51,15 @@ class ReservationServiceTest {
         when(movieDAO.selectMovie(movieId))
                 .thenReturn(new Movie(movieId, "한산", 120, Money.wons(10000)));
 
-        when(discountPolicyDAO.selectDiscountPolicy(movieId))
-                .thenReturn(new DiscountPolicy(policyId, movieId, DiscountPolicy.PolicyType.AMOUNT_POLICY, Money.wons(1000), null));
+        List<DiscountCondition> conditions = List.of(
+                new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.SEQUENCE_CONDITION, null, null, null, 1),
+                new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.SEQUENCE_CONDITION, null, null, null, 10),
+                new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.PERIOD_CONDITION, DayOfWeek.MONDAY, LocalTime.of(10, 12), LocalTime.of(12, 0), null),
+                new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.PERIOD_CONDITION, DayOfWeek.WEDNESDAY, LocalTime.of(18, 0), LocalTime.of(21, 0), null)
+        );
 
-        when(discountConditionDAO.selectDiscountConditions(policyId))
-                .thenReturn(List.of(
-                        new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.SEQUENCE_CONDITION, null, null, null, 1),
-                        new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.SEQUENCE_CONDITION, null, null, null, 10),
-                        new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.PERIOD_CONDITION, DayOfWeek.MONDAY, LocalTime.of(10, 12), LocalTime.of(12, 0), null),
-                        new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.PERIOD_CONDITION, DayOfWeek.WEDNESDAY, LocalTime.of(18, 0), LocalTime.of(21, 0), null)
-                ));
+        when(discountPolicyDAO.selectDiscountPolicy(movieId))
+                .thenReturn(new DiscountPolicy(policyId, movieId, DiscountPolicy.PolicyType.AMOUNT_POLICY, Money.wons(1000), null, conditions));
 
         Reservation reservation = reservationService.reserveScreening(customerId, screeningId, 2);
 
@@ -80,16 +79,15 @@ class ReservationServiceTest {
         when(movieDAO.selectMovie(movieId))
                 .thenReturn(new Movie(movieId, "한산", 120, Money.wons(10000)));
 
-        when(discountPolicyDAO.selectDiscountPolicy(movieId))
-                .thenReturn(new DiscountPolicy(policyId, movieId, DiscountPolicy.PolicyType.PERCENT_POLICY, null, 0.1));
+        List<DiscountCondition> conditions = List.of(
+                new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.SEQUENCE_CONDITION, null, null, null, 1),
+                new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.SEQUENCE_CONDITION, null, null, null, 10),
+                new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.PERIOD_CONDITION, DayOfWeek.MONDAY, LocalTime.of(10, 12), LocalTime.of(12, 0), null),
+                new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.PERIOD_CONDITION, DayOfWeek.WEDNESDAY, LocalTime.of(18, 0), LocalTime.of(21, 0), null)
+        );
 
-        when(discountConditionDAO.selectDiscountConditions(policyId))
-                .thenReturn(List.of(
-                        new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.SEQUENCE_CONDITION, null, null, null, 1),
-                        new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.SEQUENCE_CONDITION, null, null, null, 10),
-                        new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.PERIOD_CONDITION, DayOfWeek.MONDAY, LocalTime.of(10, 12), LocalTime.of(12, 0), null),
-                        new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.PERIOD_CONDITION, DayOfWeek.WEDNESDAY, LocalTime.of(18, 0), LocalTime.of(21, 0), null)
-                        ));
+        when(discountPolicyDAO.selectDiscountPolicy(movieId))
+                .thenReturn(new DiscountPolicy(policyId, movieId, DiscountPolicy.PolicyType.PERCENT_POLICY, null, 0.1, conditions));
 
         Reservation reservation = reservationService.reserveScreening(customerId, screeningId, 2);
 
