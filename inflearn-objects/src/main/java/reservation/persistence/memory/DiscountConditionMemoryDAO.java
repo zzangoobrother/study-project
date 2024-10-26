@@ -9,6 +9,6 @@ public class DiscountConditionMemoryDAO extends InMemoryDAO<DiscountCondition> i
 
     @Override
     public List<DiscountCondition> selectDiscountConditions(Long policyId) {
-        return findMany(condition -> condition.getPolicyId().equals(policyId));
+        return null;
     }
 }

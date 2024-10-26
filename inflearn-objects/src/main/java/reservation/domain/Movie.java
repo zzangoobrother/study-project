@@ -6,50 +6,32 @@ public class Movie {
     private Long id;
     private String title;
     private Integer runningTime;
+    private DiscountPolicy discountPolicy;
     private Money fee;
 
     public Movie() {}
 
-    public Movie(String title, Integer runningTime, Money fee) {
-        this(null, title, runningTime, fee);
+    public Movie(String title, Integer runningTime, Money fee, DiscountPolicy discountPolicy) {
+        this(null, title, runningTime, fee, discountPolicy);
     }
 
-    public Movie(Long id, String title, Integer runningTime, Money fee) {
+    public Movie(Long id, String title, Integer runningTime, Money fee, DiscountPolicy discountPolicy) {
         this.id = id;
         this.title = title;
         this.runningTime = runningTime;
         this.fee = fee;
+        this.discountPolicy = discountPolicy;
+    }
+
+    public Money calculateFee(Screening screening) {
+        return fee.minus(discountPolicy.calculateDiscount(screening));
     }
 
     public Long getId() {
         return id;
     }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public Integer getRunningTime() {
-        return runningTime;
-    }
-
-    public void setRunningTime(Integer runningTime) {
-        this.runningTime = runningTime;
-    }
-
     public Money getFee() {
         return fee;
-    }
-
-    public void setFee(Money fee) {
-        this.fee = fee;
     }
 }

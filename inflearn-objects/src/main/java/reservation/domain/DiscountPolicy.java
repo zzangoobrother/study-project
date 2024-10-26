@@ -5,65 +5,25 @@ import generic.Money;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DiscountPolicy {
+public abstract class DiscountPolicy {
 
-    public enum PolicyType {PERCENT_POLICY, AMOUNT_POLICY}
-
-    private Long id;
-    private Long movieId;
-    private PolicyType policyType;
-    private Money amount;
-    private Double percent;
-    private List<DiscountCondition> conditions;
+    private List<DiscountCondition> conditions = new ArrayList<>();
 
     public DiscountPolicy() {}
 
-    public DiscountPolicy(Long movieId, PolicyType policyType, Money amount, Double percent) {
-        this(null, movieId, policyType, amount, percent, new ArrayList<>());
-    }
-
-    public DiscountPolicy(Long id, Long movieId, PolicyType policyType, Money amount, Double percent, List<DiscountCondition> conditions) {
-        this.id = id;
-        this.movieId = movieId;
-        this.policyType = policyType;
-        this.amount = amount;
-        this.percent = percent;
+    public DiscountPolicy(List<DiscountCondition> conditions) {
         this.conditions = conditions;
     }
 
-    public boolean findDiscountCondition(Screening screening) {
-        for (DiscountCondition condition : conditions) {
-            if (condition.isSatisFiedBy(screening)) {
-                return true;
+    public Money calculateDiscount(Screening screening) {
+        for (DiscountCondition each : conditions) {
+            if (each.isSatisFiedBy(screening)) {
+                return getDiscountAmount(screening);
             }
-        }
-
-        return false;
-    }
-
-    public Money calculateDiscount(Movie movie) {
-        if (isAmountPolicy()) {
-            return amount;
-        } else if (isPercentPolicy()) {
-            return movie.getFee().times(percent);
         }
 
         return Money.ZERO;
     }
 
-    public boolean isAmountPolicy() {
-        return PolicyType.AMOUNT_POLICY.equals(policyType);
-    }
-
-    public boolean isPercentPolicy() {
-        return PolicyType.PERCENT_POLICY.equals(policyType);
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Long getMovieId() {
-        return movieId;
-    }
+    protected abstract Money getDiscountAmount(Screening screening);
 }

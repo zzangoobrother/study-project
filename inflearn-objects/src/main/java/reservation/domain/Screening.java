@@ -1,63 +1,45 @@
 package reservation.domain;
 
-import java.time.DayOfWeek;
+import generic.Money;
+
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 
 public class Screening {
     private Long id;
-    private Long movieId;
+    private Movie movie;
     private Integer sequence;
-    private LocalDateTime screeningTime;
+    private LocalDateTime whenScreened;
 
     public Screening() {}
 
-    public Screening(Long movieId, Integer sequence, LocalDateTime screeningTime) {
-        this(null, movieId, sequence, screeningTime);
+    public Screening(Movie movie, Integer sequence, LocalDateTime whenScreened) {
+        this(null, movie, sequence, whenScreened);
     }
 
-    public Screening(Long id, Long movieId, Integer sequence, LocalDateTime screeningTime) {
+    public Screening(Long id, Movie movie, Integer sequence, LocalDateTime whenScreened) {
         this.id = id;
-        this.movieId = movieId;
+        this.movie = movie;
         this.sequence = sequence;
-        this.screeningTime = screeningTime;
+        this.whenScreened = whenScreened;
     }
 
-    public boolean isPayedIn(DayOfWeek dayOfWeek, LocalTime startTime, LocalTime endTime) {
-        return this.screeningTime.getDayOfWeek().equals(dayOfWeek) &&
-                (this.screeningTime.toLocalTime().equals(startTime) || this.screeningTime.toLocalTime().isAfter(startTime)) &&
-                (this.screeningTime.toLocalTime().equals(endTime) || this.screeningTime.toLocalTime().isBefore(endTime));
+    public Money getFixedFee() {
+        return movie.getFee();
+    }
+
+    public boolean isSequence(int sequence) {
+        return this.sequence == sequence;
+    }
+
+    public LocalDateTime getStartTime() {
+        return whenScreened;
     }
 
     public Long getId() {
         return id;
     }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Long getMovieId() {
-        return movieId;
-    }
-
-    public void setMovieId(Long movieId) {
-        this.movieId = movieId;
-    }
-
-    public Integer getSequence() {
-        return sequence;
-    }
-
-    public void setSequence(Integer sequence) {
-        this.sequence = sequence;
-    }
-
-    public LocalDateTime getScreeningTime() {
-        return screeningTime;
-    }
-
-    public void setScreeningTime(LocalDateTime screeningTime) {
-        this.screeningTime = screeningTime;
+    public Movie getMovie() {
+        return movie;
     }
 }

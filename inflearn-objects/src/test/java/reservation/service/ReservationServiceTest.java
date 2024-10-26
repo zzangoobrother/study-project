@@ -45,21 +45,22 @@ class ReservationServiceTest {
         Long movieId = 1L;
         Long policyId = 1L;
 
-        when(screeningDAO.selectScreening(screeningId))
-                .thenReturn(new Screening(screeningId, movieId, 1, LocalDateTime.of(2024, 12, 11, 18, 0)));
-
-        when(movieDAO.selectMovie(movieId))
-                .thenReturn(new Movie(movieId, "한산", 120, Money.wons(10000)));
-
         List<DiscountCondition> conditions = List.of(
-                new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.SEQUENCE_CONDITION, null, null, null, 1),
-                new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.SEQUENCE_CONDITION, null, null, null, 10),
-                new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.PERIOD_CONDITION, DayOfWeek.MONDAY, LocalTime.of(10, 12), LocalTime.of(12, 0), null),
-                new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.PERIOD_CONDITION, DayOfWeek.WEDNESDAY, LocalTime.of(18, 0), LocalTime.of(21, 0), null)
+                new SequenceCondition(1),
+                new SequenceCondition(10),
+                new PeriodCondition(DayOfWeek.MONDAY, LocalTime.of(10, 12), LocalTime.of(12, 0)),
+                new PeriodCondition(DayOfWeek.WEDNESDAY, LocalTime.of(18, 0), LocalTime.of(21, 0))
         );
 
-        when(discountPolicyDAO.selectDiscountPolicy(movieId))
-                .thenReturn(new DiscountPolicy(policyId, movieId, DiscountPolicy.PolicyType.AMOUNT_POLICY, Money.wons(1000), null, conditions));
+        DiscountPolicy discountPolicy = new AmountDiscountPolicy(Money.wons(1000), conditions);
+
+        Movie movie = new Movie(movieId, "한산", 120, Money.wons(10000), discountPolicy);
+
+        when(movieDAO.selectMovie(movieId))
+                .thenReturn(movie);
+
+        when(screeningDAO.selectScreening(screeningId))
+                .thenReturn(new Screening(screeningId, movie, 1, LocalDateTime.of(2024, 12, 11, 18, 0)));
 
         Reservation reservation = reservationService.reserveScreening(customerId, screeningId, 2);
 
@@ -73,21 +74,21 @@ class ReservationServiceTest {
         Long movieId = 1L;
         Long policyId = 1L;
 
-        when(screeningDAO.selectScreening(screeningId))
-                .thenReturn(new Screening(screeningId, movieId, 1, LocalDateTime.of(2024, 12, 11, 18, 0)));
-
-        when(movieDAO.selectMovie(movieId))
-                .thenReturn(new Movie(movieId, "한산", 120, Money.wons(10000)));
-
         List<DiscountCondition> conditions = List.of(
-                new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.SEQUENCE_CONDITION, null, null, null, 1),
-                new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.SEQUENCE_CONDITION, null, null, null, 10),
-                new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.PERIOD_CONDITION, DayOfWeek.MONDAY, LocalTime.of(10, 12), LocalTime.of(12, 0), null),
-                new DiscountCondition(1L, policyId, DiscountCondition.ConditionType.PERIOD_CONDITION, DayOfWeek.WEDNESDAY, LocalTime.of(18, 0), LocalTime.of(21, 0), null)
+                new SequenceCondition(1),
+                new SequenceCondition(10),
+                new PeriodCondition(DayOfWeek.MONDAY, LocalTime.of(10, 12), LocalTime.of(12, 0)),
+                new PeriodCondition(DayOfWeek.WEDNESDAY, LocalTime.of(18, 0), LocalTime.of(21, 0))
         );
 
-        when(discountPolicyDAO.selectDiscountPolicy(movieId))
-                .thenReturn(new DiscountPolicy(policyId, movieId, DiscountPolicy.PolicyType.PERCENT_POLICY, null, 0.1, conditions));
+        DiscountPolicy discountPolicy = new PercentDiscountPolicy(0.1, conditions);
+
+        Movie movie = new Movie(movieId, "한산", 120, Money.wons(10000), discountPolicy);
+
+        when(movieDAO.selectMovie(movieId)).thenReturn(movie);
+
+        when(screeningDAO.selectScreening(screeningId))
+                .thenReturn(new Screening(screeningId, movie, 1, LocalDateTime.of(2024, 12, 11, 18, 0)));
 
         Reservation reservation = reservationService.reserveScreening(customerId, screeningId, 2);
 
