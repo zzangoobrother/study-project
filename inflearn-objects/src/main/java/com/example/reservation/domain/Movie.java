@@ -8,8 +8,6 @@ public class Movie {
     private Money fee;
     private DiscountPolicy discountPolicy;
 
-    public Movie() {}
-
     public Movie(String title, Money fee, DiscountPolicy discountPolicy) {
         this(null, title, fee, discountPolicy);
     }

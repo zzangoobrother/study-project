@@ -9,6 +9,7 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import java.time.DayOfWeek;
+import java.util.List;
 
 @Repository
 public class ScreeningJdbcDAO implements ScreeningDAO {
@@ -52,7 +53,7 @@ public class ScreeningJdbcDAO implements ScreeningDAO {
     }
 
     private DiscountPolicy queryDiscountPolicy(Long movieId) {
-        return jdbcClient.sql(
+        List<DiscountPolicy> policies = jdbcClient.sql(
                         "SELECT ID, POLICY_TYPE, AMOUNT, PERCENT " +
                                 "FROM DISCOUNT_POLICY " +
                                 "WHERE MOVIE_ID = :movieId")
@@ -70,7 +71,13 @@ public class ScreeningJdbcDAO implements ScreeningDAO {
                             rs.getDouble("PERCENT"),
                             queryDiscountConditions(rs.getLong("ID")));
                 })
-                .single();
+                .list();
+
+        if (policies.size() > 1) {
+            return new OverlappedDiscountPolicy(policies.toArray(new DiscountPolicy[0]));
+        }
+
+        return policies.isEmpty() ? null : policies.get(0);
     }
 
     private DiscountCondition[] queryDiscountConditions(Long policyId) {
