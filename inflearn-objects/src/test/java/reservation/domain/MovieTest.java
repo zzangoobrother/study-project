@@ -1,6 +1,7 @@
 package reservation.domain;
 
-import generic.Money;
+import com.example.generic.Money;
+import com.example.reservation.domain.*;
 import org.junit.jupiter.api.Test;
 
 import java.time.DayOfWeek;
@@ -15,7 +16,6 @@ class MovieTest {
     void 비율할인정책_계산하기() {
         Movie movie = new Movie(
                 "한산",
-                120,
                 Money.wons(10000),
                 new PercentDiscountPolicy(
                         0.1,
@@ -36,7 +36,6 @@ class MovieTest {
     void 금액할인정책_계산하기() {
         Movie movie = new Movie(
                 "한산",
-                120,
                 Money.wons(10000),
                 new AmountDiscountPolicy(
                         Money.wons(1000),
@@ -57,7 +56,6 @@ class MovieTest {
     void 비할인정책_계산하기() {
         Movie movie = new Movie(
                 "한산",
-                120,
                 Money.wons(10000),
                 new NoneDiscountPolicy()
         );

@@ -1,13 +1,12 @@
 package reservation.service;
 
-import generic.Money;
+import com.example.generic.Money;
+import com.example.reservation.domain.*;
+import com.example.reservation.service.*;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import reservation.domain.*;
-import reservation.persistence.*;
+import org.springframework.boot.test.context.SpringBootTest;
 
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
@@ -17,7 +16,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class ReservationServiceTest {
 
     @InjectMocks
@@ -52,14 +51,14 @@ class ReservationServiceTest {
                 new PeriodCondition(DayOfWeek.WEDNESDAY, LocalTime.of(18, 0), LocalTime.of(21, 0))
         );
 
-        DiscountPolicy discountPolicy = new AmountDiscountPolicy(Money.wons(1000), conditions);
+        DiscountPolicy discountPolicy = new AmountDiscountPolicy(policyId, Money.wons(1000), conditions);
 
-        Movie movie = new Movie(movieId, "한산", 120, Money.wons(10000), discountPolicy);
+        Movie movie = new Movie(movieId, "한산", Money.wons(10000), discountPolicy);
 
         when(movieDAO.selectMovie(movieId))
                 .thenReturn(movie);
 
-        when(screeningDAO.selectScreening(screeningId))
+        when(screeningDAO.find(screeningId))
                 .thenReturn(new Screening(screeningId, movie, 1, LocalDateTime.of(2024, 12, 11, 18, 0)));
 
         Reservation reservation = reservationService.reserveScreening(customerId, screeningId, 2);
@@ -81,13 +80,13 @@ class ReservationServiceTest {
                 new PeriodCondition(DayOfWeek.WEDNESDAY, LocalTime.of(18, 0), LocalTime.of(21, 0))
         );
 
-        DiscountPolicy discountPolicy = new PercentDiscountPolicy(0.1, conditions);
+        DiscountPolicy discountPolicy = new PercentDiscountPolicy(policyId, 0.1, conditions);
 
-        Movie movie = new Movie(movieId, "한산", 120, Money.wons(10000), discountPolicy);
+        Movie movie = new Movie(movieId, "한산", Money.wons(10000), discountPolicy);
 
         when(movieDAO.selectMovie(movieId)).thenReturn(movie);
 
-        when(screeningDAO.selectScreening(screeningId))
+        when(screeningDAO.find(screeningId))
                 .thenReturn(new Screening(screeningId, movie, 1, LocalDateTime.of(2024, 12, 11, 18, 0)));
 
         Reservation reservation = reservationService.reserveScreening(customerId, screeningId, 2);

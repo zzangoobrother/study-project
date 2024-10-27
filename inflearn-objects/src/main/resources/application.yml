@@ -1,0 +1,25 @@
+server:
+  shutdown: graceful
+
+spring:
+  application:
+    name: movie-reservation
+  datasource:
+    url: jdbc:h2:tcp://localhost/~/study;MODE=MYSQL
+    username: sa
+    password: 123
+    driverClassName: org.h2.Driver
+  h2:
+    console:
+      enabled: true
+  lifecycle:
+    timeout-per-shutdown-phase: 1m
+
+logging:
+  level:
+    org:
+      springframework:
+        jdbc:
+          core:
+            JdbcTemplate: debug
+            StatementCreatorUtils: trace
