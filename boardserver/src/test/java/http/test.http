@@ -1,0 +1,12 @@
+POST localhost:8080/users/sing-up
+Content-Type: application/json
+
+{
+  "userId" : "test1",
+  "password" : "123",
+  "nickName" : "test",
+  "isAdmin" : "true",
+  "createTime" : "2024-10-30T00:00:00",
+  "isWithDraw" : "false",
+  "status" : "DEFAULT"
+}

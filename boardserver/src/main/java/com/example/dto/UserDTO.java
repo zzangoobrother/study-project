@@ -14,6 +14,10 @@ public record UserDTO(
         Date updateTime
 ) {
 
+    public static boolean hasNullDataBeforeRegister(UserDTO userDTO) {
+        return userDTO.userId() == null || userDTO.password() == null || userDTO.nickName() == null;
+    }
+
     public void setCreateTime(Date date) {
 
     }

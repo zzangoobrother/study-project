@@ -1,10 +1,9 @@
 spring:
   datasource:
+    jdbc-url: jdbc:h2:tcp://localhost/~/study;MODE=MYSQL
+    username: sa
+    password: 123
     driver-class-name: org.h2.Driver
-    hikari:
-      jdbc-url: jdbc:h2:tcp://localhost/~/study;MODE=MYSQL
-      username: sa
-      password: 123
 
 mybatis:
-  mapper-location: classpath:com.example.boardserver.mapper/*.xml
+  mapper-locations: classpath:com.example.mapper/*.xml

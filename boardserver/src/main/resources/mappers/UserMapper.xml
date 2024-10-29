@@ -1,5 +1,7 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE mapper PUBLIC "~//mybatis.org/DTO Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.example.mapper.UserProfileMapper">
     <select id="getUserProfile" resultType="com.example.dto.UserDTO">
@@ -9,17 +11,17 @@
                createTime,
                isWithDraw,
                status
-        from user
+        from users
         where userId = #{id}
     </select>
 
     <insert id="insertUserProfile" parameterType="com.example.dto.UserDTO">
-        insert into user (userId, password, nickName, isWithDraw, status, isAdmin)
+        insert into users (userId, password, nickName, isWithDraw, status, isAdmin)
         values (#{userId}, #{password}, #{nickName}, #{isWithDraw}, #{status}, #{isAdmin})
     </insert>
 
     <update id="updateUserProfile" parameterType="com.example.dto.UserDTO">
-        update user
+        update users
         set password = #{password},
             nickName = #{nickName},
             isWithDraw = #{isWithDraw},
@@ -29,7 +31,7 @@
 
     <delete id="deleteUserProfile">
         delete
-        from user
+        from users
         where userId = #{id}
     </delete>
 
@@ -41,7 +43,7 @@
                createTime,
                isWithDraw,
                status
-        from user
+        from users
         where userId = #{id}
         and password = #{password}
         and status != 'DELETE'
@@ -49,19 +51,24 @@
 
     <select id="idCheck" resultType="int">
         select count(id)
-        from user
+        from users
         where userId = #{userId}
     </select>
 
     <update id="updatePassword" parameterType="com.example.dto.UserDTO">
-        update user
+        update users
         set password = #{password}
         where userId = #{userId};
     </update>
 
     <update id="updateAddress" parameterType="com.example.dto.UserDTO">
-        update user
+        update users
         set address = #{address}
         where userId = #{userId};
     </update>
+
+    <insert id="register" parameterType="com.example.dto.UserDTO">
+        insert into users (userId, password, nickName, isWithDraw, status)
+        values (#{userId}, #{password}, #{nickName}, #{isWithDraw}, #{status})
+    </insert>
 </mapper>
