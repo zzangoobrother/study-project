@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.mapper.PostMapper">
+    <insert id="register" parameterType="com.example.dto.PostDto">
+        insert into post (name, isAdmin, contents, createTime, views, categoryId, userId, fileId, updateTime)
+        values (#{name}, #{isAdmin}, #{contents}, #{createTime}, #{views}, #{categoryId}, #{userId}, #{fileId}, #{updateTime})
+    </insert>
+
+    <select id="selectMyPosts" resultType="com.example.dto.PostDto">
+        select id,
+               namme,
+               isAdmin,
+               contents,
+               createTime,
+               views,
+               categoryId,
+               userId,
+               fileId,
+               updateTime
+        from post
+        where userId = #{userId}
+    </select>
+
+    <update id="updatePosts" parameterType="com.example.dto.PostDto">
+        update post
+        set name = #{name},
+            contents = #{contents},
+            views = #{views},
+            categoryId = #{categoryId},
+            userId = #{userId},
+            fileId = #{fileId},
+            updateTime = #{updateTime}
+        where id = #{id}
+    </update>
+
+    <delete id="deletePosts">
+        delete
+        from post
+        where id = #{id}
+    </delete>
+</mapper>

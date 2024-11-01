@@ -5,7 +5,8 @@
 
 <mapper namespace="com.example.mapper.UserProfileMapper">
     <select id="getUserProfile" resultType="com.example.dto.UserDTO">
-        select userId,
+        select id,
+               userId,
                password,
                nickname,
                createTime,

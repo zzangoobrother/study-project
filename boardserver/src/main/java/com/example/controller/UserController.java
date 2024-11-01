@@ -2,7 +2,10 @@ package com.example.controller;
 
 import com.example.aop.LoginCheck;
 import com.example.dto.*;
-import com.example.service.UserService;
+import com.example.dto.request.UserLoginRequest;
+import com.example.dto.request.UserUpdatePasswordRequest;
+import com.example.dto.response.LoginResponse;
+import com.example.dto.response.UserInfoResponse;
 import com.example.service.impl.UserServiceImpl;
 import com.example.utils.SessionUtil;
 import jakarta.servlet.http.HttpSession;
