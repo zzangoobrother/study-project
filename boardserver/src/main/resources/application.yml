@@ -5,5 +5,19 @@ spring:
     password: 123
     driver-class-name: org.h2.Driver
 
+  cache:
+    type: redis
+  data:
+    redis:
+      port: 6379
+      host: localhost
+      password:
+      repositories:
+        enabled: false
+
+expire:
+  defaultTime: 3600
+
 mybatis:
   mapper-locations: classpath:com.example.mapper/*.xml
+
