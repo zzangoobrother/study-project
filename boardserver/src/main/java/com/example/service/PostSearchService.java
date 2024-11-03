@@ -8,4 +8,6 @@ import java.util.List;
 public interface PostSearchService {
 
     List<PostDto> getPosts(PostSearchRequest request);
+
+    List<PostDto> getPostBgetPostByTagyTag(String tagName);
 }

@@ -3,6 +3,7 @@ package com.example.dto;
 import lombok.Builder;
 
 import java.util.Date;
+import java.util.List;
 
 @Builder
 public record PostDto(
@@ -15,7 +16,8 @@ public record PostDto(
         int categoryId,
         int userId,
         int fileId,
-        Date updateTime
+        Date updateTime,
+        List<TagDto> tagDtos
 ) {
 
     public PostDto setUserId(int userId) {

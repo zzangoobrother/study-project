@@ -41,4 +41,21 @@
             order by categoryId
         </if>
     </select>
+
+    <select id="getPostByTag" resultType="com.example.dto.request.PostSearchRequest">
+        select p.id,
+               p.namme,
+               p.isAdmin,
+               p.contents,
+               p.createTime,
+               p.views,
+               p.categoryId,
+               p.userId,
+               p.fileId,
+               p.updateTime
+        from post p
+        join posttag pt on p.id = pt.postId
+        join tag t on pt.tagId = t.id
+        where t.name = #{tagName}
+    </select>
 </mapper>

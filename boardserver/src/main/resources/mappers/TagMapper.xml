@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.mapper.TagMapper">
+    <insert id="register" parameterType="com.example.dto.TagDto">
+        insert into tag (name, url, subCommentId)
+        values (#{name}, #{url})
+        <selectKey keyProperty="id" resultType="Integer">
+            select last_insert_id()
+        </selectKey>
+    </insert>
+
+    <update id="updateTags" parameterType="com.example.dto.TagDto">
+        update tag
+        set name = #{name},
+            url = #{url}
+        where id = #{id}
+    </update>
+
+    <delete id="deletePostTag">
+        delete
+        from tag
+        where id = #{commentId}
+    </delete>
+
+    <insert id="createPostTag">
+        insert into posttag (tagId, postId)
+        values (#{tagId}, #{postId})
+    </insert>
+</mapper>
