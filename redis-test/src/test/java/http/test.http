@@ -1,2 +1,6 @@
 GET localhost:8080/users/2
 Content-Type: application/json
+
+###
+GET localhost:8080/redishash-users/2
+Content-Type: application/json
