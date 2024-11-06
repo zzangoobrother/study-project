@@ -1,6 +1,5 @@
 package com.example;
 
-import com.example.domain.entity.User;
 import com.example.domain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
