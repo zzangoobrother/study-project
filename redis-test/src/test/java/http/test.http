@@ -1,2 +1,2 @@
-GET localhost:8080/users/1/email
+GET localhost:8080/users/2
 Content-Type: application/json

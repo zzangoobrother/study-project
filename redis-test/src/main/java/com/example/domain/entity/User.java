@@ -1,4 +1,4 @@
-package com.example;
+package com.example.domain.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -23,10 +23,10 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(length = 100)
+    @Column(length = 100, nullable = false)
     private String email;
 
-    @Column(length = 30)
+    @Column(length = 30, nullable = false)
     private String name;
 
     @CreatedDate
