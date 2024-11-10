@@ -32,6 +32,10 @@ public class PostServiceV2 {
         return repository.findById(id);
     }
 
+    public Flux<Post> findAllByUserId(Long userId) {
+        return repository.findAllByUserId(userId);
+    }
+
     public Mono<Void> deleteById(Long id) {
         return repository.deleteById(id);
     }

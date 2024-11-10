@@ -2,7 +2,6 @@ package com.example.service;
 
 import com.example.repository.User;
 import com.example.repository.UserR2dbcRepository;
-import com.example.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -31,6 +30,10 @@ public class UserService {
 
     public Mono<Void> deleteById(Long id) {
         return userR2dbcRepository.deleteById(id);
+    }
+
+    public Mono<Void> deleteByName(String name) {
+        return userR2dbcRepository.deleteByName(name);
     }
 
     public Mono<User> update(Long id, String name, String email) {
