@@ -1,0 +1,36 @@
+GET localhost:8080/hello-functional
+Content-Type: application/json
+
+###
+GET localhost:8080/sample/hello
+Content-Type: application/json
+
+###
+POST localhost:8080/users
+Content-Type: application/json
+
+{
+  "name": "홍길동",
+  "email" : "abcd@gmail.com"
+}
+
+###
+GET localhost:8080/users
+Content-Type: application/json
+
+###
+GET localhost:8080/users/1
+Content-Type: application/json
+
+###
+PUT localhost:8080/users/1
+Content-Type: application/json
+
+{
+  "name": "홍길동",
+  "email" : "abcd@gmail.comddddd"
+}
+
+###
+DELETE localhost:8080/users/1
+Content-Type: application/json
