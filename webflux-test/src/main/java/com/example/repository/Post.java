@@ -1,9 +1,8 @@
 package com.example.repository;
 
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
@@ -13,16 +12,22 @@ import java.time.LocalDateTime;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@Table("users")
-public class User {
+@Table("posts")
+public class Post {
+
     @Id
     private Long id;
-    private String name;
-    private String email;
 
-    @CreatedDate
-    private LocalDateTime createdAt;
+    @Column("user_id")
+    private Long userId;
 
-    @LastModifiedDate
+    private String title;
+
+    private String content;
+
+    @Column("crated_at")
+    private LocalDateTime cratedAt;
+
+    @Column("updated_at")
     private LocalDateTime updatedAt;
 }

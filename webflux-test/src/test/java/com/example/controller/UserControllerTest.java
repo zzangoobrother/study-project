@@ -97,7 +97,7 @@ class UserControllerTest {
     @Test
     void deletedUsers() {
         when(userService.deleteById(1L)).thenReturn(
-                Mono.just(1)
+                Mono.empty()
         );
 
         webTestClient.delete().uri("/users/1")

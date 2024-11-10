@@ -1,6 +1,7 @@
 package com.example.service;
 
 import com.example.repository.User;
+import com.example.repository.UserR2dbcRepository;
 import com.example.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -9,34 +10,35 @@ import reactor.core.publisher.Mono;
 @Service
 public class UserService {
 
-    private final UserRepository userRepository;
+//    private final UserRepository userRepository;
+    private final UserR2dbcRepository userR2dbcRepository;
 
-    public UserService(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public UserService(UserR2dbcRepository userR2dbcRepository) {
+        this.userR2dbcRepository = userR2dbcRepository;
     }
 
     public Mono<User> create(String name, String email) {
-        return userRepository.save(User.builder().name(name).email(email).build());
+        return userR2dbcRepository.save(User.builder().name(name).email(email).build());
     }
 
     public Flux<User> findAll() {
-        return userRepository.findAll();
+        return userR2dbcRepository.findAll();
     }
 
     public Mono<User> findById(Long id) {
-        return userRepository.findById(id);
+        return userR2dbcRepository.findById(id);
     }
 
-    public Mono<Integer> deleteById(Long id) {
-        return userRepository.deleteById(id);
+    public Mono<Void> deleteById(Long id) {
+        return userR2dbcRepository.deleteById(id);
     }
 
     public Mono<User> update(Long id, String name, String email) {
-        return userRepository.findById(id)
+        return userR2dbcRepository.findById(id)
                 .flatMap(u -> {
                     u.setName(name);
                     u.setEmail(email);
-                    return userRepository.save(u);
+                    return userR2dbcRepository.save(u);
                 });
     }
 }

@@ -42,3 +42,25 @@ Content-Type: application/json
 ###
 GET localhost:8080/posts/search?ids=1,2,3,4,5
 Content-Type: application/json
+
+###
+POST localhost:8080/v2/posts
+Content-Type: application/json
+
+{
+  "userId" : 1,
+  "title": "제목",
+  "content" : "내용"
+}
+
+###
+GET localhost:8080/v2/posts
+Content-Type: application/json
+
+###
+GET localhost:8080/v2/posts/1
+Content-Type: application/json
+
+###
+DELETE localhost:8080/v2/posts/1
+Content-Type: application/json
