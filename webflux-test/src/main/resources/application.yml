@@ -7,3 +7,8 @@ spring:
     url: r2dbc:mysql://localhost:3306/ecommerce?useUnicode=true&serverTimezone=Asia/Seoul&autoReconnect=true&rewriteBatchedStatements=true
     username: root
     password: 1234
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
