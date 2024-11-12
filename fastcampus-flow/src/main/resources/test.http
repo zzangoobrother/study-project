@@ -1,0 +1,2 @@
+POST localhost:9010/api/v1/queue?userId=7
+Content-Type: application/json
