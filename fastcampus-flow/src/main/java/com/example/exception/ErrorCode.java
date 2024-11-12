@@ -12,4 +12,12 @@ public enum ErrorCode {
     private final HttpStatus httpStatus;
     private final String code;
     private final String reason;
+
+    public ApplicationException build() {
+        return new ApplicationException(httpStatus, code, reason);
+    }
+
+    public ApplicationException build(Object... args) {
+        return new ApplicationException(httpStatus, code, reason.formatted(args));
+    }
 }
