@@ -2,6 +2,7 @@ package com.example.controller;
 
 import com.example.dto.AllowUserResponse;
 import com.example.dto.AllowedUserResponse;
+import com.example.dto.RankNumberResponse;
 import com.example.dto.RegisterUserResponse;
 import com.example.service.UserQueueService;
 import org.springframework.web.bind.annotation.*;
@@ -33,5 +34,11 @@ public class UserQueueController {
     public Mono<AllowedUserResponse> isAllowedUSer(@RequestParam(name = "queue", defaultValue = "default") String queue, @RequestParam("userId") Long userId) {
         return userQueueService.isAllowed(queue, userId)
                 .map(AllowedUserResponse::new);
+    }
+
+    @GetMapping("/rank")
+    public Mono<RankNumberResponse> getRankUser(@RequestParam(name = "queue", defaultValue = "default") String queue, @RequestParam("userId") Long userId) {
+        return userQueueService.getRank(queue, userId)
+                .map(RankNumberResponse::new);
     }
 }
