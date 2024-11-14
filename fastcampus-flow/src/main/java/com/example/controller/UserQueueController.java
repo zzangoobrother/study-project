@@ -5,8 +5,12 @@ import com.example.dto.AllowedUserResponse;
 import com.example.dto.RankNumberResponse;
 import com.example.dto.RegisterUserResponse;
 import com.example.service.UserQueueService;
+import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+
+import java.time.Duration;
 
 @RequestMapping("/api/v1/queue")
 @RestController
@@ -31,8 +35,8 @@ public class UserQueueController {
     }
 
     @GetMapping("/allowed")
-    public Mono<AllowedUserResponse> isAllowedUSer(@RequestParam(name = "queue", defaultValue = "default") String queue, @RequestParam("userId") Long userId) {
-        return userQueueService.isAllowed(queue, userId)
+    public Mono<AllowedUserResponse> isAllowedUSer(@RequestParam(name = "queue", defaultValue = "default") String queue, @RequestParam("userId") Long userId, @RequestParam("token") String token) {
+        return userQueueService.isAllowedByToken(queue, userId, token)
                 .map(AllowedUserResponse::new);
     }
 
@@ -40,5 +44,20 @@ public class UserQueueController {
     public Mono<RankNumberResponse> getRankUser(@RequestParam(name = "queue", defaultValue = "default") String queue, @RequestParam("userId") Long userId) {
         return userQueueService.getRank(queue, userId)
                 .map(RankNumberResponse::new);
+    }
+
+    @GetMapping("/touch")
+    public Mono<?> touch(@RequestParam(name = "queue", defaultValue = "default") String queue, @RequestParam("userId") Long userId, ServerWebExchange exchange) {
+        return Mono.defer(() -> userQueueService.generateToken(queue, userId))
+                .map(token -> {
+                    exchange.getResponse().addCookie(
+                            ResponseCookie.from("user-queue-%s-token".formatted(queue), token)
+                                    .maxAge(Duration.ofSeconds(300))
+                                    .path("/")
+                                    .build()
+                    );
+
+                    return token;
+                });
     }
 }

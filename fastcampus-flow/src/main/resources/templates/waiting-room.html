@@ -38,7 +38,7 @@
     function fetchWaitingRank() {
         const queue = '[[${queue}]]';
         const userId = '[[${userId}]]';
-        const queryParam = new URLSearchParams({queue: queue, user_id: userId});
+        const queryParam = new URLSearchParams({queue: queue, userId: userId});
 
         fetch('/api/v1/queue/rank?' + queryParam)
             .then(response => response.json())
