@@ -1,0 +1,7 @@
+POST localhost:8080/v1/issue
+Content-Type: application/json
+
+{
+  "userId": 10,
+  "couponId" : 1
+}

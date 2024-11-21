@@ -1,6 +1,5 @@
-package com.example.service;
+package com.example;
 
-import com.example.CouponCoreConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;

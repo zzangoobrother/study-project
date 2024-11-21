@@ -1,5 +1,6 @@
 package com.example.service;
 
+import com.example.TestConfig;
 import com.example.exception.CouponIssueException;
 import com.example.exception.ErrorCode;
 import com.example.model.Coupon;
@@ -20,6 +21,9 @@ import static org.junit.jupiter.api.Assertions.*;
 class CouponIssueServiceTest extends TestConfig {
 
     @Autowired
+    CouponIssueService sut;
+
+    @Autowired
     CouponIssueJpaRepository couponIssueJpaRepository;
 
     @Autowired
@@ -27,9 +31,6 @@ class CouponIssueServiceTest extends TestConfig {
 
     @Autowired
     CouponJpaRepository couponJpaRepository;
-
-    @Autowired
-    CouponIssueService sut;
 
     @BeforeEach
     void clean() {
