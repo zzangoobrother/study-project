@@ -21,6 +21,31 @@ public class CouponIssueService {
     private final CouponIssueJpaRepository couponIssueJpaRepository;
     private final CouponIssueRepository couponIssueRepository;
 
+    /*
+        트랜잭션 시작
+
+        lock 획득
+        Coupon coupon = findCoupon(couponId);
+        coupon.issue();
+        saveCouponIssue(couponId, userId);
+        lock 반납
+
+        1번 요청
+
+        트랜잭션 커밋
+
+        트랜잭션 커밋 전 2번째 요청이 오기 때문에 문제 발생
+        때문에 트랜잭션 내부에서 lock 을 하는 행위는 주의 요함
+     */
+//    @Transactional
+//    public void issue(long couponId, long userId) {
+//        synchronized (this) {
+//            Coupon coupon = findCoupon(couponId);
+//            coupon.issue();
+//            saveCouponIssue(couponId, userId);
+//        }
+//    }
+
     @Transactional
     public void issue(long couponId, long userId) {
         Coupon coupon = findCoupon(couponId);
