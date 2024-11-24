@@ -46,6 +46,32 @@ public class CouponIssueService {
 //        }
 //    }
 
+    /*
+        Sorted Set 사용 시나리오
+        1. 유저 요청이 들어옴
+        2. 쿠폰 캐시를 통한 유효성 검증
+            a. 쿠폰 존재 확인
+            b. 쿠폰 유효 시간 확인
+        3. Sorted Set에 요청 추가 (ZADD score = time stamp)
+            a. ZADD의 응답 값 기반 중복 검사
+        4. 현재 요청의 순서 조회(ZRANK) 및 발급 성공 여부 응답
+        5. 발급에 성공했다면 쿠폰 발급 queue에 적재
+
+        score 에서 time stamp 사용시 중복 발생,
+        이를 해결 해야함
+        그리고 O(logN) 의 시간을 가지면서 갯수가 늘수록 속도도 느려짐
+
+        Set 사용 시나리오
+        1. 유저 요청이 들어옴
+        2. 쿠폰 캐시를 통한 유효성 검증
+            a. 쿠폰 존재 확인
+            b. 쿠폰 유효 시간 확인
+        3. 중복 발급 요청 확인 (SISMEMBER)
+        4. 수량 조회(SCARD) 및 발급 가능 여부 검증
+        5. 요청 추가(SADD)
+        6. 쿠폰 발급 queue에 적재
+     */
+
     @Transactional
     public void issue(long couponId, long userId) {
         Coupon coupon = findCouponWithLock(couponId);
