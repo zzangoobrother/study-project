@@ -20,7 +20,7 @@ public class AsyncCouponIssueServiceV2 {
         -> 이 모든 과정을 lock 안에서 하지 말고 한꺼번에 하면 되지 않을까?
      */
     public void issue(long couponId, long userId) {
-        CouponRedisEntity coupon = couponCacheService.getCouponCache(couponId);
+        CouponRedisEntity coupon = couponCacheService.getCouponLocalCache(couponId);
         coupon.checkIssuableCoupon();
         issueRequest(couponId, userId, coupon.totalQuantity());
     }

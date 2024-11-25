@@ -17,7 +17,7 @@ public enum CouponIssueRequestCode {
         int codeValue = Integer.parseInt(code);
         if (codeValue == 1) return SUCCESS;
         if (codeValue == 2) return DUPLICATE_COUPON_ISSUE;
-        if (codeValue == 3) return  INVALID_COUPON_ISSUE_QUANTITY;
+        if (codeValue == 3) return INVALID_COUPON_ISSUE_QUANTITY;
         throw new IllegalArgumentException("존재하지 않은 코드입니다. %s".formatted(code));
     }
 

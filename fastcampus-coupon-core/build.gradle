@@ -5,6 +5,8 @@ dependencies {
     implementation 'org.redisson:redisson-spring-boot-starter:3.16.4'
     implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
 
+    implementation 'com.github.ben-manes.caffeine:caffeine'
+
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
 
