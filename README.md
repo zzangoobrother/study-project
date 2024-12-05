@@ -25,5 +25,8 @@
 - Java/Spring 테스트를 추가하고 싶은 개발자들의 오답노트
   - <a href='https://github.com/zzangoobrother/study-project/tree/master/test-code-with-architecture' target='_blank' >test-code-with-architecture</a>
 
+- 오브젝트 기초편
+  - <a href='https://github.com/zzangoobrother/study-project/tree/master/inflearn-objects' target='_blank' >inflearn-objects</a>
+
 ### 패스트캠퍼스 강의
 
