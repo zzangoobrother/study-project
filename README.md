@@ -28,5 +28,8 @@
 - 오브젝트 기초편
   - <a href='https://github.com/zzangoobrother/study-project/tree/master/inflearn-objects' target='_blank' >inflearn-objects</a>
 
+- 스프링 시큐리티
+  - <a href='https://github.com/zzangoobrother/study-project/tree/master/inflearn-security-study' target='_blank' >inflearn-security-study</a>
+
 ### 패스트캠퍼스 강의
 
