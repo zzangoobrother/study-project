@@ -17,4 +17,8 @@ public interface LowestPriceService {
     int setNewProductGroupToKeyword(String keyword, String productGroupId, double score);
 
     Keyword getLowestPriceProductByKeyword(String keyword);
+
+    Set getZsetValueWithStatus(String key) throws Exception;
+
+    Set<String> getZsetValueWithSpecificException(String key);
 }
