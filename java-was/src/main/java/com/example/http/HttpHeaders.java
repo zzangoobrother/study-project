@@ -2,6 +2,7 @@ package com.example.http;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class HttpHeaders {
 
@@ -28,7 +29,7 @@ public class HttpHeaders {
         return value;
     }
 
-    public Map<String, String> getValueMap() {
-        return valueMap;
+    public Set<Map.Entry<String, String>> getValues() {
+        return valueMap.entrySet();
     }
 }
