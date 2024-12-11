@@ -13,7 +13,7 @@ public class HttpResponseSerializer {
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
-        String responseLine = String.format("%s, %d, %s%s",
+        String responseLine = String.format("%s %d %s%s",
                 httpVersion.getVersion(),
                 httpStatus.getStatusCode(),
                 httpStatus.getStatusMessage(),

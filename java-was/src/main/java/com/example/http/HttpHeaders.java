@@ -32,4 +32,9 @@ public class HttpHeaders {
     public Set<Map.Entry<String, String>> getValues() {
         return valueMap.entrySet();
     }
+
+    @Override
+    public String toString() {
+        return valueMap + "";
+    }
 }

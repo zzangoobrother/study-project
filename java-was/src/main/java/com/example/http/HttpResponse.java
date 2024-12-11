@@ -15,7 +15,7 @@ public class HttpResponse {
     public HttpResponse(HttpVersion httpVersion, HttpStatus httpStatus, Map<String, String> headers, ByteArrayOutputStream body) {
         this.httpVersion = validateHttpVersion(httpVersion);
         this.httpStatus = validateHttpStatus(httpStatus);
-        this.httpHeaders = HttpHeaders.of(headers);
+        this.httpHeaders = HttpHeaders.of(validateHeaders(headers));
         this.body = body;
     }
 
@@ -35,10 +35,12 @@ public class HttpResponse {
         return httpStatus;
     }
 
-    private void validateHeaders(Map<String, String> headers) {
+    private Map<String, String> validateHeaders(Map<String, String> headers) {
         if (headers == null) {
             throw new IllegalArgumentException("Headers가 존재하지 않습니다.");
         }
+
+        return headers;
     }
 
     public static HttpResponse notFoundOf(String path) {
@@ -53,7 +55,7 @@ public class HttpResponse {
         return HttpResponse.builder()
                 .httpVersion(HttpVersion.HTTP_1_1)
                 .httpStatus(HttpStatus.NOT_FOUND)
-                .headers(Map.of("Content-Type", "Text/html; charset=UTF-8"))
+                .headers(Map.of("Content-Type", "text/html; charset=UTF-8"))
                 .body(body)
                 .build();
     }
