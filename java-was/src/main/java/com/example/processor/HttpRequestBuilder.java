@@ -1,4 +1,4 @@
-package com.example.handler;
+package com.example.processor;
 
 import com.example.http.HttpRequest;
 
@@ -7,9 +7,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.StringTokenizer;
 
-public class HttpRequestHandler {
+public class HttpRequestBuilder {
 
     public HttpRequest parseRequest(InputStream inputStream) throws IOException {
         BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
@@ -23,7 +24,7 @@ public class HttpRequestHandler {
         String path = st.nextToken();
         String version = st.nextToken();
 
-        HashMap<String, String> headers = new HashMap<>();
+        Map<String, String> headers = new HashMap<>();
         while (!(line = br.readLine()).isEmpty()) {
             st = new StringTokenizer(line, ": ");
             String key = st.nextToken();

@@ -1,5 +1,7 @@
 package com.example.http;
 
+import com.example.http.header.HttpHeaders;
+
 import java.util.Map;
 
 public class HttpRequest {

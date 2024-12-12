@@ -1,5 +1,7 @@
 package com.example.http;
 
+import com.example.http.header.HttpHeaders;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -11,6 +13,13 @@ public class HttpResponse {
     private final HttpStatus httpStatus;
     private final HttpHeaders httpHeaders;
     private final ByteArrayOutputStream body;
+
+    public HttpResponse(HttpVersion httpVersion) {
+        this.httpVersion = validateHttpVersion(httpVersion);
+        this.httpStatus = HttpStatus.INITIAL_STATUS;
+        this.httpHeaders = HttpHeaders.emptyHeader();
+        this.body = new ByteArrayOutputStream();
+    }
 
     public HttpResponse(HttpVersion httpVersion, HttpStatus httpStatus, Map<String, String> headers, ByteArrayOutputStream body) {
         this.httpVersion = validateHttpVersion(httpVersion);
