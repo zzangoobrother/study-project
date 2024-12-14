@@ -6,6 +6,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.StringTokenizer;
@@ -36,12 +37,21 @@ public class HttpRequestBuilder {
         char[] body = new char[contentLength];
         br.read(body);
 
+        String bodyString = String.valueOf(body);
+        if(headers.containsKey("Content-Type") && headers.get("Content-Type").equals("application/x-www-form-urlencoded")) {
+            try {
+                bodyString = URLDecoder.decode(bodyString, "UTF-8");
+            } catch (Exception e) {
+                throw new IllegalArgumentException("인코딩 에러가 발생했습니다.");
+            }
+        }
+
         return HttpRequest.builder()
                 .method(method)
                 .path(path)
                 .version(version)
                 .headers(headers)
-                .body(String.valueOf(body))
+                .body(bodyString)
                 .build();
     }
 }

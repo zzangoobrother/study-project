@@ -39,6 +39,17 @@ public class HttpRequest {
         return body;
     }
 
+    @Override
+    public String toString() {
+        return "HttpRequest{" +
+                "method=" + method +
+                ", path=" + path +
+                ", version=" + version +
+                ", httpHeaders=" + httpHeaders +
+                ", body='" + body + '\'' +
+                '}';
+    }
+
     public static Builder builder() {
         return new Builder();
     }
