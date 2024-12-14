@@ -3,15 +3,14 @@ package com.example.http;
 import com.example.http.header.HttpHeaders;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 public class HttpResponse {
 
     private final HttpVersion httpVersion;
-    private final HttpStatus httpStatus;
-    private final HttpHeaders httpHeaders;
+    private HttpStatus httpStatus;
+    private HttpHeaders httpHeaders;
     private final ByteArrayOutputStream body;
 
     public HttpResponse(HttpVersion httpVersion) {
@@ -54,19 +53,17 @@ public class HttpResponse {
 
     public static HttpResponse notFoundOf(String path) {
         byte[] responseBytes = ("<html><body><h1>404 Not Found " + path + "</h1></body></html>").getBytes(StandardCharsets.UTF_8);
-        ByteArrayOutputStream body = new ByteArrayOutputStream();
-        try {
-            body.write(responseBytes);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
 
-        return HttpResponse.builder()
+        HttpResponse httpResponse = HttpResponse.builder()
                 .httpVersion(HttpVersion.HTTP_1_1)
                 .httpStatus(HttpStatus.NOT_FOUND)
                 .headers(Map.of("Content-Type", "text/html; charset=UTF-8"))
-                .body(body)
+                .body(new ByteArrayOutputStream())
                 .build();
+
+        httpResponse.body.write(responseBytes, 0, responseBytes.length);
+
+        return httpResponse;
     }
 
     public HttpVersion getHttpVersion() {
@@ -83,6 +80,10 @@ public class HttpResponse {
 
     public ByteArrayOutputStream getBody() {
         return body;
+    }
+
+    public void setStatus(HttpStatus httpStatus) {
+        this.httpStatus = httpStatus;
     }
 
     public static Builder builder() {

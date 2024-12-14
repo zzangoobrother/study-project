@@ -1,11 +1,13 @@
 package com.example.handler;
 
+import com.example.http.HttpRequest;
+import com.example.http.HttpResponse;
+import com.example.http.HttpVersion;
+import com.example.processor.Triggerable;
 import org.junit.jupiter.api.Test;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -13,24 +15,40 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ResourceHandlerTest {
 
     @Test
-    void static_파일을_읽어온다() {
-        ResourceHandler resourceHandler = new ResourceHandler();
+    void static_파일을_읽어온다() throws IOException {
+        ResourceHandlerAdapter resourceHandler = new ResourceHandlerAdapter();
         String filePath = "readStaticFileOf.txt";
+        HttpRequest request = createGetResourceRequest(filePath);
+        HttpResponse response = new HttpResponse(HttpVersion.HTTP_1_1);
+        Triggerable<Void, Void> triggerable = o -> null;
 
-        InputStream inputStream = resourceHandler.readFileAsStream(filePath);
+        resourceHandler.handle(request, response, triggerable);
 
-        BufferedReader br = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+        String result = response.getBody().toString();
 
-        assertThat(br.lines()).contains("example");
+        assertThat(result).contains("example");
     }
 
     @Test
     void 없는_static_파일을_읽어올_때_예외를_던진다() {
-        ResourceHandler resourceHandler = new ResourceHandler();
+        ResourceHandlerAdapter resourceHandler = new ResourceHandlerAdapter();
         String filePath = "invalid.txt";
+        HttpRequest request = createGetResourceRequest(filePath);
 
-        assertThatThrownBy(() -> resourceHandler.readFileAsStream(filePath))
+        HttpResponse response = new HttpResponse(HttpVersion.HTTP_1_1);
+        Triggerable<Void, Void> triggerable = o -> null;
+
+        assertThatThrownBy(() -> resourceHandler.handle(request, response, triggerable))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("File not found! : static/invalid.txt");
+                .hasMessage("파일을 찾을 수 없습니다.");
+    }
+
+    private HttpRequest createGetResourceRequest(String path) {
+        return HttpRequest.builder()
+                .headers(Map.of("Host", "localhost:8080"))
+                .path(path)
+                .method("GET")
+                .version("HTTP/1.1")
+                .build();
     }
 }

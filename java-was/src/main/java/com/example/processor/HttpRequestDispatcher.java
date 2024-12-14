@@ -1,6 +1,6 @@
 package com.example.processor;
 
-import com.example.handler.HttpHandler;
+import com.example.handler.HttpHandlerAdapter;
 import com.example.http.HttpRequest;
 import com.example.http.HttpResponse;
 import com.example.http.HttpVersion;
@@ -15,13 +15,15 @@ public class HttpRequestDispatcher {
     private static final Logger log = LoggerFactory.getLogger(HttpRequestDispatcher.class);
 
     private final HttpRequestBuilder httpRequestBuilder;
+    private final HttpHandlerAdapter<?, ?> defaultHandler;
     private final HttpResponseWriter httpResponseWriter;
-    private final HttpHandler httpHandler;
+    private final HandlerRegistry handlerRegistry;
 
-    public HttpRequestDispatcher(HttpRequestBuilder httpRequestBuilder, HttpResponseWriter httpResponseWriter, HttpHandler httpHandler) {
+    public HttpRequestDispatcher(HttpRequestBuilder httpRequestBuilder, HttpHandlerAdapter<?, ?> defaultHandler, HttpResponseWriter httpResponseWriter, HandlerRegistry handlerRegistry) {
         this.httpRequestBuilder = httpRequestBuilder;
+        this.defaultHandler = defaultHandler;
         this.httpResponseWriter = httpResponseWriter;
-        this.httpHandler = httpHandler;
+        this.handlerRegistry = handlerRegistry;
     }
 
     public void handleConnection(final Socket clientSocket) throws IOException {
@@ -30,13 +32,29 @@ public class HttpRequestDispatcher {
         HttpResponse httpResponse = new HttpResponse(HttpVersion.HTTP_1_1);
 
         try {
-            httpHandler.handle(httpRequest, httpResponse);
+            HandlerMapping<?, ?> mapping = handlerRegistry.getHandler(httpRequest.getMethod(), httpRequest.getPath());
+
+            if (mapping != null) {
+                handleRequestWithMapping(httpRequest, httpResponse, mapping);
+            } else {
+                handleRequestWithDefaultHandler(httpRequest, httpResponse);
+            }
         } catch (Exception e) {
             log.error("File not found! : {}", httpRequest.getPath());
-            httpResponseWriter.writeResponse(clientSocket, HttpResponse.notFoundOf(httpRequest.getPath().getValue()));
+            httpResponseWriter.writeResponse(clientSocket, HttpResponse.notFoundOf(httpRequest.getPath().getBasePath()));
             return;
         }
 
         httpResponseWriter.writeResponse(clientSocket, httpResponse);
+    }
+
+    private <T, R> void handleRequestWithMapping(HttpRequest request, HttpResponse response, HandlerMapping<T, R> mapping) throws Exception {
+        HttpHandlerAdapter<T, R> handlerAdapter = mapping.getHandler();
+        Triggerable<T, R> triggerable = mapping.getTriggerable();
+        handlerAdapter.handle(request, response, triggerable);
+    }
+
+    private void handleRequestWithDefaultHandler(HttpRequest request, HttpResponse response) throws Exception {
+        defaultHandler.handle(request, response, null);
     }
 }
