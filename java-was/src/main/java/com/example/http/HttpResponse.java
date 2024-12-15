@@ -86,6 +86,10 @@ public class HttpResponse {
         this.httpStatus = httpStatus;
     }
 
+    public void setHttpHeaders(String key, String value) {
+        this.httpHeaders = httpHeaders;
+    }
+
     public static Builder builder() {
         return new Builder();
     }

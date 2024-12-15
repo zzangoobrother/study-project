@@ -1,4 +1,4 @@
-package com.example.processor;
+package com.example.processor.resolver;
 
 import com.example.http.HttpRequest;
 

@@ -16,7 +16,7 @@ class ResourceHandlerTest {
 
     @Test
     void static_파일을_읽어온다() throws IOException {
-        ResourceHandlerAdapter resourceHandler = new ResourceHandlerAdapter();
+        RegisterRequestHandlerAdapter resourceHandler = new RegisterRequestHandlerAdapter();
         String filePath = "readStaticFileOf.txt";
         HttpRequest request = createGetResourceRequest(filePath);
         HttpResponse response = new HttpResponse(HttpVersion.HTTP_1_1);
@@ -31,7 +31,7 @@ class ResourceHandlerTest {
 
     @Test
     void 없는_static_파일을_읽어올_때_예외를_던진다() {
-        ResourceHandlerAdapter resourceHandler = new ResourceHandlerAdapter();
+        RegisterRequestHandlerAdapter resourceHandler = new RegisterRequestHandlerAdapter();
         String filePath = "invalid.txt";
         HttpRequest request = createGetResourceRequest(filePath);
 

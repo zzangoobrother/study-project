@@ -1,7 +1,7 @@
-package com.example.processor;
+package com.example.processor.resolver;
 
 import com.example.http.HttpRequest;
-import com.example.http.Path;
+import com.example.processor.resolver.ArgumentResolver;
 import com.example.web.user.RegisterRequest;
 
 import java.util.Arrays;

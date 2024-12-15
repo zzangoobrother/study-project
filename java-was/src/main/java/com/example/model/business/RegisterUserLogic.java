@@ -1,24 +1,33 @@
 package com.example.model.business;
 
+import com.example.database.Database;
 import com.example.model.User;
 import com.example.processor.Triggerable;
 import com.example.web.user.RegisterRequest;
 
-public class RegisterUserLogic implements Triggerable<RegisterRequest, Void> {
+public class RegisterUserLogic implements Triggerable<RegisterRequest, Long> {
 
-    public void registerUser(RegisterRequest registerRequest) {
+    private final Database<User> userDatabase;
+
+    public RegisterUserLogic(Database<User> userDatabase) {
+        this.userDatabase = userDatabase;
+    }
+
+    public Long registerUser(RegisterRequest registerRequest) {
         String email = registerRequest.getEmail();
         String userId = registerRequest.getUserId();
         String password = registerRequest.getPassword();
         String name = registerRequest.getName();
 
         User user = new User(email, userId, password, name);
-        System.out.println("user = " + user);
+        long savePk = userDatabase.save(user);
+        user.initUserPk(savePk);
+
+        return savePk;
     }
 
     @Override
-    public Void run(RegisterRequest registerRequest) {
-        registerUser(registerRequest);
-        return null;
+    public Long run(RegisterRequest registerRequest) {
+        return registerUser(registerRequest);
     }
 }

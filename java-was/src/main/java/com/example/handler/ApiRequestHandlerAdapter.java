@@ -2,26 +2,29 @@ package com.example.handler;
 
 import com.example.http.HttpRequest;
 import com.example.http.HttpResponse;
-import com.example.http.HttpStatus;
-import com.example.processor.ArgumentResolver;
 import com.example.processor.Triggerable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class ApiRequestHandlerAdapter<T, R> implements HttpHandlerAdapter<T, R> {
-
-    private final ArgumentResolver<T> argumentResolver;
-
-    public ApiRequestHandlerAdapter(ArgumentResolver<T> argumentResolver) {
-        this.argumentResolver = argumentResolver;
-    }
+public abstract class ApiRequestHandlerAdapter<T, R> implements HttpHandlerAdapter<T, R> {
+    private static final Logger log = LoggerFactory.getLogger(ApiRequestHandlerAdapter.class);
 
     @Override
     public void handle(HttpRequest request, HttpResponse response, Triggerable<T, R> triggerable) throws Exception {
-        T resolve = argumentResolver.resolve(request);
-
-        R run = triggerable.run(resolve);
-
-        response.setStatus(HttpStatus.FOUND);
-
-        response.getHttpHeaders().addHeader("Location", "/login");
+        T resolve = resolveArgument(request);
+        try {
+            R res = triggerable.run(resolve);
+            log.debug("res = {}", res);
+            afterHandle(resolve, res, request, response);
+        } catch (RuntimeException e) {
+            log.error("Exception : {}", e.getMessage());
+            applyExceptionHandler(e, response);
+        }
     }
+
+    public abstract T resolveArgument(HttpRequest httpRequest);
+
+    public abstract void afterHandle(T request, R response, HttpRequest httpRequest, HttpResponse httpResponse);
+
+    public abstract void applyExceptionHandler(RuntimeException e, HttpResponse httpResponse);
 }
