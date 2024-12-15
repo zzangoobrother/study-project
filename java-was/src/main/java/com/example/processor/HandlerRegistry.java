@@ -6,7 +6,6 @@ import com.example.http.Path;
 
 import java.util.List;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class HandlerRegistry {
 
@@ -17,8 +16,7 @@ public class HandlerRegistry {
     }
 
     public <T, R> void registerHandler(HttpMethod httpMethod, String url, HttpHandlerAdapter<T, R> handler, Triggerable<T, R> triggerable) {
-        String regexPattern = url.replaceAll("\\{[^/]+\\}", "([^/]+)");
-        handlerMappings.add(new HandlerMapping<>(httpMethod, Pattern.compile(regexPattern), handler, triggerable));
+        handlerMappings.add(new HandlerMapping<>(httpMethod, url, handler, triggerable));
     }
 
     public HandlerMapping<?, ?> getHandler(HttpMethod method, Path path) {

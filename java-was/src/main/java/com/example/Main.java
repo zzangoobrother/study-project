@@ -1,9 +1,10 @@
 package com.example;
 
 import com.example.database.Database;
-import com.example.handler.HttpHandlerAdapter;
 import com.example.handler.LoginRequestHandlerAdapter;
+import com.example.handler.LogoutRequestHandlerAdapter;
 import com.example.handler.RegisterRequestHandlerAdapter;
+import com.example.handler.ResourceHandlerAdapter;
 import com.example.http.HttpMethod;
 import com.example.http.HttpResponseSerializer;
 import com.example.model.User;
@@ -40,15 +41,19 @@ public class Main {
         LoginUserLogic loginUserLogic = new LoginUserLogic(userDatabase);
         ArgumentResolver<LoginRequest> loginArgumentResolver = new LoginArgumentResolver();
         LoginRequestHandlerAdapter loginUserHandler = new LoginRequestHandlerAdapter(loginArgumentResolver);
-        handlerRegistry.registerHandler(HttpMethod.POST, "/users/create", registerUserHandler, registerUserLogic);
+        handlerRegistry.registerHandler(HttpMethod.POST, "/users/login", loginUserHandler, loginUserLogic);
 
-        HttpHandlerAdapter<Void, Void> defaultResourceHandler = new RegisterRequestHandlerAdapter<>();
+        LogoutRequestHandlerAdapter logoutRequestHandlerAdapter = new LogoutRequestHandlerAdapter();
+        handlerRegistry.registerHandler(HttpMethod.POST, "/users/logout", logoutRequestHandlerAdapter, o -> null);
+
+        ResourceHandlerAdapter<Void, Void> defaultResourceHandler = new ResourceHandlerAdapter<>();
         HttpResponseSerializer httpResponseSerializer = new HttpResponseSerializer();
         HttpResponseWriter httpResponseWriter = new HttpResponseWriter(httpResponseSerializer);
-        HttpRequestDispatcher connectionHandler = new HttpRequestDispatcher(httpRequestBuilder, defaultResourceHandler, httpResponseWriter, handlerRegistry);
+
+        HttpRequestDispatcher httpRequestDispatcher = new HttpRequestDispatcher(httpRequestBuilder, defaultResourceHandler, httpResponseWriter, handlerRegistry);
 
         try {
-            serverInitializer.startServer(8080, connectionHandler);
+            serverInitializer.startServer(8080, httpRequestDispatcher);
         } catch (Exception e) {
             e.printStackTrace();
         }

@@ -23,6 +23,10 @@ public class User {
         this.userPk = userPk;
     }
 
+    public Long getUserPk() {
+        return userPk;
+    }
+
     public String getEmail() {
         return email;
     }

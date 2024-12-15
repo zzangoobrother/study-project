@@ -66,6 +66,21 @@ public class HttpResponse {
         return httpResponse;
     }
 
+    public static HttpResponse internalServerErrorOf(String path) {
+        byte[] responseBytes = ("<html><body><h1>500 Internal Server Error " + path + "</h1></body></html>").getBytes(StandardCharsets.UTF_8);
+
+        HttpResponse httpResponse = HttpResponse.builder()
+                .httpVersion(HttpVersion.HTTP_1_1)
+                .httpStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+                .headers(Map.of("Content-Type", "text/html; charset=UTF-8"))
+                .body(new ByteArrayOutputStream())
+                .build();
+
+        httpResponse.body.write(responseBytes, 0, responseBytes.length);
+
+        return httpResponse;
+    }
+
     public HttpVersion getHttpVersion() {
         return httpVersion;
     }

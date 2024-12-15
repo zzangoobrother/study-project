@@ -3,6 +3,7 @@ package com.example.processor;
 import com.example.handler.HttpHandlerAdapter;
 import com.example.http.HttpRequest;
 import com.example.http.HttpResponse;
+import com.example.http.HttpStatus;
 import com.example.http.HttpVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +41,17 @@ public class HttpRequestDispatcher {
                 handleRequestWithDefaultHandler(httpRequest, httpResponse);
             }
         } catch (Exception e) {
-            log.error("File not found! : {}", httpRequest.getPath());
-            httpResponseWriter.writeResponse(clientSocket, HttpResponse.notFoundOf(httpRequest.getPath().getBasePath()));
+            log.error("Dispatcher : {}", httpRequest.getPath());
+
+            switch (httpResponse.getHttpStatus()) {
+                case NOT_FOUND -> httpResponseWriter.writeResponse(clientSocket, HttpResponse.notFoundOf(httpRequest.getPath().getBasePath()));
+                case INTERNAL_SERVER_ERROR -> httpResponseWriter.writeResponse(clientSocket, HttpResponse.internalServerErrorOf(httpRequest.getPath().getBasePath()));
+                default -> {
+                    httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+                    httpResponseWriter.writeResponse(clientSocket, httpResponse);
+                }
+            }
+
             return;
         }
 

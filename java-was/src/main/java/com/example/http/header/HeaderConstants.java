@@ -16,4 +16,5 @@ public class HeaderConstants {
     public static final String ACCEPT_LANGUAGE = "Accept-Language";
     public static final String USER_AGENT = "User-Agent";
     public static final String REFERER = "Referer";
+    public static final String CACHE_CONTROL = "Cache-Control";
 }

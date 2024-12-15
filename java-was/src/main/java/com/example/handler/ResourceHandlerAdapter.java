@@ -29,12 +29,18 @@ public class ResourceHandlerAdapter<T, R> implements HttpHandlerAdapter<T, R> {
                 response.getBody().write(buffer, 0, bytesRead);
             }
         } catch (IllegalArgumentException e) {
-            log.error("Failed to read file", e);
+            response.setStatus(HttpStatus.NOT_FOUND);
+            log.error("리소스 파일을 읽는 중 오류 발생 : {}, {}", filePath, e.getMessage());
             throw e;
+        } catch (IOException e) {
+            response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+            log.error("리소스 파일을 읽는 중 IO 오류 발생 : {}, {}", filePath, e.getMessage());
         }
 
         Mime mime = Mime.ofFilePath(filePath);
         response.setStatus(HttpStatus.OK);
+        response.setHttpHeaders(HeaderConstants.CACHE_CONTROL, "public max-age=31536000");
+
         response.getHttpHeaders()
                 .addHeader(HeaderConstants.CONTENT_TYPE, mime.getType());
     }

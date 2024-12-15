@@ -12,11 +12,44 @@ public class HandlerMapping<T, R> {
     private final HttpHandlerAdapter<T, R> handler;
     private final Triggerable<T, R> triggerable;
 
-    public HandlerMapping(HttpMethod httpMethod, Pattern pattern, HttpHandlerAdapter<T, R> handler, Triggerable<T, R> triggerable) {
-        this.httpMethod = httpMethod;
-        this.pattern = pattern;
-        this.handler = handler;
-        this.triggerable = triggerable;
+    public HandlerMapping(HttpMethod httpMethod, String url, HttpHandlerAdapter<T, R> handler, Triggerable<T, R> triggerable) {
+        this.httpMethod = validateHttpMethod(httpMethod);
+        this.pattern = transformUrlToRegexPattern(url);
+        this.handler = validateHandler(handler);
+        this.triggerable = validateTriggerable(triggerable);
+    }
+
+    private HttpMethod validateHttpMethod(HttpMethod httpMethod) {
+        if (httpMethod == null) {
+            throw new IllegalArgumentException("httpMethod가 null 입니다.");
+        }
+
+        return httpMethod;
+    }
+
+    private Pattern transformUrlToRegexPattern(String url) {
+        if (url == null || url.isEmpty()) {
+            throw new IllegalArgumentException("url이 null 이거나 비어 있습니다.");
+        }
+
+        String regexPattern = url.replaceAll("\\{[^/]+\\}", "([^/]+)");
+        return Pattern.compile(regexPattern);
+    }
+
+    private HttpHandlerAdapter<T, R> validateHandler(HttpHandlerAdapter<T, R> handler) {
+        if (handler == null) {
+            throw new IllegalArgumentException("handler가 null 입니다.");
+        }
+
+        return handler;
+    }
+
+    private Triggerable<T, R> validateTriggerable(Triggerable<T, R> triggerable) {
+        if (triggerable == null) {
+            throw new IllegalArgumentException("triggerable이 null 입니다.");
+        }
+
+        return triggerable;
     }
 
     public Triggerable<T, R> getTriggerable() {
