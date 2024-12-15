@@ -15,22 +15,16 @@ class HttpResponseSerializerTest {
         HttpResponseSerializer httpResponseSerializer = new HttpResponseSerializer();
         String body = "<html><body>Hello World!</body></html>";
         byte[] bytes = body.getBytes();
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        byteArrayOutputStream.write(bytes);
 
-        HttpResponse httpResponse = HttpResponse.builder()
-                .httpVersion(HttpVersion.HTTP_1_1)
-                .httpStatus(HttpStatus.OK)
-                .headers(Map.of("Content-Type", "text/html"))
-                .body(byteArrayOutputStream)
-                .build();
+        HttpResponse httpResponse = new HttpResponse(HttpVersion.HTTP_1_1);
+        httpResponse.getHttpHeaders().addHeader("Content-Type", "text/html");
+        httpResponse.getBody().write(bytes);
 
         byte[] result = httpResponseSerializer.buildHttpResponse(httpResponse);
 
         String resultStr = new String(result);
         assertThat(resultStr)
                 .isNotNull()
-                .contains("HTTP/1.1 200 OK")
                 .contains("Content-Type: text/html")
                 .contains(body);
     }

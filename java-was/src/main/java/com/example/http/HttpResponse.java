@@ -102,7 +102,7 @@ public class HttpResponse {
     }
 
     public void setHttpHeaders(String key, String value) {
-        this.httpHeaders = httpHeaders;
+        httpHeaders.addHeader(key, value);
     }
 
     public static Builder builder() {

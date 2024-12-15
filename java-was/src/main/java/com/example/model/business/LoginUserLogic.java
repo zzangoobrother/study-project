@@ -15,7 +15,7 @@ public class LoginUserLogic implements Triggerable<LoginRequest, User> {
 
     @Override
     public User run(LoginRequest loginRequest) {
-        return null;
+        return login(loginRequest);
     }
 
     private User login(LoginRequest loginRequest) {

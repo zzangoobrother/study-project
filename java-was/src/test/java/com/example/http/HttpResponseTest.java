@@ -14,31 +14,19 @@ class HttpResponseTest {
     @Test
     void HttpResponse_객체를_생성한다() throws IOException {
         HttpVersion httpVersion = HttpVersion.HTTP_1_1;
-        HttpStatus httpStatus = HttpStatus.OK;
-        Map<String, String> headers = Map.of("Content-Type", "text/html; charset=UTF-8");
-        String body = "<html><body>Hello World!</body></html>";
-        byte[] bytes = body.getBytes();
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        byteArrayOutputStream.write(bytes);
 
-        HttpResponse httpResponse = new HttpResponse(httpVersion, httpStatus, headers, byteArrayOutputStream);
+        HttpResponse httpResponse = new HttpResponse(httpVersion);
 
         assertThat(httpResponse)
-                .extracting("httpVersion", "httpStatus", "httpHeaders", "body")
-                .containsAnyOf(httpVersion, httpStatus, headers, body);
+                .extracting("httpVersion", "httpStatus")
+                .containsAnyOf(httpVersion, HttpStatus.INITIAL_STATUS);
     }
 
     @Test
     void HttpVersion_없이_HttpResponse_객체를_생성하면_예외가_발생한다() throws IOException {
         HttpVersion httpVersion = null;
-        HttpStatus httpStatus = HttpStatus.OK;
-        Map<String, String> headers = Map.of("Content-Type", "text/html; charset=UTF-8");
-        String body = "<html><body>Hello World!</body></html>";
-        byte[] bytes = body.getBytes();
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        byteArrayOutputStream.write(bytes);
 
-        assertThatThrownBy(() -> new HttpResponse(httpVersion, httpStatus, headers, byteArrayOutputStream))
+        assertThatThrownBy(() -> new HttpResponse(httpVersion))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("HttpVersion이 존재하지 않습니다.");
     }
