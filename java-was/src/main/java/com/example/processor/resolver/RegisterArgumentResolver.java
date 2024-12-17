@@ -2,12 +2,9 @@ package com.example.processor.resolver;
 
 import com.example.helper.RequestBodyParseHelper;
 import com.example.http.HttpRequest;
-import com.example.processor.resolver.ArgumentResolver;
-import com.example.web.user.RegisterRequest;
+import com.example.web.user.request.RegisterRequest;
 
-import java.util.Arrays;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class RegisterArgumentResolver implements ArgumentResolver<RegisterRequest> {
     @Override

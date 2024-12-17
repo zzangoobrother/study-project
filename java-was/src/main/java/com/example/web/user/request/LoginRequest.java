@@ -1,4 +1,4 @@
-package com.example.web.user;
+package com.example.web.user.request;
 
 public class LoginRequest {
 

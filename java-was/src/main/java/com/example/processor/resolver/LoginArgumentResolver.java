@@ -2,7 +2,7 @@ package com.example.processor.resolver;
 
 import com.example.helper.RequestBodyParseHelper;
 import com.example.http.HttpRequest;
-import com.example.web.user.LoginRequest;
+import com.example.web.user.request.LoginRequest;
 
 import java.util.Map;
 

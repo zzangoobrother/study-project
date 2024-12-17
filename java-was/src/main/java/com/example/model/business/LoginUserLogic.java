@@ -3,7 +3,7 @@ package com.example.model.business;
 import com.example.database.Database;
 import com.example.model.User;
 import com.example.processor.Triggerable;
-import com.example.web.user.LoginRequest;
+import com.example.web.user.request.LoginRequest;
 
 public class LoginUserLogic implements Triggerable<LoginRequest, User> {
 

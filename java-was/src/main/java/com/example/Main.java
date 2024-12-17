@@ -1,15 +1,16 @@
 package com.example;
 
 import com.example.database.Database;
-import com.example.handler.LoginRequestHandlerAdapter;
-import com.example.handler.LogoutRequestHandlerAdapter;
-import com.example.handler.RegisterRequestHandlerAdapter;
-import com.example.handler.ResourceHandlerAdapter;
+import com.example.handler.*;
 import com.example.http.HttpMethod;
 import com.example.http.HttpResponseSerializer;
+import com.example.middleware.MiddleWareChain;
+import com.example.middleware.SessionMiddleWare;
 import com.example.model.User;
 import com.example.model.business.LoginUserLogic;
 import com.example.model.business.RegisterUserLogic;
+import com.example.model.business.user.GetUserInfoLogic;
+import com.example.model.business.user.GetUserListLogic;
 import com.example.processor.HandlerRegistry;
 import com.example.processor.HttpRequestBuilder;
 import com.example.processor.HttpRequestDispatcher;
@@ -18,8 +19,8 @@ import com.example.processor.resolver.ArgumentResolver;
 import com.example.processor.resolver.LoginArgumentResolver;
 import com.example.processor.resolver.RegisterArgumentResolver;
 import com.example.server.ServerInitializer;
-import com.example.web.user.LoginRequest;
-import com.example.web.user.RegisterRequest;
+import com.example.web.user.request.LoginRequest;
+import com.example.web.user.request.RegisterRequest;
 
 import java.util.ArrayList;
 
@@ -33,24 +34,42 @@ public class Main {
 
         Database<User> userDatabase = new Database<>();
 
+        // 회원가입
         RegisterUserLogic registerUserLogic = new RegisterUserLogic(userDatabase);
         ArgumentResolver<RegisterRequest> requestArgumentResolver = new RegisterArgumentResolver();
-        RegisterRequestHandlerAdapter registerUserHandler = new RegisterRequestHandlerAdapter(requestArgumentResolver);
+        RegisterRequestHandler registerUserHandler = new RegisterRequestHandler(requestArgumentResolver);
         handlerRegistry.registerHandler(HttpMethod.POST, "/users/create", registerUserHandler, registerUserLogic);
 
+        // 로그인
         LoginUserLogic loginUserLogic = new LoginUserLogic(userDatabase);
         ArgumentResolver<LoginRequest> loginArgumentResolver = new LoginArgumentResolver();
-        LoginRequestHandlerAdapter loginUserHandler = new LoginRequestHandlerAdapter(loginArgumentResolver);
+        LoginRequestHandler loginUserHandler = new LoginRequestHandler(loginArgumentResolver);
         handlerRegistry.registerHandler(HttpMethod.POST, "/users/login", loginUserHandler, loginUserLogic);
 
-        LogoutRequestHandlerAdapter logoutRequestHandlerAdapter = new LogoutRequestHandlerAdapter();
+        // 로그아웃
+        LogoutRequestHandler logoutRequestHandlerAdapter = new LogoutRequestHandler();
         handlerRegistry.registerHandler(HttpMethod.POST, "/users/logout", logoutRequestHandlerAdapter, o -> null);
 
-        ResourceHandlerAdapter<Void, Void> defaultResourceHandler = new ResourceHandlerAdapter<>();
+        // user info
+        GetUserInfoLogic getUserInfoLogic = new GetUserInfoLogic(userDatabase);
+        GetUserInfoRequestHandler userInfoHandler = new GetUserInfoRequestHandler();
+        handlerRegistry.registerHandler(HttpMethod.GET, "/api/user-info", userInfoHandler, getUserInfoLogic);
+
+        GetUserListLogic getUserListLogic = new GetUserListLogic(userDatabase);
+        GetUserListRequestHandler getUserListRequestHandler = new GetUserListRequestHandler();
+        handlerRegistry.registerHandler(HttpMethod.GET, "/api/users", getUserListRequestHandler, getUserListLogic);
+
+        ResourceHandler<Void, Void> defaultResourceHandler = new ResourceHandler<>();
         HttpResponseSerializer httpResponseSerializer = new HttpResponseSerializer();
         HttpResponseWriter httpResponseWriter = new HttpResponseWriter(httpResponseSerializer);
 
-        HttpRequestDispatcher httpRequestDispatcher = new HttpRequestDispatcher(httpRequestBuilder, defaultResourceHandler, httpResponseWriter, handlerRegistry);
+        HttpRequestDispatcher httpRequestDispatcher = new HttpRequestDispatcher(defaultResourceHandler, handlerRegistry);
+
+        MiddleWareChain middleWareChain = new MiddleWareChain();
+        SessionMiddleWare sessionMiddleWare = new SessionMiddleWare();
+        middleWareChain.addMiddleWare(sessionMiddleWare);
+
+        new HttpRequestPro
 
         try {
             serverInitializer.startServer(8080, httpRequestDispatcher);

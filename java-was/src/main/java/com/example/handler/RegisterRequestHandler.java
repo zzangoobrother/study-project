@@ -5,13 +5,13 @@ import com.example.http.HttpResponse;
 import com.example.http.HttpStatus;
 import com.example.http.header.HeaderConstants;
 import com.example.processor.resolver.ArgumentResolver;
-import com.example.web.user.RegisterRequest;
+import com.example.web.user.request.RegisterRequest;
 
-public class RegisterRequestHandlerAdapter extends ApiRequestHandlerAdapter<RegisterRequest, Long> {
+public class RegisterRequestHandler extends ApiRequestHandler<RegisterRequest, Long> {
 
     private final ArgumentResolver<RegisterRequest> argumentResolver;
 
-    public RegisterRequestHandlerAdapter(ArgumentResolver<RegisterRequest> argumentResolver) {
+    public RegisterRequestHandler(ArgumentResolver<RegisterRequest> argumentResolver) {
         this.argumentResolver = argumentResolver;
     }
 

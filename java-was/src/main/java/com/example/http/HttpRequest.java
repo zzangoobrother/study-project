@@ -2,6 +2,7 @@ package com.example.http;
 
 import com.example.http.header.HttpHeaders;
 
+import java.util.List;
 import java.util.Map;
 
 public class HttpRequest {
@@ -11,7 +12,7 @@ public class HttpRequest {
     private final HttpHeaders httpHeaders;
     private final String body;
 
-    public HttpRequest(String method, String path, String version, Map<String, String> httpHeaders, String body) {
+    public HttpRequest(String method, String path, String version, Map<String, List<String>> httpHeaders, String body) {
         this.method = HttpMethod.of(method);
         this.path = Path.of(path);
         this.version = HttpVersion.of(version);
@@ -58,7 +59,7 @@ public class HttpRequest {
         private String method;
         private String path;
         private String version;
-        private Map<String, String> headers;
+        private Map<String, List<String>> headers;
         private String body;
 
         public Builder method(String method) {
@@ -76,7 +77,7 @@ public class HttpRequest {
             return this;
         }
 
-        public Builder headers(Map<String, String> headers) {
+        public Builder headers(Map<String, List<String>> headers) {
             this.headers = headers;
             return this;
         }

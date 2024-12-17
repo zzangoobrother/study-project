@@ -1,7 +1,7 @@
 package com.example.processor.resolver;
 
 import com.example.http.HttpRequest;
-import com.example.web.user.LoginRequest;
+import com.example.web.user.request.LoginRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -9,7 +9,6 @@ import java.util.HashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.*;
 
 class LoginArgumentResolverTest {
 

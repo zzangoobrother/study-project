@@ -1,6 +1,6 @@
 package com.example.processor;
 
-import com.example.handler.HttpHandlerAdapter;
+import com.example.handler.HttpHandler;
 import com.example.http.HttpMethod;
 import com.example.http.Path;
 
@@ -15,7 +15,7 @@ public class HandlerRegistry {
         this.handlerMappings = handlerMappings;
     }
 
-    public <T, R> void registerHandler(HttpMethod httpMethod, String url, HttpHandlerAdapter<T, R> handler, Triggerable<T, R> triggerable) {
+    public <T, R> void registerHandler(HttpMethod httpMethod, String url, HttpHandler<T, R> handler, Triggerable<T, R> triggerable) {
         handlerMappings.add(new HandlerMapping<>(httpMethod, url, handler, triggerable));
     }
 

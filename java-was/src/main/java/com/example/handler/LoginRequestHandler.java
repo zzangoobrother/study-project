@@ -8,13 +8,13 @@ import com.example.http.Session;
 import com.example.http.header.HeaderConstants;
 import com.example.model.User;
 import com.example.processor.resolver.ArgumentResolver;
-import com.example.web.user.LoginRequest;
+import com.example.web.user.request.LoginRequest;
 
-public class LoginRequestHandlerAdapter extends ApiRequestHandlerAdapter<LoginRequest, User> {
+public class LoginRequestHandler extends ApiRequestHandler<LoginRequest, User> {
 
     private final ArgumentResolver<LoginRequest> argumentResolver;
 
-    public LoginRequestHandlerAdapter(ArgumentResolver<LoginRequest> argumentResolver) {
+    public LoginRequestHandler(ArgumentResolver<LoginRequest> argumentResolver) {
         this.argumentResolver = argumentResolver;
     }
 

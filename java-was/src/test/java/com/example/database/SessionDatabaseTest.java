@@ -4,8 +4,9 @@ import com.example.http.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.*;
 
 class SessionDatabaseTest {
 
@@ -61,5 +62,39 @@ class SessionDatabaseTest {
                 .isNotNull()
                 .extracting(Session::getUserPk)
                 .isEqualTo(validUserPk);
+    }
+
+    @Test
+    void 존재하지_않는_키로_조회시_null_반환() {
+        sessionKey = UUID.randomUUID().toString();
+
+        Session foundSession = SessionDatabase.find(sessionKey);
+
+        assertThat(foundSession).isNull();
+    }
+
+    @Test
+    void 저장_후_조회() {
+        Session session = SessionDatabase.save(validUserPk);
+
+        Session foundSession = SessionDatabase.find(session.getSessionId());
+
+        assertThat(foundSession).isEqualTo(session);
+    }
+
+    @Test
+    void 정상적인_세션_삭제() {
+        Session session = SessionDatabase.save(validUserPk);
+
+        SessionDatabase.delete(session.getSessionId());
+
+        assertThat(SessionDatabase.find(session.getSessionId())).isNull();
+    }
+
+    @Test
+    void 존재하지_않는_키로_삭제시_예외_발생_없음() {
+        sessionKey = UUID.randomUUID().toString();
+
+        assertThatCode(() -> SessionDatabase.delete(sessionKey)).doesNotThrowAnyException();
     }
 }

@@ -1,12 +1,14 @@
 package com.example.handler;
 
+import com.example.authorization.AuthorizationContext;
+import com.example.authorization.AuthorizationContextHolder;
 import com.example.database.SessionDatabase;
 import com.example.http.HttpRequest;
 import com.example.http.HttpResponse;
 import com.example.http.HttpStatus;
-import com.example.http.header.HttpHeaders;
+import com.example.http.Session;
 
-public class LogoutRequestHandlerAdapter extends ApiRequestHandlerAdapter<Void, Void> {
+public class LogoutRequestHandler extends ApiRequestHandler<Void, Void> {
     @Override
     public Void resolveArgument(HttpRequest httpRequest) {
         return null;
@@ -14,10 +16,14 @@ public class LogoutRequestHandlerAdapter extends ApiRequestHandlerAdapter<Void, 
 
     @Override
     public void afterHandle(Void request, Void response, HttpRequest httpRequest, HttpResponse httpResponse) {
-        HttpHeaders httpHeaders = httpRequest.getHttpHeaders();
+        if (!AuthorizationContextHolder.isAuthorized()) {
+            httpResponse.setStatus(HttpStatus.BAD_REQUEST);
+            return;
+        }
 
-        String cookie = httpHeaders.getHeader("Cookie");
-        SessionDatabase.delete(cookie);
+        AuthorizationContext context = AuthorizationContextHolder.getContextHolder();
+        Session session = context.getSession();
+        SessionDatabase.delete(session.getSessionId());
         httpResponse.setStatus(HttpStatus.OK);
     }
 

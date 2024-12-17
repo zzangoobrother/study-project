@@ -1,6 +1,6 @@
 package com.example.processor;
 
-import com.example.handler.HttpHandlerAdapter;
+import com.example.handler.HttpHandler;
 import com.example.http.HttpMethod;
 
 import java.util.regex.Pattern;
@@ -9,10 +9,10 @@ public class HandlerMapping<T, R> {
 
     private final HttpMethod httpMethod;
     private final Pattern pattern;
-    private final HttpHandlerAdapter<T, R> handler;
+    private final HttpHandler<T, R> handler;
     private final Triggerable<T, R> triggerable;
 
-    public HandlerMapping(HttpMethod httpMethod, String url, HttpHandlerAdapter<T, R> handler, Triggerable<T, R> triggerable) {
+    public HandlerMapping(HttpMethod httpMethod, String url, HttpHandler<T, R> handler, Triggerable<T, R> triggerable) {
         this.httpMethod = validateHttpMethod(httpMethod);
         this.pattern = transformUrlToRegexPattern(url);
         this.handler = validateHandler(handler);
@@ -36,7 +36,7 @@ public class HandlerMapping<T, R> {
         return Pattern.compile(regexPattern);
     }
 
-    private HttpHandlerAdapter<T, R> validateHandler(HttpHandlerAdapter<T, R> handler) {
+    private HttpHandler<T, R> validateHandler(HttpHandler<T, R> handler) {
         if (handler == null) {
             throw new IllegalArgumentException("handler가 null 입니다.");
         }
@@ -64,7 +64,7 @@ public class HandlerMapping<T, R> {
         return httpMethod;
     }
 
-    public HttpHandlerAdapter<T, R> getHandler() {
+    public HttpHandler<T, R> getHandler() {
         return handler;
     }
 }

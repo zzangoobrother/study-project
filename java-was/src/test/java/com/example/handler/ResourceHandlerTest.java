@@ -16,13 +16,13 @@ class ResourceHandlerTest {
 
     @Test
     void static_파일을_읽어온다() throws IOException {
-//        RegisterRequestHandlerAdapter resourceHandler = new RegisterRequestHandlerAdapter();
+        ResourceHandler<Void, Void> resourceHandlerAdapter = new ResourceHandler<>();
         String filePath = "readStaticFileOf.txt";
         HttpRequest request = createGetResourceRequest(filePath);
         HttpResponse response = new HttpResponse(HttpVersion.HTTP_1_1);
         Triggerable<Void, Void> triggerable = o -> null;
 
-//        resourceHandler.handle(request, response, triggerable);
+        resourceHandlerAdapter.handle(request, response, triggerable);
 
         String result = response.getBody().toString();
 
@@ -31,16 +31,16 @@ class ResourceHandlerTest {
 
     @Test
     void 없는_static_파일을_읽어올_때_예외를_던진다() {
-//        RegisterRequestHandlerAdapter resourceHandler = new RegisterRequestHandlerAdapter();
+        ResourceHandler<Void, Void> resourceHandlerAdapter = new ResourceHandler<>();
         String filePath = "invalid.txt";
         HttpRequest request = createGetResourceRequest(filePath);
 
         HttpResponse response = new HttpResponse(HttpVersion.HTTP_1_1);
         Triggerable<Void, Void> triggerable = o -> null;
 
-//        assertThatThrownBy(() -> resourceHandler.handle(request, response, triggerable))
-//                .isInstanceOf(IllegalArgumentException.class)
-//                .hasMessage("파일을 찾을 수 없습니다.");
+        assertThatThrownBy(() -> resourceHandlerAdapter.handle(request, response, triggerable))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("파일을 찾을 수 없습니다.");
     }
 
     private HttpRequest createGetResourceRequest(String path) {
