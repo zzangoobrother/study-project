@@ -11,7 +11,7 @@ public class LoginArgumentResolver implements ArgumentResolver<LoginRequest> {
     public LoginRequest resolve(HttpRequest httpRequest) {
         String bodyString = httpRequest.getBody();
 
-        Map<String, String> bodyParameters = RequestBodyParseHelper.bodyParameters(bodyString);
+        Map<String, String> bodyParameters = RequestBodyParseHelper.urlEncodedParameters(bodyString);
 
         String userId = bodyParameters.get("userId");
         String password = bodyParameters.get("password");

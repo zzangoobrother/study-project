@@ -15,7 +15,7 @@ import java.io.InputStream;
 public class ResourceHandler<T, R> implements HttpHandler<T, R> {
     private static final Logger log = LoggerFactory.getLogger(ResourceHandler.class);
 
-    private static final String STATIC_PATH = "static/";
+    private static final String STATIC_PATH = "static";
 
     @Override
     public void handle(HttpRequest request, HttpResponse response, Triggerable<T, R> triggerable) throws IOException {

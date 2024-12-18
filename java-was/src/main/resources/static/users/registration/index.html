@@ -3,14 +3,64 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="../reset.css" rel="stylesheet" />
-  <link href="../global.css" rel="stylesheet" />
+  <link href="/css/reset.css" rel="stylesheet" />
+  <link href="/css/global.css" rel="stylesheet" />
   <title>회원가입</title>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.querySelector('.form');
+      const registrationBtn = document.getElementById('registration-btn');
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const formData = new URLSearchParams(new FormData(form));
+
+        // Save form data to LocalStorage
+        formData.forEach((value, key) => {
+          localStorage.setItem(key, value);
+        });
+
+        try {
+          const response = await fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            credentials: 'include'
+          });
+
+          if (response.ok) {
+            // Registration succeeded
+            localStorage.clear();
+            window.location.href = '/'; // Redirect to the main page
+          } else {
+            // Registration failed
+            window.location.href = '/users/register_failed';
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          window.location.href = '/users/register_failed';
+        }
+      });
+
+      const fillForm = () => {
+        const inputs = form.querySelectorAll('input');
+        inputs.forEach(input => {
+          if (localStorage.getItem(input.name)) {
+            input.value = localStorage.getItem(input.name);
+          }
+        });
+      };
+
+      fillForm();
+    });
+  </script>
 </head>
 <body>
 <div class="container">
   <header class="header">
-    <a href="/"><img src="../img/signiture.svg" alt="Signiture" /></a>
+    <a href="/"><img src="/img/signiture.svg" alt="Signiture" /></a>
     <ul class="header__menu">
       <li class="header__menu__item">
         <a class="btn btn_contained btn_size_s" href="/users/login">로그인</a>

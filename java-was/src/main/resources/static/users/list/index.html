@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="/css/reset.css" rel="stylesheet" />
+    <link href="/css/global.css" rel="stylesheet" />
+    <link href="/css/user-list.css" rel="stylesheet" />
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const loadUserList = async () => {
+                try {
+                    const response = await fetch('/api/users', {
+                        method: 'GET',
+                        credentials: 'include',
+                    });
+
+                    const userListContainer = document.querySelector('.user-list');
+                    userListContainer.innerHTML = '';
+
+                    if (response.status === 401) {
+                        window.location.href = '/';
+                    } else if (response.ok) {
+                        const data = await response.json();
+                        const users = data.userList;
+
+                        const table = document.createElement('table');
+                        table.className = 'user-list';
+
+                        const header = document.createElement('thead');
+                        header.innerHTML = `
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+              </tr>
+            `;
+                        table.appendChild(header);
+
+                        const body = document.createElement('tbody');
+                        users.forEach(user => {
+                            const row = document.createElement('tr');
+                            row.className = 'user-list__item';
+                            row.innerHTML = `
+                <td class="user-list__item__name">${user.name}</td>
+                <td class="user-list__item__email">${user.email}</td>
+              `;
+                            body.appendChild(row);
+                        });
+                        table.appendChild(body);
+
+                        userListContainer.appendChild(table);
+                    } else {
+                        const errorContainer = document.createElement('div');
+                        errorContainer.className = 'user-list__error-container';
+                        errorContainer.innerHTML = '<p class="user-list__error">사용자 목록을 불러올 수 없습니다.</p>';
+                        userListContainer.appendChild(errorContainer);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    const userListContainer = document.querySelector('.user-list');
+                    const errorContainer = document.createElement('div');
+                    errorContainer.className = 'user-list__error-container';
+                    errorContainer.innerHTML = '<p class="user-list__error">사용자 목록을 불러올 수 없습니다.</p>';
+                    userListContainer.appendChild(errorContainer);
+                }
+            };
+
+            loadUserList();
+        });
+    </script>
+</head>
+<body>
+<div class="container">
+    <header class="header">
+        <a href="/"><img src="/img/signiture.svg" /></a>
+        <ul class="header__menu">
+            <li class="header__menu__item">
+                <a class="btn btn_contained btn_size_s" href="/">메인 페이지</a>
+            </li>
+        </ul>
+    </header>
+    <div class="wrapper">
+        <h1>사용자 목록</h1>
+        <div class="user-list-container">
+            <div class="user-list"></div> <!-- 사용자 목록을 표시할 요소 -->
+        </div>
+    </div>
+</div>
+</body>
+</html>

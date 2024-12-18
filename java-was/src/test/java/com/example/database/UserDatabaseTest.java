@@ -3,6 +3,8 @@ package com.example.database;
 import com.example.model.User;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.CompletableFuture;
+
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -31,12 +33,5 @@ class UserDatabaseTest {
         long save = userDatabase.save(user1);
 
         assertEquals(1, save);
-    }
-
-    @Test
-    void 동기화_문제를_확인하기_위한_테스트() {
-        int THREAD_COUNT = 10;
-        UserDatabase userDatabase = new UserDatabase();
-
     }
 }

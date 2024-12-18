@@ -9,7 +9,7 @@ import java.util.Map;
 public class RegisterArgumentResolver implements ArgumentResolver<RegisterRequest> {
     @Override
     public RegisterRequest resolve(HttpRequest httpRequest) {
-        Map<String, String> queryParameters = RequestBodyParseHelper.bodyParameters(httpRequest.getBody());
+        Map<String, String> queryParameters = RequestBodyParseHelper.urlEncodedParameters(httpRequest.getBody());
 
         String email = queryParameters.get("email");
         String userId = queryParameters.get("userId");

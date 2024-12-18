@@ -3,21 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="./reset.css" rel="stylesheet" />
-  <link href="./global.css" rel="stylesheet" />
-  <link href="./main.css" rel="stylesheet" />
+  <link href="/css/reset.css" rel="stylesheet" />
+  <link href="/css/global.css" rel="stylesheet" />
+  <link href="/css/main.css" rel="stylesheet" />
+  <style>
+    .header__welcome {
+      font-size: 1.2em;
+      font-weight: bold;
+      color: #4CAF50;
+      margin-right: 1em;
+      padding: 0.5em 1em;
+      border: 2px solid #4CAF50;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+    }
+  </style>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      const getCookie = (name) => {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(';').shift();
-      };
-
-      const deleteCookie = (name) => {
-        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-      };
-
       const logout = async () => {
         try {
           const response = await fetch('/users/logout', {
@@ -26,7 +28,6 @@
           });
 
           if (response.ok) {
-            deleteCookie('sid');
             window.location.href = '/';
           } else if (response.status === 400) {
             console.warn('No active session');
@@ -39,28 +40,46 @@
         }
       };
 
-      const sid = getCookie('sid');
-      const headerMenu = document.querySelector('.header__menu');
-      headerMenu.innerHTML = '';
+      const checkLoginStatus = async () => {
+        try {
+          const response = await fetch('/api/user-info', {
+            method: 'GET',
+            credentials: 'include',
+          });
 
-      if (sid) {
-        headerMenu.innerHTML = `
-            <li class="header__menu__item">
-              <button class="btn btn_contained btn_size_s" id="logout-btn">로그아웃</button>
-            </li>
-          `;
+          const headerMenu = document.querySelector('.header__menu');
+          headerMenu.innerHTML = '';
 
-        document.getElementById('logout-btn').addEventListener('click', logout);
-      } else {
-        headerMenu.innerHTML = `
-            <li class="header__menu__item">
-              <a class="btn btn_contained btn_size_s" href="/users/login">로그인</a>
-            </li>
-            <li class="header__menu__item">
-              <a class="btn btn_ghost btn_size_s" href="/users/registration">회원 가입</a>
-            </li>
-          `;
-      }
+          if (response.status === 401) {
+            headerMenu.innerHTML = `
+              <li class="header__menu__item">
+                <a class="btn btn_contained btn_size_s" href="/users/login">로그인</a>
+              </li>
+              <li class="header__menu__item">
+                <a class="btn btn_ghost btn_size_s" href="/users/registration">회원 가입</a>
+              </li>
+            `;
+          } else if (response.ok) {
+            const userInfo = await response.json();
+            headerMenu.innerHTML = `
+              <li class="header__menu__item">
+                <span class="header__welcome">환영합니다, ${userInfo.name}님</span>
+              </li>
+              <li class="header__menu__item">
+                <button class="btn btn_contained btn_size_s" id="logout-btn">로그아웃</button>
+              </li>
+              <li class="header__menu__item">
+                <a class="btn btn_ghost btn_size_s" href="/users/list">사용자 목록</a>
+              </li>
+            `;
+            document.getElementById('logout-btn').addEventListener('click', logout);
+          }
+        } catch (error) {
+          console.error('Error:', error);
+        }
+      };
+
+      checkLoginStatus();
     });
   </script>
 </head>

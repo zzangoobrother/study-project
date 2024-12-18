@@ -5,7 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="/css/reset.css" rel="stylesheet" />
     <link href="/css/global.css" rel="stylesheet" />
-    <title>회원가입</title>
+    <link href="/css/register-failed.css" rel="stylesheet" />
+    <title>회원 가입 실패</title>
+    <meta http-equiv="refresh" content="3;url=/users/registration">
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                window.location.href = '/users/registration';
+            }, 3000);
+        });
+    </script>
 </head>
 <body>
 <div class="container">
@@ -21,10 +30,10 @@
         </ul>
     </header>
     <div class="page">
-        <h2 class="page-title">로그인 실패</h2>
-        <p>아이디 또는 비밀번호가 잘못되었습니다. 3초 후에 로그인 페이지로 이동합니다.</p>
-        <meta http-equiv="refresh" content="3;url=/users/login">
-        <p>자동으로 이동하지 않으면 <a href="/users/login">여기를 클릭</a>하세요.</p>
+        <h2 class="page-title">회원 가입 실패</h2>
+        <p class="error-message">회원 가입에 실패했습니다. 다시 시도해 주세요.</p>
+        <p>3초 후에 회원 가입 페이지로 이동합니다.</p>
+        <p>자동으로 이동하지 않으면 <a href="/users/registration">여기를 클릭</a>하세요.</p>
     </div>
 </div>
 </body>

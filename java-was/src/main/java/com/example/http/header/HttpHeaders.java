@@ -1,7 +1,5 @@
 package com.example.http.header;
 
-import lombok.Value;
-
 import java.util.*;
 
 public class HttpHeaders {

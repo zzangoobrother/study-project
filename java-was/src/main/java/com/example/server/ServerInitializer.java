@@ -1,5 +1,6 @@
 package com.example.server;
 
+import com.example.authorization.AuthorizationContextHolder;
 import com.example.processor.HttpRequestProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +29,10 @@ public class ServerInitializer {
                         httpRequestProcessor.process(clientSocket);
                     } catch (IOException e) {
                         log.error("Failed to handle connection", e);
+                    } catch (Exception e) {
+                        log.error("Failed to handle connection", e);
+                    } finally {
+                        AuthorizationContextHolder.clearContext();
                     }
                 });
             } catch (IOException e) {
