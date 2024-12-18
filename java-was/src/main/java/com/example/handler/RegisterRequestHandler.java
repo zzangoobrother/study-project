@@ -7,6 +7,8 @@ import com.example.http.header.HeaderConstants;
 import com.example.processor.resolver.ArgumentResolver;
 import com.example.web.user.request.RegisterRequest;
 
+import java.io.IOException;
+
 public class RegisterRequestHandler extends ApiRequestHandler<RegisterRequest, Long> {
 
     private final ArgumentResolver<RegisterRequest> argumentResolver;
@@ -22,13 +24,14 @@ public class RegisterRequestHandler extends ApiRequestHandler<RegisterRequest, L
 
     @Override
     public void afterHandle(RegisterRequest request, Long response, HttpRequest httpRequest, HttpResponse httpResponse) {
-        httpResponse.setStatus(HttpStatus.FOUND);
-        httpResponse.setHttpHeaders(HeaderConstants.LOCATION, "/");
+        httpResponse.setStatus(HttpStatus.OK);
     }
 
     @Override
-    public void applyExceptionHandler(RuntimeException e, HttpResponse httpResponse) {
-        httpResponse.setStatus(HttpStatus.FOUND);
-        httpResponse.setHttpHeaders(HeaderConstants.LOCATION, "/users/register_failed.html");
+    public void applyExceptionHandler(RuntimeException e, HttpResponse httpResponse) throws IOException {
+        if (e instanceof IllegalArgumentException) {
+            httpResponse.setStatus(HttpStatus.BAD_REQUEST);
+            httpResponse.getBody().write(e.getMessage().getBytes());
+        }
     }
 }

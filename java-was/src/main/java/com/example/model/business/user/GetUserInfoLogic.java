@@ -3,6 +3,7 @@ package com.example.model.business.user;
 import com.example.authorization.AuthorizationContext;
 import com.example.authorization.AuthorizationContextHolder;
 import com.example.database.Database;
+import com.example.database.UserDatabase;
 import com.example.http.Session;
 import com.example.model.User;
 import com.example.processor.Triggerable;

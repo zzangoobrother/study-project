@@ -3,6 +3,7 @@ package com.example.http;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 
 public class HttpResponseSerializer {
@@ -19,18 +20,18 @@ public class HttpResponseSerializer {
                 httpStatus.getStatusMessage(),
                 System.lineSeparator());
 
-        byteArrayOutputStream.write(responseLine.getBytes(StandardCharsets.UTF_8));
+        byteArrayOutputStream.write(responseLine.getBytes());
 
-        for (Map.Entry<String, String> headerEntry : httpResponse.getHttpHeaders().getValues()) {
+        for (Map.Entry<String, List<String>> headerEntry : httpResponse.getHttpHeaders().getValues()) {
             String header = String.format("%s: %s%s",
                     headerEntry.getKey(),
                     headerEntry.getValue(),
                     System.lineSeparator());
 
-            byteArrayOutputStream.write(header.getBytes(StandardCharsets.UTF_8));
+            byteArrayOutputStream.write(header.getBytes());
         }
 
-        byteArrayOutputStream.write(System.lineSeparator().getBytes(StandardCharsets.UTF_8));
+        byteArrayOutputStream.write(System.lineSeparator().getBytes());
         byteArrayOutputStream.write(httpResponse.getBody().toByteArray());
 
         return byteArrayOutputStream.toByteArray();

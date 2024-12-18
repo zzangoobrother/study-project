@@ -7,6 +7,7 @@ import com.example.processor.Triggerable;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,7 +46,7 @@ class ResourceHandlerTest {
 
     private HttpRequest createGetResourceRequest(String path) {
         return HttpRequest.builder()
-                .headers(Map.of("Host", "localhost:8080"))
+                .headers(Map.of("Host", List.of("localhost:8080")))
                 .path(path)
                 .method("GET")
                 .version("HTTP/1.1")

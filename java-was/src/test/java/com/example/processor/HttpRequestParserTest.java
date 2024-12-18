@@ -8,11 +8,11 @@ import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class HttpRequestBuilderTest {
+class HttpRequestParserTest {
 
     @Test
     void urlencoded된_요청이_오는_경우에는_decode된_body를_HttpRequest에_저장한다() throws IOException {
-        HttpRequestBuilder httpRequestBuilder = new HttpRequestBuilder();
+        HttpRequestParser httpRequestBuilder = new HttpRequestParser();
         String request = """
                 POST /user/create HTTP/1.1
                 Host: localhost:8080
@@ -33,7 +33,7 @@ class HttpRequestBuilderTest {
 
     @Test
     void urlencoded_되어있지_않을_경우_decode_하지_않은_body를_HttpRequest에_저장한다() throws IOException {
-        HttpRequestBuilder httpRequestBuilder = new HttpRequestBuilder();
+        HttpRequestParser httpRequestBuilder = new HttpRequestParser();
         String request = """
                 POST /user/create HTTP/1.1
                 Host: localhost:8080

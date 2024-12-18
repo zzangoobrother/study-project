@@ -1,9 +1,11 @@
 package com.example.http;
 
+import com.example.http.header.HeaderConstants;
 import com.example.http.header.HttpHeaders;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 
 public class HttpResponse {
@@ -20,11 +22,22 @@ public class HttpResponse {
         this.body = new ByteArrayOutputStream();
     }
 
-    public HttpResponse(HttpVersion httpVersion, HttpStatus httpStatus, Map<String, String> headers, ByteArrayOutputStream body) {
+    public HttpResponse(HttpVersion httpVersion, HttpStatus httpStatus, Map<String, List<String>> headers, ByteArrayOutputStream body) {
         this.httpVersion = validateHttpVersion(httpVersion);
         this.httpStatus = validateHttpStatus(httpStatus);
         this.httpHeaders = HttpHeaders.of(validateHeaders(headers));
         this.body = body;
+    }
+
+    public static HttpResponse unauthorizedOf(String basePath) {
+        byte[] responseBytes = ("<html><body><h1>401 Unauthorized " + basePath + "</h1></body></html>").getBytes(StandardCharsets.UTF_8);
+        HttpResponse httpResponse = new HttpResponse(HttpVersion.HTTP_1_1);
+        httpResponse.httpStatus = HttpStatus.UNAUTHORIZED;
+        httpResponse.httpHeaders = HttpHeaders.of(Map.of(HeaderConstants.CONTENT_TYPE, List.of("text/html", "charset=UTF-8")));
+        httpResponse.setHttpHeaders(HeaderConstants.SET_COOKIE, "sid=; Path=/ ; Max-Age=0; HttpOnly");
+        httpResponse.body.write(responseBytes, 0, responseBytes.length);
+
+        return httpResponse;
     }
 
     private HttpVersion validateHttpVersion(HttpVersion httpVersion) {
@@ -43,7 +56,7 @@ public class HttpResponse {
         return httpStatus;
     }
 
-    private Map<String, String> validateHeaders(Map<String, String> headers) {
+    private Map<String, List<String>> validateHeaders(Map<String, List<String>> headers) {
         if (headers == null) {
             throw new IllegalArgumentException("Headers가 존재하지 않습니다.");
         }
@@ -57,7 +70,7 @@ public class HttpResponse {
         HttpResponse httpResponse = HttpResponse.builder()
                 .httpVersion(HttpVersion.HTTP_1_1)
                 .httpStatus(HttpStatus.NOT_FOUND)
-                .headers(Map.of("Content-Type", "text/html; charset=UTF-8"))
+                .headers(Map.of("Content-Type", List.of("text/html; charset=UTF-8")))
                 .body(new ByteArrayOutputStream())
                 .build();
 
@@ -72,7 +85,7 @@ public class HttpResponse {
         HttpResponse httpResponse = HttpResponse.builder()
                 .httpVersion(HttpVersion.HTTP_1_1)
                 .httpStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-                .headers(Map.of("Content-Type", "text/html; charset=UTF-8"))
+                .headers(Map.of("Content-Type", List.of("text/html; charset=UTF-8")))
                 .body(new ByteArrayOutputStream())
                 .build();
 
@@ -112,7 +125,7 @@ public class HttpResponse {
     public static class Builder {
         private HttpVersion httpVersion;
         private HttpStatus httpStatus;
-        private Map<String, String> headers;
+        private Map<String, List<String>> headers;
         private ByteArrayOutputStream body;
 
         public Builder httpVersion(HttpVersion httpVersion) {
@@ -125,7 +138,7 @@ public class HttpResponse {
             return this;
         }
 
-        public Builder headers(Map<String, String> headers) {
+        public Builder headers(Map<String, List<String>> headers) {
             this.headers = headers;
             return this;
         }

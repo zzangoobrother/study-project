@@ -7,7 +7,6 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.*;
 
 class DatabaseTest {
 
@@ -15,7 +14,7 @@ class DatabaseTest {
 
     @BeforeEach
     void setUp() {
-        database = new Database<>();
+        database = new TestDatabase();
     }
 
     @Test
@@ -108,5 +107,8 @@ class DatabaseTest {
                 .contains(data1);
         assertThat(retrieveData2).isPresent()
                 .contains(data2);
+    }
+
+    static class TestDatabase extends Database<String> {
     }
 }

@@ -6,6 +6,7 @@ import com.example.http.HttpMethod;
 import java.util.regex.Pattern;
 
 public class HandlerMapping<T, R> {
+    private static final Pattern DISALLOWED_SPECIAL_CHARACTERS_PATTERN = Pattern.compile("[!@#$%^&*()+=|<>?\\[\\]~]");
 
     private final HttpMethod httpMethod;
     private final Pattern pattern;
@@ -32,7 +33,16 @@ public class HandlerMapping<T, R> {
             throw new IllegalArgumentException("url이 null 이거나 비어 있습니다.");
         }
 
+        if (DISALLOWED_SPECIAL_CHARACTERS_PATTERN.matcher(url).find()) {
+            throw new IllegalArgumentException("url에 허용되지 않은 특수 문자가 포함될 수 있습니다.");
+        }
+
+        if (url.matches(".*\\{\\s*\\}.*")) {
+            throw new IllegalArgumentException("PathVariable이 null이거나 비어있습니다.");
+        }
+
         String regexPattern = url.replaceAll("\\{[^/]+\\}", "([^/]+)");
+        regexPattern = "^" + regexPattern + "$";
         return Pattern.compile(regexPattern);
     }
 
@@ -50,6 +60,10 @@ public class HandlerMapping<T, R> {
         }
 
         return triggerable;
+    }
+
+    public boolean matchRequest(HttpMethod httpMethod, String basePath) {
+        return this.httpMethod.equals(httpMethod) && pattern.matcher(basePath).matches();
     }
 
     public Triggerable<T, R> getTriggerable() {

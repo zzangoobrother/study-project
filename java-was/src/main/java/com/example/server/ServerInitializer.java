@@ -1,6 +1,6 @@
 package com.example.server;
 
-import com.example.processor.HttpRequestDispatcher;
+import com.example.processor.HttpRequestProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +15,7 @@ public class ServerInitializer {
     private static final Logger log = LoggerFactory.getLogger(ServerInitializer.class);
     private static final ExecutorService executorService = Executors.newFixedThreadPool(10);
 
-    public void startServer(final int port, final HttpRequestDispatcher connectionHandler) throws IOException {
+    public void startServer(final int port, final HttpRequestProcessor httpRequestProcessor) throws IOException {
         ServerSocket serverSocket = new ServerSocket(port);
 
         log.debug("Listening for connection on port {} ....", port);
@@ -25,7 +25,7 @@ public class ServerInitializer {
                 Socket clientSocket = serverSocket.accept();
                 executorService.execute(() -> {
                     try (clientSocket) {
-                        connectionHandler.handleConnection(clientSocket);
+                        httpRequestProcessor.process(clientSocket);
                     } catch (IOException e) {
                         log.error("Failed to handle connection", e);
                     }

@@ -1,6 +1,8 @@
 package com.example;
 
+import com.example.authorization.SecurePathManager;
 import com.example.database.Database;
+import com.example.database.UserDatabase;
 import com.example.handler.*;
 import com.example.http.HttpMethod;
 import com.example.http.HttpResponseSerializer;
@@ -11,10 +13,7 @@ import com.example.model.business.LoginUserLogic;
 import com.example.model.business.RegisterUserLogic;
 import com.example.model.business.user.GetUserInfoLogic;
 import com.example.model.business.user.GetUserListLogic;
-import com.example.processor.HandlerRegistry;
-import com.example.processor.HttpRequestBuilder;
-import com.example.processor.HttpRequestDispatcher;
-import com.example.processor.HttpResponseWriter;
+import com.example.processor.*;
 import com.example.processor.resolver.ArgumentResolver;
 import com.example.processor.resolver.LoginArgumentResolver;
 import com.example.processor.resolver.RegisterArgumentResolver;
@@ -30,9 +29,9 @@ public class Main {
         ServerInitializer serverInitializer = new ServerInitializer();
 
         HandlerRegistry handlerRegistry = new HandlerRegistry(new ArrayList<>());
-        HttpRequestBuilder httpRequestBuilder = new HttpRequestBuilder();
+        HttpRequestParser requestParser = new HttpRequestParser();
 
-        Database<User> userDatabase = new Database<>();
+        Database<User> userDatabase = new UserDatabase();
 
         // 회원가입
         RegisterUserLogic registerUserLogic = new RegisterUserLogic(userDatabase);
@@ -69,10 +68,13 @@ public class Main {
         SessionMiddleWare sessionMiddleWare = new SessionMiddleWare();
         middleWareChain.addMiddleWare(sessionMiddleWare);
 
-        new HttpRequestPro
+        HttpRequestProcessor httpRequestProcessor = new HttpRequestProcessor(requestParser, httpRequestDispatcher, httpResponseWriter, middleWareChain);
+
+        SecurePathManager.addSecurePath("/api/user-info", HttpMethod.GET);
+        SecurePathManager.addSecurePath("/api/users", HttpMethod.GET);
 
         try {
-            serverInitializer.startServer(8080, httpRequestDispatcher);
+            serverInitializer.startServer(8080, httpRequestProcessor);
         } catch (Exception e) {
             e.printStackTrace();
         }

@@ -1,5 +1,7 @@
 package com.example.http.header;
 
+import lombok.Value;
+
 import java.util.*;
 
 public class HttpHeaders {
@@ -23,7 +25,21 @@ public class HttpHeaders {
     }
 
     public void addHeader(String key, String value) {
-        valueMap.put(key, value);
+        validateHeaderKey(key);
+        validateHeaderValue(value);
+        valueMap.computeIfAbsent(key, k -> new ArrayList<>()).add(value.trim());
+    }
+
+    private void validateHeaderKey(String key) {
+        if (key == null) {
+            throw new IllegalArgumentException("Header key cannot be null or empty");
+        }
+    }
+
+    private void validateHeaderValue(String value) {
+        if (value == null) {
+            throw new IllegalArgumentException("Header value cannot be null");
+        }
     }
 
     public List<String> getHeader(String key) {

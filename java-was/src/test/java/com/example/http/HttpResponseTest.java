@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,7 +36,7 @@ class HttpResponseTest {
     void HttpStatus_없이_HttpResponse_객체를_생성하면_예외가_발생한다() throws IOException {
         HttpVersion httpVersion = HttpVersion.HTTP_1_1;
         HttpStatus httpStatus = null;
-        Map<String, String> headers = Map.of("Content-Type", "text/html; charset=UTF-8");
+        Map<String, List<String>> headers = Map.of("Content-Type", List.of("text/html; charset=UTF-8"));
         String body = "<html><body>Hello World!</body></html>";
         byte[] bytes = body.getBytes();
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -50,7 +51,7 @@ class HttpResponseTest {
     void headers_없이_HttpResponse_객체를_생성하면_예외가_발생한다() throws IOException {
         HttpVersion httpVersion = HttpVersion.HTTP_1_1;
         HttpStatus httpStatus = HttpStatus.OK;
-        Map<String, String> headers = null;
+        Map<String, List<String>> headers = null;
         String body = "<html><body>Hello World!</body></html>";
         byte[] bytes = body.getBytes();
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
