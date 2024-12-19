@@ -23,9 +23,13 @@ public class HttpResponseSerializer {
         byteArrayOutputStream.write(responseLine.getBytes());
 
         for (Map.Entry<String, List<String>> headerEntry : httpResponse.getHttpHeaders().getValues()) {
+            String key = headerEntry.getKey();
+            List<String> values = headerEntry.getValue();
+            String value = String.join("; ", values);
+
             String header = String.format("%s: %s%s",
-                    headerEntry.getKey(),
-                    headerEntry.getValue(),
+                    key,
+                    value,
                     System.lineSeparator());
 
             byteArrayOutputStream.write(header.getBytes());

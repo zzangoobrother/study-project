@@ -1,14 +1,14 @@
 package com.example;
 
 import com.example.authorization.SecurePathManager;
-import com.example.database.Database;
-import com.example.database.UserDatabase;
+import com.example.database.DatabaseConfig;
+import com.example.database.H2Console;
+import com.example.database.dao.*;
 import com.example.handler.*;
 import com.example.http.HttpMethod;
 import com.example.http.HttpResponseSerializer;
 import com.example.middleware.MiddleWareChain;
 import com.example.middleware.SessionMiddleWare;
-import com.example.model.User;
 import com.example.model.business.LoginUserLogic;
 import com.example.model.business.RegisterUserLogic;
 import com.example.model.business.user.GetUserInfoLogic;
@@ -22,19 +22,26 @@ import com.example.web.user.request.LoginRequest;
 import com.example.web.user.request.RegisterRequest;
 
 import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
 
 public class Main {
 
     public static void main(String[] args) {
         ServerInitializer serverInitializer = new ServerInitializer();
+        DatabaseConfig databaseConfig = new DatabaseConfig("jdbc:h2:tcp://localhost/~/study;MODE=MYSQL", "sa", "");
 
+        CompletableFuture.runAsync(() -> H2Console.main(databaseConfig));
         HandlerRegistry handlerRegistry = new HandlerRegistry(new ArrayList<>());
         HttpRequestParser requestParser = new HttpRequestParser();
 
-        Database<User> userDatabase = new UserDatabase();
+        UserDao userDao = new UserDaoImpl(databaseConfig);
+
+        PostDao postDao = new PostDaoImpl(databaseConfig);
+
+        CommentDao commentDao = new CommentDaoImpl(databaseConfig);
 
         // 회원가입
-        RegisterUserLogic registerUserLogic = new RegisterUserLogic(userDatabase);
+        RegisterUserLogic registerUserLogic = new RegisterUserLogic(userDao);
         ArgumentResolver<RegisterRequest> requestArgumentResolver = new RegisterArgumentResolver();
         RegisterRequestHandler registerUserHandler = new RegisterRequestHandler(requestArgumentResolver);
         handlerRegistry.registerHandler(HttpMethod.POST, "/users/create", registerUserHandler, registerUserLogic);
