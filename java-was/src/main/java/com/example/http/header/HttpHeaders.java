@@ -40,6 +40,17 @@ public class HttpHeaders {
         }
     }
 
+    public Optional<String> getMultipartBoundary() {
+        if (!valueMap.containsKey(HeaderConstants.CONTENT_TYPE) || !valueMap.get(HeaderConstants.CONTENT_TYPE).contains("multipart/form-data")) {
+            throw new IllegalArgumentException("Content-Type이 multipart/form-data가 아닙니다.");
+        }
+
+        return valueMap.get(HeaderConstants.CONTENT_TYPE).stream()
+                .filter(it -> it.contains("boundary"))
+                .map(it -> it.split("boundary=")[1])
+                .findAny();
+    }
+
     public List<String> getHeader(String key) {
         List<String> value = valueMap.get(key);
         if (value == null) {

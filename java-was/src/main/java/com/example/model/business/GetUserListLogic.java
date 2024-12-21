@@ -1,19 +1,19 @@
-package com.example.model.business.user;
+package com.example.model.business;
 
-import com.example.database.Database;
+import com.example.database.dao.UserDao;
+import com.example.mapper.UserMapper;
 import com.example.model.User;
 import com.example.processor.Triggerable;
 import com.example.web.user.response.UserListResponse;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class GetUserListLogic implements Triggerable<Void, UserListResponse> {
 
-    private final Database<User> userDatabase;
+    private final UserDao userDao;
 
-    public GetUserListLogic(Database<User> userDatabase) {
-        this.userDatabase = userDatabase;
+    public GetUserListLogic(UserDao userDao) {
+        this.userDao = userDao;
     }
 
     @Override
@@ -22,7 +22,9 @@ public class GetUserListLogic implements Triggerable<Void, UserListResponse> {
     }
 
     public UserListResponse getUserList() {
-        List<User> userList = new ArrayList<>(userDatabase.findAll());
+        List<User> userList = userDao.findAll().stream()
+                .map(UserMapper::toUser)
+                .toList();
         return UserListResponse.of(userList);
     }
 }

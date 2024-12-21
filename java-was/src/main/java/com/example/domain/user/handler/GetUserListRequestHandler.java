@@ -1,5 +1,6 @@
-package com.example.handler;
+package com.example.domain.user.handler;
 
+import com.example.handler.ApiRequestHandler;
 import com.example.http.HttpRequest;
 import com.example.http.HttpResponse;
 import com.example.http.HttpStatus;

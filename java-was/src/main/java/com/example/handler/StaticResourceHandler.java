@@ -12,15 +12,15 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 
-public class ResourceHandler<T, R> implements HttpHandler<T, R> {
-    private static final Logger log = LoggerFactory.getLogger(ResourceHandler.class);
+public class StaticResourceHandler<T, R> implements HttpHandler<T, R> {
+    private static final Logger log = LoggerFactory.getLogger(StaticResourceHandler.class);
 
     private static final String STATIC_PATH = "static";
 
     @Override
     public void handle(HttpRequest request, HttpResponse response, Triggerable<T, R> triggerable) throws IOException {
         String filePath = request.getPath().getBasePath();
-        ClassLoader classLoader = ResourceHandler.class.getClassLoader();
+        ClassLoader classLoader = StaticResourceHandler.class.getClassLoader();
 
         try (InputStream inputStream = getResourceStream(classLoader, filePath)) {
             byte[] buffer = new byte[1024];

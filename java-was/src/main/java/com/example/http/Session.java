@@ -6,22 +6,22 @@ import java.util.UUID;
 public class Session {
 
     private final String sessionId;
-    private final Long userPk;
+    private final Long userId;
     private final LocalDateTime creationTime;
     private final long timeout;
     private final LocalDateTime lastAccessTime;
 
-    public Session(Long userPk, LocalDateTime nowDateTime, long timeout) {
+    public Session(Long userId, LocalDateTime nowDateTime, long timeout) {
         this.sessionId = UUID.randomUUID().toString();
-        this.userPk = validateUserPk(userPk);
+        this.userId = validateUserPk(userId);
         this.creationTime = validateNowDateTime(nowDateTime);
         this.timeout = validateTimeout(timeout);
         this.lastAccessTime = this.creationTime;
     }
 
-    public Session(String sessionId, Long userPk, LocalDateTime creationTime, long timeout, LocalDateTime lastAccessTime) {
+    public Session(String sessionId, Long userId, LocalDateTime creationTime, long timeout, LocalDateTime lastAccessTime) {
         this.sessionId = sessionId;
-        this.userPk = userPk;
+        this.userId = userId;
         this.creationTime = creationTime;
         this.timeout = timeout;
         this.lastAccessTime = lastAccessTime;
@@ -52,7 +52,7 @@ public class Session {
     }
 
     public Session updateLastAccessTime() {
-        return new Session(getSessionId(), getUserPk(), getCreationTime(), getTimeout(), LocalDateTime.now());
+        return new Session(getSessionId(), getUserId(), getCreationTime(), getTimeout(), LocalDateTime.now());
     }
 
     public boolean isExpired() {
@@ -63,8 +63,8 @@ public class Session {
         return sessionId;
     }
 
-    public Long getUserPk() {
-        return userPk;
+    public Long getUserId() {
+        return userId;
     }
 
     public LocalDateTime getCreationTime() {

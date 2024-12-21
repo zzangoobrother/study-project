@@ -1,4 +1,4 @@
-package com.example.server;
+package com.example.webserver.server;
 
 import com.example.authorization.AuthorizationContextHolder;
 import com.example.processor.HttpRequestProcessor;
