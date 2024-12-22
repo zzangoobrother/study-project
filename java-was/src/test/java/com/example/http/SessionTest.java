@@ -1,5 +1,6 @@
 package com.example.http;
 
+import com.example.webserver.http.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

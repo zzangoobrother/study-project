@@ -1,9 +1,9 @@
 package com.example.api;
 
-import com.example.http.HttpMethod;
-import com.example.http.HttpVersion;
-import com.example.http.Path;
-import com.example.http.header.HttpHeaders;
+import com.example.webserver.http.HttpMethod;
+import com.example.webserver.http.HttpVersion;
+import com.example.webserver.http.Path;
+import com.example.webserver.http.header.HttpHeaders;
 
 import java.io.ByteArrayInputStream;
 import java.util.Optional;

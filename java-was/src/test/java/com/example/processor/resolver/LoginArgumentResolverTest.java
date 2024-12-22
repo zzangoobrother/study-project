@@ -1,7 +1,8 @@
 package com.example.processor.resolver;
 
-import com.example.http.HttpRequest;
-import com.example.web.user.request.LoginRequest;
+import com.example.application.domain.user.argumentresolver.LoginArgumentResolver;
+import com.example.webserver.http.HttpRequest;
+import com.example.application.domain.user.request.LoginRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

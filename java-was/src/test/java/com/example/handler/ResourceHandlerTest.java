@@ -1,9 +1,10 @@
 package com.example.handler;
 
-import com.example.http.HttpRequest;
-import com.example.http.HttpResponse;
-import com.example.http.HttpVersion;
-import com.example.processor.Triggerable;
+import com.example.application.handler.StaticResourceHandler;
+import com.example.webserver.http.HttpRequest;
+import com.example.webserver.http.HttpResponse;
+import com.example.webserver.http.HttpVersion;
+import com.example.application.processor.Triggerable;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;

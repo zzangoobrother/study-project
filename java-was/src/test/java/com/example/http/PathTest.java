@@ -1,5 +1,6 @@
 package com.example.http;
 
+import com.example.webserver.http.Path;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

@@ -1,5 +1,6 @@
 package com.example.database;
 
+import com.example.application.database.Database;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

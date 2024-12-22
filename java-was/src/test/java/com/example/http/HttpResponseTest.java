@@ -1,5 +1,8 @@
 package com.example.http;
 
+import com.example.webserver.http.HttpResponse;
+import com.example.webserver.http.HttpStatus;
+import com.example.webserver.http.HttpVersion;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;

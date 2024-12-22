@@ -1,9 +1,8 @@
 package com.example.database;
 
-import com.example.model.User;
+import com.example.application.database.UserDatabase;
+import com.example.application.domain.user.model.User;
 import org.junit.jupiter.api.Test;
-
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;

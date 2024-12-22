@@ -1,7 +1,7 @@
 package com.example.webserver.server;
 
-import com.example.authorization.AuthorizationContextHolder;
-import com.example.processor.HttpRequestProcessor;
+import com.example.webserver.authorization.AuthorizationContextHolder;
+import com.example.webserver.processor.HttpRequestProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

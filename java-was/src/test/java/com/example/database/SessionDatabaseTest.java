@@ -1,6 +1,7 @@
 package com.example.database;
 
-import com.example.http.Session;
+import com.example.webserver.http.Session;
+import com.example.webserver.middleware.SessionDatabase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

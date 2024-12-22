@@ -1,10 +1,11 @@
 package com.example.http;
 
+import com.example.webserver.http.HttpResponse;
+import com.example.webserver.http.HttpVersion;
+import com.example.webserver.processor.HttpResponseSerializer;
 import org.junit.jupiter.api.Test;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

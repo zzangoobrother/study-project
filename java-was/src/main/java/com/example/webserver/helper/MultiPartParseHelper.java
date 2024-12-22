@@ -29,6 +29,7 @@ public class MultiPartParseHelper {
             int partStart = boudaryIndex + boundaryBytes.length + 2;
             int partEnd = indexOf(requestData, boundaryBytes, partStart);
             if (partEnd == -1) break;
+
             byte[] partData = Arrays.copyOfRange(requestData, partStart, partEnd - 2);
 
             MultiPart part = parsePart(partData);

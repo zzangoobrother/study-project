@@ -1,6 +1,7 @@
 package com.example.processor;
 
-import com.example.http.HttpRequest;
+import com.example.webserver.http.HttpRequest;
+import com.example.webserver.processor.HttpRequestParser;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
