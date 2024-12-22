@@ -1,9 +1,9 @@
 package com.example.application.domain.post.handler;
 
+import com.example.api.Request;
+import com.example.api.Response;
 import com.example.application.domain.post.request.PostCreateRequest;
 import com.example.application.handler.ApiRequestHandler;
-import com.example.webserver.http.HttpRequest;
-import com.example.webserver.http.HttpResponse;
 import com.example.application.processor.ArgumentResolver;
 
 import java.io.IOException;
@@ -17,17 +17,17 @@ public class PostCreateRequestHandler extends ApiRequestHandler<PostCreateReques
     }
 
     @Override
-    public PostCreateRequest resolveArgument(HttpRequest httpRequest) {
+    public PostCreateRequest resolveArgument(Request httpRequest) {
         return argumentResolver.resolve(httpRequest);
     }
 
     @Override
-    public void afterHandle(PostCreateRequest request, Void response, HttpRequest httpRequest, HttpResponse httpResponse) {
+    public void afterHandle(PostCreateRequest request, Void response, Request httpRequest, Response httpResponse) {
 
     }
 
     @Override
-    public void applyExceptionHandler(RuntimeException e, HttpResponse httpResponse) throws IOException {
+    public void applyExceptionHandler(RuntimeException e, Response httpResponse) throws IOException {
 
     }
 }

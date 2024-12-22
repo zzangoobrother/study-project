@@ -1,9 +1,9 @@
 package com.example.webserver.middleware;
 
-import com.example.webserver.http.HttpRequest;
-import com.example.webserver.http.HttpResponse;
+import com.example.api.Request;
+import com.example.api.Response;
 
 public interface MiddleWare {
 
-    void applyMiddleWare(HttpRequest request, HttpResponse response);
+    void applyMiddleWare(Request request, Response response);
 }

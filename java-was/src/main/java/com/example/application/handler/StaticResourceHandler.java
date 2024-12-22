@@ -1,11 +1,11 @@
 package com.example.application.handler;
 
-import com.example.webserver.http.HttpRequest;
-import com.example.webserver.http.HttpResponse;
+import com.example.api.Request;
+import com.example.api.Response;
+import com.example.application.processor.Triggerable;
 import com.example.webserver.http.HttpStatus;
 import com.example.webserver.http.Mime;
 import com.example.webserver.http.header.HeaderConstants;
-import com.example.application.processor.Triggerable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +18,7 @@ public class StaticResourceHandler<T, R> implements HttpHandler<T, R> {
     private static final String STATIC_PATH = "static";
 
     @Override
-    public void handle(HttpRequest request, HttpResponse response, Triggerable<T, R> triggerable) throws IOException {
+    public void handle(Request request, Response response, Triggerable<T, R> triggerable) throws IOException {
         String filePath = request.getPath().getBasePath();
         ClassLoader classLoader = StaticResourceHandler.class.getClassLoader();
 
@@ -39,7 +39,7 @@ public class StaticResourceHandler<T, R> implements HttpHandler<T, R> {
 
         Mime mime = Mime.ofFilePath(filePath);
         response.setStatus(HttpStatus.OK);
-        response.setHttpHeaders(HeaderConstants.CACHE_CONTROL, "public max-age=31536000");
+        response.setHeader(HeaderConstants.CACHE_CONTROL, "public max-age=31536000");
 
         response.getHttpHeaders()
                 .addHeader(HeaderConstants.CONTENT_TYPE, mime.getType());

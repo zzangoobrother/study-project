@@ -1,8 +1,8 @@
 package com.example.application.processor;
 
-import com.example.webserver.http.HttpRequest;
+import com.example.api.Request;
 
 public interface ArgumentResolver<T> {
 
-    T resolve(HttpRequest httpRequest);
+    T resolve(Request httpRequest);
 }

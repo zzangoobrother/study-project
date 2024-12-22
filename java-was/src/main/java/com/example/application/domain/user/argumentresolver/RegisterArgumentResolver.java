@@ -1,16 +1,16 @@
 package com.example.application.domain.user.argumentresolver;
 
+import com.example.api.Request;
+import com.example.application.domain.user.request.RegisterRequest;
 import com.example.application.processor.ArgumentResolver;
 import com.example.webserver.helper.RequestBodyParseHelper;
-import com.example.webserver.http.HttpRequest;
-import com.example.application.domain.user.request.RegisterRequest;
 
 import java.util.Map;
 
 public class RegisterArgumentResolver implements ArgumentResolver<RegisterRequest> {
     @Override
-    public RegisterRequest resolve(HttpRequest httpRequest) {
-        Map<String, String> queryParameters = RequestBodyParseHelper.urlEncodedParameters(httpRequest.getBody());
+    public RegisterRequest resolve(Request request) {
+        Map<String, String> queryParameters = RequestBodyParseHelper.urlEncodedParameters(new String(request.getBody().readAllBytes()));
 
         String email = queryParameters.get("email");
         String userId = queryParameters.get("userId");

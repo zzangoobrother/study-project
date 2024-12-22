@@ -1,8 +1,7 @@
 package com.example.webserver.middleware;
 
-import com.example.webserver.http.HttpRequest;
-import com.example.webserver.http.HttpResponse;
-import com.example.webserver.middleware.MiddleWare;
+import com.example.api.Request;
+import com.example.api.Response;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +14,7 @@ public class MiddleWareChain {
         this.middleWares = new ArrayList<>();
     }
 
-    public void applyMiddleWares(HttpRequest request, HttpResponse response) {
+    public void applyMiddleWares(Request request, Response response) {
         for (MiddleWare middleWare : middleWares) {
             middleWare.applyMiddleWare(request, response);
         }

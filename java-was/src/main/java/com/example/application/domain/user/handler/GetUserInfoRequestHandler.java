@@ -1,11 +1,11 @@
 package com.example.application.domain.user.handler;
 
+import com.example.api.Request;
+import com.example.api.Response;
+import com.example.application.domain.user.response.UserInfoResponse;
 import com.example.application.handler.ApiRequestHandler;
-import com.example.webserver.http.HttpRequest;
-import com.example.webserver.http.HttpResponse;
 import com.example.webserver.http.HttpStatus;
 import com.example.webserver.http.header.HeaderConstants;
-import com.example.application.domain.user.response.UserInfoResponse;
 
 public class GetUserInfoRequestHandler extends ApiRequestHandler<Void, UserInfoResponse> {
 
@@ -19,18 +19,18 @@ public class GetUserInfoRequestHandler extends ApiRequestHandler<Void, UserInfoR
     }
 
     @Override
-    public Void resolveArgument(HttpRequest httpRequest) {
+    public Void resolveArgument(Request httpRequest) {
         return null;
     }
 
     @Override
-    public void afterHandle(Void request, UserInfoResponse response, HttpRequest httpRequest, HttpResponse httpResponse) {
+    public void afterHandle(Void request, UserInfoResponse response, Request httpRequest, Response httpResponse) {
         httpResponse.getHttpHeaders().addHeader(HeaderConstants.CONTENT_TYPE, "application/json");
         httpResponse.setStatus(HttpStatus.OK);
     }
 
     @Override
-    public void applyExceptionHandler(RuntimeException e, HttpResponse httpResponse) {
+    public void applyExceptionHandler(RuntimeException e, Response httpResponse) {
 
     }
 }

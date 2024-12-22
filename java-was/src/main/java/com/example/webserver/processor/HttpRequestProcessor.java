@@ -1,8 +1,11 @@
 package com.example.webserver.processor;
 
+import com.example.api.Request;
+import com.example.api.Response;
+import com.example.application.processor.HttpRequestDispatcher;
 import com.example.webserver.authorization.AuthorizationContextHolder;
 import com.example.webserver.authorization.SecurePathManager;
-import com.example.application.processor.HttpRequestDispatcher;
+import com.example.webserver.exception.BadRequestException;
 import com.example.webserver.http.HttpRequest;
 import com.example.webserver.http.HttpResponse;
 import com.example.webserver.http.HttpStatus;
@@ -32,27 +35,38 @@ public class HttpRequestProcessor {
 
     public void process(Socket clientSocket) throws IOException {
         InputStream inputStream = clientSocket.getInputStream();
-        HttpRequest httpRequest = httpRequestParser.parseRequest(inputStream);
-        HttpResponse httpResponse = new HttpResponse(HttpVersion.HTTP_1_1);
 
-        middleWareChain.applyMiddleWares(httpRequest, httpResponse);
+        try {
+            HttpRequest httpRequest = httpRequestParser.parseRequest(inputStream);
+            HttpResponse httpResponse = new HttpResponse(HttpVersion.HTTP_1_1);
+            forwarding(clientSocket, httpRequest, httpResponse);
+        } catch (BadRequestException e) {
+            log.error("Processor : {}", e.getMessage());
+            httpResponseWriter.writeResponse(clientSocket, HttpResponse.badRequestOf());
+        } finally {
+            AuthorizationContextHolder.clearContext();
+        }
+    }
 
-        if (SecurePathManager.isSecurePath(httpRequest.getPath(), httpRequest.getMethod()) && !AuthorizationContextHolder.isAuthorized()) {
-            httpResponseWriter.writeResponse(clientSocket, HttpResponse.unauthorizedOf(httpRequest.getPath().getBasePath()));
+    private void forwarding(Socket clientSocket, Request request, Response response) throws IOException {
+        middleWareChain.applyMiddleWares(request, response);
+
+        if (SecurePathManager.isSecurePath(request.getPath(), request.getMethod()) && !AuthorizationContextHolder.isAuthorized()) {
+            httpResponseWriter.writeResponse(clientSocket, HttpResponse.unauthorizedOf(""));
             return;
         }
 
         try {
-            httpRequestDispatcher.handleConnection(httpRequest, httpResponse);
-            httpResponseWriter.writeResponse(clientSocket, httpResponse);
+            httpRequestDispatcher.handleRequest(request, response);
+            httpResponseWriter.writeResponse(clientSocket, response);
         } catch (Exception e) {
             log.error("Processor : {}", e.getMessage());
-            switch (httpResponse.getHttpStatus()) {
-                case NOT_FOUND -> httpResponseWriter.writeResponse(clientSocket, HttpResponse.notFoundOf(httpRequest.getPath().getBasePath()));
-                case INTERNAL_SERVER_ERROR -> httpResponseWriter.writeResponse(clientSocket, HttpResponse.internalServerErrorOf(httpRequest.getPath().getBasePath()));
+            switch (response.getHttpStatus()) {
+                case NOT_FOUND -> httpResponseWriter.writeResponse(clientSocket, HttpResponse.notFoundOf(request.getPath().getBasePath()));
+                case INTERNAL_SERVER_ERROR -> httpResponseWriter.writeResponse(clientSocket, HttpResponse.internalServerErrorOf(request.getPath().getBasePath()));
                 default -> {
-                    httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR);
-                    httpResponseWriter.writeResponse(clientSocket, httpResponse);
+                    response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+                    httpResponseWriter.writeResponse(clientSocket, response);
                 }
             }
         }

@@ -1,11 +1,11 @@
 package com.example.application.domain.user.handler;
 
-import com.example.application.handler.ApiRequestHandler;
-import com.example.webserver.http.HttpRequest;
-import com.example.webserver.http.HttpResponse;
-import com.example.webserver.http.HttpStatus;
-import com.example.application.processor.ArgumentResolver;
+import com.example.api.Request;
+import com.example.api.Response;
 import com.example.application.domain.user.request.RegisterRequest;
+import com.example.application.handler.ApiRequestHandler;
+import com.example.application.processor.ArgumentResolver;
+import com.example.webserver.http.HttpStatus;
 
 import java.io.IOException;
 
@@ -18,17 +18,17 @@ public class RegisterRequestHandler extends ApiRequestHandler<RegisterRequest, L
     }
 
     @Override
-    public RegisterRequest resolveArgument(HttpRequest httpRequest) {
+    public RegisterRequest resolveArgument(Request httpRequest) {
         return argumentResolver.resolve(httpRequest);
     }
 
     @Override
-    public void afterHandle(RegisterRequest request, Long response, HttpRequest httpRequest, HttpResponse httpResponse) {
+    public void afterHandle(RegisterRequest request, Long response, Request httpRequest, Response httpResponse) {
         httpResponse.setStatus(HttpStatus.OK);
     }
 
     @Override
-    public void applyExceptionHandler(RuntimeException e, HttpResponse httpResponse) throws IOException {
+    public void applyExceptionHandler(RuntimeException e, Response httpResponse) throws IOException {
         if (e instanceof IllegalArgumentException) {
             httpResponse.setStatus(HttpStatus.BAD_REQUEST);
             httpResponse.getBody().write(e.getMessage().getBytes());

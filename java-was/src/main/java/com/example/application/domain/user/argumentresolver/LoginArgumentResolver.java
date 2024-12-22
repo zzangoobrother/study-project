@@ -1,16 +1,16 @@
 package com.example.application.domain.user.argumentresolver;
 
+import com.example.api.Request;
+import com.example.application.domain.user.request.LoginRequest;
 import com.example.application.processor.ArgumentResolver;
 import com.example.webserver.helper.RequestBodyParseHelper;
-import com.example.webserver.http.HttpRequest;
-import com.example.application.domain.user.request.LoginRequest;
 
 import java.util.Map;
 
 public class LoginArgumentResolver implements ArgumentResolver<LoginRequest> {
     @Override
-    public LoginRequest resolve(HttpRequest httpRequest) {
-        String bodyString = httpRequest.getBody();
+    public LoginRequest resolve(Request request) {
+        String bodyString = new String(request.getBody().readAllBytes());
 
         Map<String, String> bodyParameters = RequestBodyParseHelper.urlEncodedParameters(bodyString);
 

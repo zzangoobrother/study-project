@@ -95,6 +95,21 @@ public class HttpResponse implements Response {
         return httpResponse;
     }
 
+    public static HttpResponse badRequestOf() {
+        byte[] responseBytes = ("<html><body><h1>400 Bad Request </h1></body></html>").getBytes(StandardCharsets.UTF_8);
+
+        HttpResponse httpResponse = HttpResponse.builder()
+                .httpVersion(HttpVersion.HTTP_1_1)
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .headers(Map.of(HeaderConstants.CONTENT_TYPE, List.of("text/html; charset=UTF-8")))
+                .body(new ByteArrayOutputStream())
+                .build();
+
+        httpResponse.body.write(responseBytes, 0, responseBytes.length);
+
+        return httpResponse;
+    }
+
     @Override
     public HttpVersion getHttpVersion() {
         return httpVersion;

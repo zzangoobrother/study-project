@@ -1,6 +1,6 @@
 package com.example.webserver.processor;
 
-import com.example.webserver.http.HttpResponse;
+import com.example.api.Response;
 import com.example.webserver.http.HttpStatus;
 import com.example.webserver.http.HttpVersion;
 
@@ -11,7 +11,7 @@ import java.util.Map;
 
 public class HttpResponseSerializer {
 
-    public byte[] buildHttpResponse(HttpResponse httpResponse) throws IOException {
+    public byte[] buildHttpResponse(Response httpResponse) throws IOException {
         HttpVersion httpVersion = httpResponse.getHttpVersion();
         HttpStatus httpStatus = httpResponse.getHttpStatus();
 
