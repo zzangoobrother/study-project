@@ -28,7 +28,7 @@ class SessionTest {
 
         assertThat(session)
                 .isNotNull()
-                .extracting(Session::getSessionId, Session::getUserPk, Session::getCreationTime, Session::getLastAccessTime, Session::getTimeout)
+                .extracting(Session::getSessionId, Session::getUserId, Session::getCreationTime, Session::getLastAccessTime, Session::getTimeout)
                 .doesNotContainNull()
                 .containsExactly(session.getSessionId(), validUserPk, nowDateTime, nowDateTime, validTimeout);
     }

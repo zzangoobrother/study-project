@@ -13,9 +13,14 @@ public class RegisterArgumentResolver implements ArgumentResolver<RegisterReques
         Map<String, String> queryParameters = RequestBodyParseHelper.urlEncodedParameters(new String(request.getBody().readAllBytes()));
 
         String email = queryParameters.get("email");
-        String userId = queryParameters.get("userId");
+        String userId = queryParameters.get("username");
         String password = queryParameters.get("password");
-        String name = queryParameters.get("name");
+        String name = queryParameters.get("nickname");
+
+        System.out.println(email);
+        System.out.println(userId);
+        System.out.println(password);
+        System.out.println(name);
 
         if (email == null || userId == null || password == null || name == null) {
             throw new IllegalArgumentException("필수 파라미터가 누락되었습니다.");

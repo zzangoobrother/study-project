@@ -22,6 +22,7 @@ public class DDLExecutor {
     public void executeDDL(String ddlFilePath) throws SQLException {
         try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(ddlFilePath);
              BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+
             StringBuilder sb = new StringBuilder();
             String line;
             while ((line = reader.readLine()) != null) {
@@ -31,7 +32,6 @@ public class DDLExecutor {
                     sb.setLength(0);
                 }
             }
-
             log.debug("DDL file executed successfully");
         } catch (Exception e) {
             throw new SQLException("Failed to execute DDL file", e);

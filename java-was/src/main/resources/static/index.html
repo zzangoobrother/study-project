@@ -17,6 +17,122 @@
       border-radius: 5px;
       background-color: #f9f9f9;
     }
+
+    .comment-input {
+      width: calc(100% - 110px); /* Adjusted width for better alignment */
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-right: 10px;
+    }
+
+    .comment-form {
+      display: flex;
+      align-items: center;
+      margin-top: 10px;
+      background-color: #f9f9f9;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    .post {
+      border: 1px solid #ddd;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      background-color: #fff;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .post__account {
+      display: flex;
+      align-items: center;
+    }
+
+    .post__account__img {
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      margin-right: 10px;
+    }
+
+    .post__account__nickname {
+      font-weight: bold;
+    }
+
+    .post__img {
+      width: 100%;
+      margin-top: 10px;
+      border-radius: 8px;
+      background-color: #ddd;
+    }
+
+    .post__article {
+      margin-top: 10px;
+    }
+
+    .post__menu {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .post__menu__personal {
+      display: flex;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .post__menu__btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+
+    .comment__list {
+      margin-top: 10px;
+      padding-left: 0;
+      list-style: none;
+    }
+
+    .comment__item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .comment__item__content {
+      margin-left: 10px;
+    }
+
+    .comment__item__user__nickname {
+      font-weight: bold;
+      margin-right: 5px;
+    }
+
+    .submit-comment-btn {
+      background-color: #4CAF50; /* Green background */
+      color: white; /* White text */
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .submit-comment-btn:hover {
+      background-color: #45a049; /* Darker green on hover */
+    }
+
+    .no-posts-message {
+      text-align: center;
+      font-size: 1.5em;
+      color: #888;
+      margin-top: 50px;
+    }
   </style>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -69,6 +185,9 @@
                 <button class="btn btn_contained btn_size_s" id="logout-btn">로그아웃</button>
               </li>
               <li class="header__menu__item">
+                <a class="btn btn_contained btn_size_s" href="/post">글쓰기</a>
+              </li>
+              <li class="header__menu__item">
                 <a class="btn btn_ghost btn_size_s" href="/users/list">사용자 목록</a>
               </li>
             `;
@@ -79,139 +198,153 @@
         }
       };
 
+      const loadPosts = async () => {
+        try {
+          const response = await fetch('/api/posts', {
+            method: 'GET',
+            credentials: 'include',
+          });
+
+          if (response.ok) {
+            const postList = await response.json();
+            renderPosts(postList.postResponses);
+          } else {
+            console.error('Failed to load posts');
+          }
+        } catch (error) {
+          console.error('Error:', error);
+        }
+      };
+
+      const renderPosts = (posts) => {
+        const wrapper = document.querySelector('.wrapper');
+        wrapper.innerHTML = ''; // Clear existing posts
+
+        if (posts.length === 0) {
+          wrapper.innerHTML = '<p class="no-posts-message">등록된 게시물이 없습니다</p>';
+          return;
+        }
+
+        posts.forEach(post => {
+          const postElement = document.createElement('div');
+          postElement.className = 'post';
+
+          postElement.innerHTML = `
+            <div class="post__account">
+              <img class="post__account__img" src="/images/${post.imageName}" alt="${post.nickname}" />
+              <p class="post__account__nickname">${post.nickname}</p>
+            </div>
+            <img class="post__img" src="/images/${post.imageName}" alt="Post Image" />
+            <div class="post__menu">
+              <ul class="post__menu__personal">
+                <li>
+                  <button class="post__menu__btn">
+                    <img src="../img/like.svg" alt="Like" />
+                  </button>
+                </li>
+                <li>
+                  <button class="post__menu__btn">
+                    <img src="../img/sendLink.svg" alt="Send Link" />
+                  </button>
+                </li>
+              </ul>
+              <button class="post__menu__btn">
+                <img src="../img/bookMark.svg" alt="Bookmark" />
+              </button>
+            </div>
+            <p class="post__article">${post.content}</p>
+            <ul class="comment__list" data-post-id="${post.postId}"></ul>
+            <div class="comment-form">
+              <input type="text" class="comment-input" placeholder="댓글을 입력하세요" data-post-id="${post.postId}">
+              <button class="submit-comment-btn" data-post-id="${post.postId}">댓글 작성</button>
+            </div>
+          `;
+
+          wrapper.appendChild(postElement);
+
+          // Render initial comments
+          renderComments(post.postId, post.commentList.commentList);
+        });
+
+        document.querySelectorAll('.submit-comment-btn').forEach(button => {
+          button.addEventListener('click', () => {
+            const postId = button.getAttribute('data-post-id');
+            submitComment(postId);
+          });
+        });
+      };
+
+      const renderComments = (postId, comments) => {
+        const commentList = document.querySelector(`.comment__list[data-post-id="${postId}"]`);
+        commentList.innerHTML = ''; // Clear existing comments
+
+        comments.forEach(comment => {
+          const commentItem = document.createElement('li');
+          commentItem.className = 'comment__item';
+
+          commentItem.innerHTML = `
+            <div class="comment__item__content">
+              <p class="comment__item__user__nickname">${comment.nickname}</p>
+              <p>${comment.content}</p>
+            </div>
+          `;
+
+          commentList.appendChild(commentItem);
+        });
+      };
+
+      const submitComment = async (postId) => {
+        const commentInput = document.querySelector(`.comment-input[data-post-id="${postId}"]`);
+        const content = commentInput.value.trim();
+
+        if (!content) {
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/comments/${postId}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ content }),
+            credentials: 'include',
+          });
+
+          if (response.ok) {
+            // Reload posts to reflect new comment
+            loadPosts();
+            commentInput.value = ''; // Clear the input
+          } else {
+            console.error('Failed to submit comment');
+          }
+        } catch (error) {
+          console.error('Error:', error);
+        }
+      };
+
       checkLoginStatus();
+      loadPosts();
     });
   </script>
 </head>
 <body>
 <div class="container">
   <header class="header">
-    <a href="/"><img src="./img/signiture.svg" /></a>
+    <a href="/main"><img src="/img/signiture.svg" /></a>
     <ul class="header__menu">
-      <!-- 로그인/로그아웃 버튼이 여기에 추가됨 -->
+      <li class="header__menu__item">
+        <a class="btn btn_contained btn_size_s" href="/post">글쓰기</a>
+      </li>
+      <li class="header__menu__item">
+        <button id="logout-btn" class="btn btn_ghost btn_size_s">
+          로그아웃
+        </button>
+      </li>
     </ul>
   </header>
   <div class="wrapper">
-    <div class="post">
-      <div class="post__account">
-        <img class="post__account__img" />
-        <p class="post__account__nickname">account</p>
-      </div>
-      <img class="post__img" />
-      <div class="post__menu">
-        <ul class="post__menu__personal">
-          <li>
-            <button class="post__menu__btn">
-              <img src="./img/like.svg" />
-            </button>
-          </li>
-          <li>
-            <button class="post__menu__btn">
-              <img src="./img/sendLink.svg" />
-            </button>
-          </li>
-        </ul>
-        <button class="post__menu__btn">
-          <img src="./img/bookMark.svg" />
-        </button>
-      </div>
-      <p class="post__article">
-        우리는 시스템 아키텍처에 대한 일관성 있는 접근이 필요하며, 필요한
-        모든 측면은 이미 개별적으로 인식되고 있다고 생각합니다. 즉, 응답이
-        잘 되고, 탄력적이며 유연하고 메시지 기반으로 동작하는 시스템 입니다.
-        우리는 이것을 리액티브 시스템(Reactive Systems)라고 부릅니다.
-        리액티브 시스템으로 구축된 시스템은 보다 유연하고, 느슨한 결합을
-        갖고, 확장성 이 있습니다. 이로 인해 개발이 더 쉬워지고 변경 사항을
-        적용하기 쉬워집니다. 이 시스템은 장애 에 대해 더 강한 내성을 지니며,
-        비록 장애가 발생 하더라도, 재난이 일어나기 보다는 간결한 방식으로
-        해결합니다. 리액티브 시스템은 높은 응답성을 가지며 사용자 에게
-        효과적인 상호적 피드백을 제공합니다.
-      </p>
-    </div>
-    <ul class="comment">
-      <li class="comment__item">
-        <div class="comment__item__user">
-          <img class="comment__item__user__img" />
-          <p class="comment__item__user__nickname">account</p>
-        </div>
-        <p class="comment__item__article">
-          군인 또는 군무원이 아닌 국민은 대한민국의 영역안에서는 중대한
-          군사상 기밀·초병·초소·유독음식물공급·포로·군용물에 관한 죄중
-          법률이 정한 경우와 비상계엄이 선포된 경우를 제외하고는 군사법원의
-          재판을 받지 아니한다.
-        </p>
-      </li>
-      <li class="comment__item">
-        <div class="comment__item__user">
-          <img class="comment__item__user__img" />
-          <p class="comment__item__user__nickname">account</p>
-        </div>
-        <p class="comment__item__article">
-          대통령의 임기연장 또는 중임변경을 위한 헌법개정은 그 헌법개정 제안
-          당시의 대통령에 대하여는 효력이 없다. 민주평화통일자문회의의
-          조직·직무범위 기타 필요한 사항은 법률로 정한다.
-        </p>
-      </li>
-      <li class="comment__item">
-        <div class="comment__item__user">
-          <img class="comment__item__user__img" />
-          <p class="comment__item__user__nickname">account</p>
-        </div>
-        <p class="comment__item__article">
-          민주평화통일자문회의의 조직·직무범위 기타 필요한 사항은 법률로
-          정한다.
-        </p>
-      </li>
-      <li class="comment__item hidden">
-        <div class="comment__item__user">
-          <img class="comment__item__user__img" />
-          <p class="comment__item__user__nickname">account</p>
-        </div>
-        <p class="comment__item__article">Comment 1</p>
-      </li>
-      <li class="comment__item hidden">
-        <div class="comment__item__user">
-          <img class="comment__item__user__img" />
-          <p class="comment__item__user__nickname">account</p>
-        </div>
-        <p class="comment__item__article">Comment 2</p>
-      </li>
-      <li class="comment__item hidden">
-        <div class="comment__item__user">
-          <img class="comment__item__user__img" />
-          <p class="comment__item__user__nickname">account</p>
-        </div>
-        <p class="comment__item__article">Comment 3</p>
-      </li>
-      <button id="show-all-btn" class="btn btn_ghost btn_size_m">
-        모든 댓글 보기(3개)
-      </button>
-    </ul>
-    <nav class="nav">
-      <ul class="nav__menu">
-        <li class="nav__menu__item">
-          <a class="nav__menu__item__btn" href="">
-            <img
-                    class="nav__menu__item__img"
-                    src="./img/ci_chevron-left.svg"
-            />
-            이전 글
-          </a>
-        </li>
-        <li class="nav__menu__item">
-          <a class="btn btn_ghost btn_size_m">댓글 작성</a>
-        </li>
-        <li class="nav__menu__item">
-          <a class="nav__menu__item__btn" href="">
-            다음 글
-            <img
-                    class="nav__menu__item__img"
-                    src="./img/ci_chevron-right.svg"
-            />
-          </a>
-        </li>
-      </ul>
-    </nav>
+    <!-- 게시물이 여기에 동적으로 추가됨 -->
   </div>
 </div>
 </body>

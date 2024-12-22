@@ -43,7 +43,7 @@ public class Main {
 
     public static void main(String[] args) {
         ServerInitializer serverInitializer = new ServerInitializer();
-        DatabaseConfig databaseConfig = new DatabaseConfig("jdbc:h2:tcp://localhost/~/study;MODE=MYSQL", "sa", "123");
+        DatabaseConfig databaseConfig = new DatabaseConfig("jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1", "sa", "");
 
         CompletableFuture.runAsync(() -> H2Console.main(databaseConfig));
         HandlerRegistry handlerRegistry = new HandlerRegistry(new ArrayList<>());

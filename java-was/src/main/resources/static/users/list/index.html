@@ -30,7 +30,7 @@
                         const header = document.createElement('thead');
                         header.innerHTML = `
               <tr>
-                <th>Name</th>
+                <th>NickName</th>
                 <th>Email</th>
               </tr>
             `;
@@ -41,7 +41,7 @@
                             const row = document.createElement('tr');
                             row.className = 'user-list__item';
                             row.innerHTML = `
-                <td class="user-list__item__name">${user.name}</td>
+                <td class="user-list__item__name">${user.nickname}</td>
                 <td class="user-list__item__email">${user.email}</td>
               `;
                             body.appendChild(row);

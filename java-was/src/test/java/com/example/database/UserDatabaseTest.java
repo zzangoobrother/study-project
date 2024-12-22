@@ -13,8 +13,8 @@ class UserDatabaseTest {
     void userDatabase에_save할_때_userID가_존재하면_예외를_던진다() {
         UserDatabase userDatabase = new UserDatabase();
 
-        User user1 = new User("email", "userId", "password", "name");
-        User user2 = new User("email2", "userId", "pasdf", "name2");
+        User user1 = new User("email", "password", "userId", "name");
+        User user2 = new User("email2", "pasdf", "userId", "name2");
 
         userDatabase.save(user1);
 

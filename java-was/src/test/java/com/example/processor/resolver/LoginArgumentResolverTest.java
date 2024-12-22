@@ -1,11 +1,12 @@
 package com.example.processor.resolver;
 
 import com.example.application.domain.user.argumentresolver.LoginArgumentResolver;
-import com.example.webserver.http.HttpRequest;
 import com.example.application.domain.user.request.LoginRequest;
+import com.example.webserver.http.HttpRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
 import java.util.HashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,7 +29,7 @@ class LoginArgumentResolverTest {
                 .path("/login")
                 .version("HTTP/1.1")
                 .headers(new HashMap<>())
-                .body(body)
+                .body(new ByteArrayInputStream(body.getBytes()))
                 .build();
 
         LoginRequest loginRequest = resolver.resolve(request);
@@ -47,7 +48,7 @@ class LoginArgumentResolverTest {
                 .path("/login")
                 .version("HTTP/1.1")
                 .headers(new HashMap<>())
-                .body(body)
+                .body(new ByteArrayInputStream(body.getBytes()))
                 .build();
 
         assertThatThrownBy(() -> resolver.resolve(request))
@@ -63,7 +64,7 @@ class LoginArgumentResolverTest {
                 .path("/login")
                 .version("HTTP/1.1")
                 .headers(new HashMap<>())
-                .body(body)
+                .body(new ByteArrayInputStream(body.getBytes()))
                 .build();
 
         assertThatThrownBy(() -> resolver.resolve(request))
@@ -79,7 +80,7 @@ class LoginArgumentResolverTest {
                 .path("/login")
                 .version("HTTP/1.1")
                 .headers(new HashMap<>())
-                .body(body)
+                .body(new ByteArrayInputStream(body.getBytes()))
                 .build();
 
         assertThatThrownBy(() -> resolver.resolve(request))

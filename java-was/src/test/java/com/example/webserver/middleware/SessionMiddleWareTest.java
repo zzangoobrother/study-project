@@ -1,7 +1,6 @@
-package com.example.database;
+package com.example.webserver.middleware;
 
 import com.example.webserver.http.Session;
-import com.example.webserver.middleware.SessionDatabase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -9,7 +8,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 
-class SessionDatabaseTest {
+class SessionMiddleWareTest {
 
     private Long validUserPk;
     private String sessionKey;
@@ -28,7 +27,7 @@ class SessionDatabaseTest {
 
         assertThat(session)
                 .isNotNull()
-                .extracting(Session::getUserPk, Session::getCreationTime, Session::getLastAccessTime, Session::getTimeout)
+                .extracting(Session::getUserId, Session::getCreationTime, Session::getLastAccessTime, Session::getTimeout)
                 .doesNotContainNull()
                 .containsExactly(validUserPk, session.getCreationTime(), session.getLastAccessTime(), 3600L);
     }
@@ -61,7 +60,7 @@ class SessionDatabaseTest {
 
         assertThat(foundSession)
                 .isNotNull()
-                .extracting(Session::getUserPk)
+                .extracting(Session::getUserId)
                 .isEqualTo(validUserPk);
     }
 

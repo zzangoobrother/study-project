@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="../css/reset.css" rel="stylesheet" />
+    <link href="../css/global.css" rel="stylesheet" />
+    <style>
+        .photo-upload-container {
+            margin-top: 24px;
+        }
+        .photo-upload-container input[type="file"] {
+            display: none;
+        }
+        .photo-upload-container label {
+            display: inline-block;
+            padding: 8px 16px;
+            background-color: #4caf50;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .photo-preview {
+            margin-top: 16px;
+            text-align: center;
+        }
+        .photo-preview img {
+            max-width: 600px;
+            max-height: 600px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+        .error-message {
+            display: none;
+            margin-top: 16px;
+            color: red;
+            font-weight: bold;
+            text-align: center;
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const registrationBtn = document.getElementById('registration-btn');
+            registrationBtn.addEventListener('click', async () => {
+                const formData = new FormData();
+                const content = document.querySelector('.input_textfield').value;
+                const fileInput = document.querySelector('.photo-upload-container input[type="file"]');
+                const files = fileInput.files;
+
+                formData.append('content', content);
+                if (files.length > 0) {
+                    formData.append('image', files[0]);
+                }
+
+                try {
+                    const response = await fetch('/api/posts', {
+                        method: 'POST',
+                        body: formData,
+                        credentials: 'include',
+                    });
+
+                    if (response.ok) {
+                        window.location.href = '/';
+                    } else {
+                        showErrorMessage();
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showErrorMessage();
+                }
+            });
+
+            const checkLoginStatus = async () => {
+                try {
+                    const response = await fetch('/api/user-info', {
+                        method: 'GET',
+                        credentials: 'include',
+                    });
+
+                    if (response.status === 401) {
+                        window.location.href = '/';
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    window.location.href = '/';
+                }
+            };
+
+            const showErrorMessage = () => {
+                const errorMessage = document.querySelector('.error-message');
+                errorMessage.style.display = 'block';
+                setTimeout(() => {
+                    errorMessage.style.display = 'none';
+                }, 3000);
+            };
+
+            checkLoginStatus();
+
+            // 로그아웃 버튼 클릭 이벤트 추가
+            const logoutBtn = document.getElementById('logout-btn');
+            logoutBtn.addEventListener('click', async () => {
+                try {
+                    const response = await fetch('/users/logout', {
+                        method: 'POST',
+                        credentials: 'include',
+                    });
+
+                    if (response.ok) {
+                        window.location.href = '/';
+                    } else if (response.status === 400) {
+                        console.warn('No active session');
+                        window.location.href = '/';
+                    } else {
+                        console.error('Failed to log out');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                }
+            });
+
+            // 파일 첨부 시 미리보기 기능 추가
+            const fileInput = document.getElementById('photo-upload');
+            const previewContainer = document.createElement('div');
+            previewContainer.classList.add('photo-preview');
+            fileInput.parentNode.insertBefore(previewContainer, fileInput.nextSibling);
+
+            fileInput.addEventListener('change', (event) => {
+                const files = event.target.files;
+                previewContainer.innerHTML = ''; // Clear previous preview
+
+                if (files.length > 0) {
+                    const file = files[0];
+                    const reader = new FileReader();
+
+                    reader.onload = (e) => {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        previewContainer.appendChild(img);
+                    };
+
+                    reader.readAsDataURL(file);
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+<div class="container">
+    <header class="header">
+        <a href="/main"><img src="/img/signiture.svg" /></a>
+        <ul class="header__menu">
+            <li class="header__menu__item">
+                <a class="btn btn_contained btn_size_s" href="/post">글쓰기</a>
+            </li>
+            <li class="header__menu__item">
+                <button id="logout-btn" class="btn btn_ghost btn_size_s">
+                    로그아웃
+                </button>
+            </li>
+        </ul>
+    </header>
+    <div class="page">
+        <h2 class="page-title">게시글 작성</h2>
+        <form class="form">
+            <div class="textfield textfield_size_m">
+                <p class="title_textfield">내용</p>
+                <textarea
+                        class="input_textfield"
+                        placeholder="글의 내용을 입력하세요"
+                        autocomplete="username"
+                ></textarea>
+            </div>
+            <div class="photo-upload-container">
+                <input type="file" id="photo-upload" accept="image/*" />
+                <label for="photo-upload">사진 첨부</label>
+                <div class="photo-preview"></div>
+            </div>
+            <button
+                    id="registration-btn"
+                    class="btn btn_contained btn_size_m"
+                    style="margin-top: 24px"
+                    type="button"
+            >
+                작성 완료
+            </button>
+            <div class="error-message">작성에 실패했습니다. 다시 시도해 주세요.</div>
+        </form>
+    </div>
+</div>
+</body>
+</html>
