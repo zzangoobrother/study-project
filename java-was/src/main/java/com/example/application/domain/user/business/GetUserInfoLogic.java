@@ -2,7 +2,7 @@ package com.example.application.domain.user.business;
 
 import com.example.webserver.authorization.AuthorizationContext;
 import com.example.webserver.authorization.AuthorizationContextHolder;
-import com.example.application.database.UserVO;
+import com.example.application.database.vo.UserVO;
 import com.example.application.database.dao.UserDao;
 import com.example.webserver.http.Session;
 import com.example.application.processor.Triggerable;

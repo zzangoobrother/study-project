@@ -1,6 +1,6 @@
 package com.example.application.mapper;
 
-import com.example.application.database.CommentVO;
+import com.example.application.database.vo.CommentVO;
 import com.example.application.domain.comment.model.Comment;
 
 public class CommentMapper {

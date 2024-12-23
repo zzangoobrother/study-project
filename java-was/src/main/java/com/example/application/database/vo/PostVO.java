@@ -1,9 +1,8 @@
-package com.example.application.database;
+package com.example.application.database.vo;
 
-public record PostListVO(
+public record PostVO(
         Long postId,
         Long userId,
-        String nickname,
         String content,
         String imagePath
 ) {

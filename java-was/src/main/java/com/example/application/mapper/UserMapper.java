@@ -1,6 +1,6 @@
 package com.example.application.mapper;
 
-import com.example.application.database.UserVO;
+import com.example.application.database.vo.UserVO;
 import com.example.application.domain.user.model.User;
 
 public class UserMapper {

@@ -1,7 +1,7 @@
 package com.example.application.database.dao;
 
 import com.example.application.database.Database;
-import com.example.application.database.UserVO;
+import com.example.application.database.vo.UserVO;
 
 import java.util.Optional;
 

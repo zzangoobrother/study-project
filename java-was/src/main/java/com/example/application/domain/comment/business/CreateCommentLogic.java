@@ -1,12 +1,12 @@
 package com.example.application.domain.comment.business;
 
-import com.example.webserver.authorization.AuthorizationContextHolder;
 import com.example.application.database.dao.CommentDao;
 import com.example.application.domain.comment.model.Comment;
 import com.example.application.domain.comment.request.CreateCommentRequest;
-import com.example.webserver.http.Session;
 import com.example.application.mapper.CommentMapper;
 import com.example.application.processor.Triggerable;
+import com.example.webserver.authorization.AuthorizationContextHolder;
+import com.example.webserver.http.Session;
 
 public class CreateCommentLogic implements Triggerable<CreateCommentRequest, Void> {
 
@@ -24,6 +24,9 @@ public class CreateCommentLogic implements Triggerable<CreateCommentRequest, Voi
 
     private void createComment(CreateCommentRequest request) {
         Session session = AuthorizationContextHolder.getContextHolder().getSession();
+        if(session == null) {
+            throw new RuntimeException("로그인이 필요합니다.");
+        }
 
         Long userId = session.getUserId();
         Comment comment = new Comment(request.postId(), userId, request.content(), null);

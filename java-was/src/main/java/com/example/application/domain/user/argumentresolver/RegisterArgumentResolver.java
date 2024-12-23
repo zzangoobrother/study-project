@@ -17,11 +17,6 @@ public class RegisterArgumentResolver implements ArgumentResolver<RegisterReques
         String password = queryParameters.get("password");
         String name = queryParameters.get("nickname");
 
-        System.out.println(email);
-        System.out.println(userId);
-        System.out.println(password);
-        System.out.println(name);
-
         if (email == null || userId == null || password == null || name == null) {
             throw new IllegalArgumentException("필수 파라미터가 누락되었습니다.");
         }

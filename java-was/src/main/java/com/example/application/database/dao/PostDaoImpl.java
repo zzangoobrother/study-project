@@ -1,8 +1,8 @@
 package com.example.application.database.dao;
 
 import com.example.application.database.DatabaseConfig;
-import com.example.application.database.PostListVO;
-import com.example.application.database.PostVO;
+import com.example.application.database.vo.PostListVO;
+import com.example.application.database.vo.PostVO;
 
 import java.sql.*;
 import java.util.ArrayList;

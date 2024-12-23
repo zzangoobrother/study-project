@@ -6,6 +6,7 @@ import com.example.application.database.dao.*;
 import com.example.application.domain.comment.argumentresolver.CreateCommentArgumentResolver;
 import com.example.application.domain.comment.business.CreateCommentLogic;
 import com.example.application.domain.comment.handler.CreateCommentRequestHandler;
+import com.example.application.domain.comment.request.CreateCommentRequest;
 import com.example.application.domain.images.handler.ImageResourceHandler;
 import com.example.application.domain.post.argumentresolver.PostCreateArgumentResolver;
 import com.example.application.domain.post.business.GetPostListLogic;
@@ -128,7 +129,7 @@ public class Main {
 
     private static void registerCommentApi(HandlerRegistry handlerRegistry, CommentDao commentDao) {
         CreateCommentLogic createCommentLogic = new CreateCommentLogic(commentDao);
-        CreateCommentArgumentResolver argumentResolver = new CreateCommentArgumentResolver();
+        ArgumentResolver<CreateCommentRequest> argumentResolver = new CreateCommentArgumentResolver();
         CreateCommentRequestHandler createCommentRequestHandler = new CreateCommentRequestHandler(argumentResolver);
         handlerRegistry.registerHandler(HttpMethod.POST, "/api/comments/{postId}", createCommentRequestHandler, createCommentLogic);
     }

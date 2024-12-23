@@ -1,6 +1,6 @@
 package com.example.application.domain.user.business;
 
-import com.example.application.database.UserVO;
+import com.example.application.database.vo.UserVO;
 import com.example.application.database.dao.UserDao;
 import com.example.application.mapper.UserMapper;
 import com.example.application.domain.user.model.User;

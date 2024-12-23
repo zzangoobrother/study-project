@@ -1,6 +1,6 @@
 package com.example.application.mapper;
 
-import com.example.application.database.PostVO;
+import com.example.application.database.vo.PostVO;
 import com.example.application.domain.post.model.Post;
 
 public class PostMapper {

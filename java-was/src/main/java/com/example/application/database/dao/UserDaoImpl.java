@@ -1,7 +1,7 @@
 package com.example.application.database.dao;
 
 import com.example.application.database.DatabaseConfig;
-import com.example.application.database.UserVO;
+import com.example.application.database.vo.UserVO;
 
 import java.sql.*;
 import java.util.ArrayList;

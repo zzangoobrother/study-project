@@ -31,4 +31,9 @@ public class FileSaveHelper {
         int dotIndex = filename.lastIndexOf(".");
         return (dotIndex == -1) ? "" : filename.substring(dotIndex + 1);
     }
+
+    public static boolean removeFile(String filename) {
+        File file = new File(UPLOAD_DIR, filename);
+        return file.delete();
+    }
 }

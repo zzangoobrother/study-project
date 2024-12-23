@@ -2,6 +2,7 @@ package com.example.webserver.processor;
 
 import com.example.webserver.exception.BadRequestException;
 import com.example.webserver.http.HttpRequest;
+import com.example.webserver.http.HttpVersion;
 
 import java.io.*;
 import java.net.URLDecoder;
@@ -51,7 +52,9 @@ public class HttpRequestParser {
 
         String method = requestLineParts[0];
         String path = requestLineParts[1];
-        String version = requestLineParts[2];
+        String version = requestLineParts[2].trim();
+
+        HttpVersion httpVersion = HttpVersion.of(version);
 
         Map<String, List<String>> headerMap = new HashMap<>();
         int i = 1;
@@ -99,7 +102,7 @@ public class HttpRequestParser {
         return HttpRequest.builder()
                 .method(method)
                 .path(path)
-                .version(version)
+                .version(httpVersion.getVersion())
                 .headers(headerMap)
                 .body(new ByteArrayInputStream(body))
                 .build();
