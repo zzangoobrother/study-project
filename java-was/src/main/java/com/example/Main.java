@@ -27,6 +27,7 @@ import com.example.application.handler.StaticResourceHandler;
 import com.example.application.processor.ArgumentResolver;
 import com.example.application.processor.HandlerRegistry;
 import com.example.application.processor.HttpRequestDispatcher;
+import com.example.csvdb.jdbc.CsvFileManager;
 import com.example.webserver.authorization.SecurePathManager;
 import com.example.webserver.http.HttpMethod;
 import com.example.webserver.middleware.MiddleWareChain;
@@ -38,15 +39,19 @@ import com.example.webserver.processor.HttpResponseWriter;
 import com.example.webserver.server.ServerInitializer;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class Main {
 
     public static void main(String[] args) {
         ServerInitializer serverInitializer = new ServerInitializer();
-        DatabaseConfig databaseConfig = new DatabaseConfig("jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1", "sa", "");
+        DatabaseConfig databaseConfig = new DatabaseConfig("jdbc:csvdb:dd", "sa", "");
+        CsvFileManager.createTable("users", List.of("user_id", "username", "password", "email", "nickname", "created_at"));
+        CsvFileManager.createTable("posts", List.of("post_id", "user_id", "content", "image_path", "created_at"));
+        CsvFileManager.createTable("comments", List.of("comment_id", "post_id", "user_id", "content", "created_at"));
 
-        CompletableFuture.runAsync(() -> H2Console.main(databaseConfig));
+//        CompletableFuture.runAsync(() -> H2Console.main(databaseConfig));
         HandlerRegistry handlerRegistry = new HandlerRegistry(new ArrayList<>());
         HttpRequestParser requestParser = new HttpRequestParser();
 
@@ -56,30 +61,7 @@ public class Main {
 
         CommentDao commentDao = new CommentDaoImpl(databaseConfig);
 
-        // 회원가입
-        RegisterUserLogic registerUserLogic = new RegisterUserLogic(userDao);
-        ArgumentResolver<RegisterRequest> requestArgumentResolver = new RegisterArgumentResolver();
-        RegisterRequestHandler registerUserHandler = new RegisterRequestHandler(requestArgumentResolver);
-        handlerRegistry.registerHandler(HttpMethod.POST, "/users/create", registerUserHandler, registerUserLogic);
-
-        // 로그인
-        LoginUserLogic loginUserLogic = new LoginUserLogic(userDao);
-        ArgumentResolver<LoginRequest> loginArgumentResolver = new LoginArgumentResolver();
-        LoginRequestHandler loginUserHandler = new LoginRequestHandler(loginArgumentResolver);
-        handlerRegistry.registerHandler(HttpMethod.POST, "/users/login", loginUserHandler, loginUserLogic);
-
-        // 로그아웃
-        LogoutRequestHandler logoutRequestHandlerAdapter = new LogoutRequestHandler();
-        handlerRegistry.registerHandler(HttpMethod.POST, "/users/logout", logoutRequestHandlerAdapter, o -> null);
-
-        // user info
-        GetUserInfoLogic getUserInfoLogic = new GetUserInfoLogic(userDao);
-        GetUserInfoRequestHandler userInfoHandler = new GetUserInfoRequestHandler();
-        handlerRegistry.registerHandler(HttpMethod.GET, "/api/user-info", userInfoHandler, getUserInfoLogic);
-
-        GetUserListLogic getUserListLogic = new GetUserListLogic(userDao);
-        GetUserListRequestHandler getUserListRequestHandler = new GetUserListRequestHandler();
-        handlerRegistry.registerHandler(HttpMethod.GET, "/api/users", getUserListRequestHandler, getUserListLogic);
+        registerUserApi(handlerRegistry, userDao);
 
         StaticResourceHandler<Void, Void> defaultResourceHandler = new StaticResourceHandler<>();
         HttpResponseSerializer httpResponseSerializer = new HttpResponseSerializer();
@@ -109,6 +91,33 @@ public class Main {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private static void registerUserApi(HandlerRegistry handlerRegistry, UserDao userDao) {
+        // 회원가입
+        RegisterUserLogic registerUserLogic = new RegisterUserLogic(userDao);
+        ArgumentResolver<RegisterRequest> requestArgumentResolver = new RegisterArgumentResolver();
+        RegisterRequestHandler registerUserHandler = new RegisterRequestHandler(requestArgumentResolver);
+        handlerRegistry.registerHandler(HttpMethod.POST, "/users/create", registerUserHandler, registerUserLogic);
+
+        // 로그인
+        LoginUserLogic loginUserLogic = new LoginUserLogic(userDao);
+        ArgumentResolver<LoginRequest> loginArgumentResolver = new LoginArgumentResolver();
+        LoginRequestHandler loginUserHandler = new LoginRequestHandler(loginArgumentResolver);
+        handlerRegistry.registerHandler(HttpMethod.POST, "/users/login", loginUserHandler, loginUserLogic);
+
+        // 로그아웃
+        LogoutRequestHandler logoutRequestHandlerAdapter = new LogoutRequestHandler();
+        handlerRegistry.registerHandler(HttpMethod.POST, "/users/logout", logoutRequestHandlerAdapter, o -> null);
+
+        // user info
+        GetUserInfoLogic getUserInfoLogic = new GetUserInfoLogic(userDao);
+        GetUserInfoRequestHandler userInfoHandler = new GetUserInfoRequestHandler();
+        handlerRegistry.registerHandler(HttpMethod.GET, "/api/user-info", userInfoHandler, getUserInfoLogic);
+
+        GetUserListLogic getUserListLogic = new GetUserListLogic(userDao);
+        GetUserListRequestHandler getUserListRequestHandler = new GetUserListRequestHandler();
+        handlerRegistry.registerHandler(HttpMethod.GET, "/api/users", getUserListRequestHandler, getUserListLogic);
     }
 
     private static void registerImageHandler(HandlerRegistry handlerRegistry) {

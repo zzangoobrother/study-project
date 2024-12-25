@@ -32,10 +32,15 @@
         }
         .error-message {
             display: none;
-            margin-top: 16px;
-            color: red;
-            font-weight: bold;
-            text-align: center;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 0, 0, 0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            z-index: 1000;
         }
     </style>
     <script>
@@ -147,7 +152,7 @@
 <body>
 <div class="container">
     <header class="header">
-        <a href="/main"><img src="/img/signiture.svg" /></a>
+        <a href="/"><img src="/img/signiture.svg" /></a>
         <ul class="header__menu">
             <li class="header__menu__item">
                 <a class="btn btn_contained btn_size_s" href="/post">글쓰기</a>
@@ -187,5 +192,6 @@
         </form>
     </div>
 </div>
+<div id="error-message" class="error-message">작성에 실패했습니다. 다시 시도해 주세요.</div>
 </body>
 </html>

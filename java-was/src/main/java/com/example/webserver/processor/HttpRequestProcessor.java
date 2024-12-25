@@ -6,7 +6,6 @@ import com.example.application.processor.HttpRequestDispatcher;
 import com.example.webserver.authorization.AuthorizationContextHolder;
 import com.example.webserver.authorization.SecurePathManager;
 import com.example.webserver.exception.BadRequestException;
-import com.example.webserver.http.HttpRequest;
 import com.example.webserver.http.HttpResponse;
 import com.example.webserver.http.HttpStatus;
 import com.example.webserver.http.HttpVersion;
@@ -37,8 +36,8 @@ public class HttpRequestProcessor {
         InputStream inputStream = clientSocket.getInputStream();
 
         try {
-            HttpRequest httpRequest = httpRequestParser.parseRequest(inputStream);
-            HttpResponse httpResponse = new HttpResponse(HttpVersion.HTTP_1_1);
+            Request httpRequest = httpRequestParser.parseRequest(inputStream);
+            Response httpResponse = new HttpResponse(HttpVersion.HTTP_1_1);
             forwarding(clientSocket, httpRequest, httpResponse);
         } catch (BadRequestException e) {
             log.error("Processor : {}", e.getMessage());
