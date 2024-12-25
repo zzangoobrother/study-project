@@ -11,116 +11,145 @@ public abstract class MyPreparedStatement implements PreparedStatement {
 
     @Override
     public ResultSet executeQuery() throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public int executeUpdate() throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public void setNull(int parameterIndex, int sqlType) throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public void setBoolean(int parameterIndex, boolean x) throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public void setByte(int parameterIndex, byte x) throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public void setShort(int parameterIndex, short x) throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public void setInt(int parameterIndex, int x) throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public void setLong(int parameterIndex, long x) throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public void setFloat(int parameterIndex, float x) throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public void setDouble(int parameterIndex, double x) throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public void setBigDecimal(int parameterIndex, BigDecimal x) throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public void setString(int parameterIndex, String x) throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public void setBytes(int parameterIndex, byte[] x) throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public void setDate(int parameterIndex, Date x) throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public void setTime(int parameterIndex, Time x) throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public void setTimestamp(int parameterIndex, Timestamp x) throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
-    public void setAsciiStream(int parameterIndex, InputStream x) throws SQLException {
+    public void setAsciiStream(int parameterIndex, InputStream x, int length) throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
-    public void setBinaryStream(int parameterIndex, InputStream x) throws SQLException {
+    public void setUnicodeStream(int parameterIndex, InputStream x, int length) throws SQLException {
+
+        throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
+    }
+
+    @Override
+    public void setBinaryStream(int parameterIndex, InputStream x, int length) throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public void clearParameters() throws SQLException {
-        throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
-    }
 
-    @Override
-    public void setObject(int parameterIndex, Object x) throws SQLException {
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public void setObject(int parameterIndex, Object x, int targetSqlType) throws SQLException {
+
+        throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
+    }
+
+    @Override
+    public void setObject(int parameterIndex, Object x) throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public boolean execute() throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
     @Override
     public void addBatch() throws SQLException {
+
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }
 
@@ -264,6 +293,18 @@ public abstract class MyPreparedStatement implements PreparedStatement {
 
     @Override
     public void setCharacterStream(int parameterIndex, Reader reader, long length) throws SQLException {
+
+        throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
+    }
+
+    @Override
+    public void setAsciiStream(int parameterIndex, InputStream x) throws SQLException {
+
+        throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
+    }
+
+    @Override
+    public void setBinaryStream(int parameterIndex, InputStream x) throws SQLException {
 
         throw new UnsupportedOperationException("지원하지 않는 기능입니다.");
     }

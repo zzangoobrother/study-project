@@ -1,5 +1,7 @@
 package com.example.csvdb;
 
+import com.example.csvdb.jdbc.CsvConnection;
+
 import java.sql.*;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -38,7 +40,14 @@ public class CsvDriver implements Driver {
 
     @Override
     public boolean acceptsURL(String url) throws SQLException {
-        return false;
+        validateUrl(url);
+        return url.startsWith("jdbc:csvdb:");
+    }
+
+    private void validateUrl(String url) {
+        if (url == null) {
+            throw new IllegalArgumentException("등록할 URL이 없습니다.");
+        }
     }
 
     @Override
@@ -63,6 +72,6 @@ public class CsvDriver implements Driver {
 
     @Override
     public Logger getParentLogger() throws SQLFeatureNotSupportedException {
-        return null;
+        throw new SQLFeatureNotSupportedException("Not supported");
     }
 }

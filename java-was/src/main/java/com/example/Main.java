@@ -27,6 +27,7 @@ import com.example.application.handler.StaticResourceHandler;
 import com.example.application.processor.ArgumentResolver;
 import com.example.application.processor.HandlerRegistry;
 import com.example.application.processor.HttpRequestDispatcher;
+import com.example.csvdb.CsvDriver;
 import com.example.csvdb.jdbc.CsvFileManager;
 import com.example.webserver.authorization.SecurePathManager;
 import com.example.webserver.http.HttpMethod;
@@ -43,6 +44,10 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class Main {
+
+    static {
+        new CsvDriver();
+    }
 
     public static void main(String[] args) {
         ServerInitializer serverInitializer = new ServerInitializer();

@@ -2,7 +2,10 @@ package com.example.csvdb.jdbc;
 
 import com.example.csvdb.engine.SQLParserKey;
 
+import java.io.IOException;
 import java.sql.ResultSet;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -13,13 +16,26 @@ public class CsvExecutor {
     private static final Set<String> usernameUniqueSet = new HashSet<>();
     private static final Set<String> emailUniqueSet = new HashSet<>();
 
-    public static ResultSet execute(Map<SQLParserKey, Object> parsed) {
+    public static ResultSet execute(Map<SQLParserKey, Object> parsed) throws IOException {
         String command = (String) parsed.get(SQLParserKey.COMMAND);
 
         switch (command) {
             case "SELECT" -> select(parsed);
             case "INSERT" -> getGeneratedKeyAndInsert(parsed);
+            case "DROP" -> {
+                String tableName = (String) parsed.get(SQLParserKey.TABLE);
+                CsvFileManager.dropTable(tableName);
+                return null;
+            }
+            case "CREATE" -> {
+                String tableName = (String) parsed.get(SQLParserKey.TABLE);
+                List<String> columns = (List<String>) parsed.get(SQLParserKey.COLUMNS);
+                CsvFileManager.createTable(tableName, columns);
+                return null;
+            }
         }
+
+        return null;
     }
 
     private static ResultSet select(Map<SQLParserKey, Object> parsed) {
@@ -116,7 +132,55 @@ public class CsvExecutor {
         };
     }
 
-    private static ResultSet getGeneratedKeyAndInsert(Map<SQLParserKey, Object> parsed) {
+    private static ResultSet getGeneratedKeyAndInsert(Map<SQLParserKey, Object> parsed) throws IOException {
+        String tableName = (String) parsed.get(SQLParserKey.TABLE);
+        List<String> columns = (List<String>) parsed.get(SQLParserKey.COLUMNS);
+        List<List<String>> valueList = (List<List<String>>) parsed.get(SQLParserKey.VALUES);
 
+        AtomicLong autoIncrement = autoIncrementMap.computeIfAbsent(tableName, v -> new AtomicLong(0));
+
+        List<String> usernames = new ArrayList<>();
+        if (columns.contains("username")) {
+            int index = columns.indexOf("username") - 1;
+            for (List<String> values : valueList) {
+                String username = values.get(index);
+                if (usernameUniqueSet.contains(username)) {
+                    throw new IllegalArgumentException("사용자 ID는 중복될 수 없습니다.");
+                }
+                usernames.add(username);
+            }
+        }
+
+        List<String> emails = new ArrayList<>();
+
+        if (columns.contains("email")) {
+            int index = columns.indexOf("email") - 1;
+            for (List<String> values : valueList) {
+                String email = values.get(index);
+                if (emailUniqueSet.contains(email)) {
+                    throw new IllegalArgumentException("이메일은 중복될 수 없습니다.");
+                }
+
+                emails.add(email);
+            }
+        }
+
+        emailUniqueSet.addAll(emails);
+        usernameUniqueSet.addAll(usernames);
+
+        List<Map<String, String>> resultData = new ArrayList<>();
+        valueList.forEach(values -> {
+            long generatedKey = autoIncrement.incrementAndGet();
+
+            values.add(0, String.valueOf(generatedKey));
+
+            Timestamp timestamp = Timestamp.valueOf(LocalDateTime.now());
+            values.add(timestamp.toString());
+            resultData.add(Map.of("GENERATED_KEY", String.valueOf(generatedKey)));
+        });
+
+        CsvFileManager.writeData(tableName, columns, valueList);
+
+        return new CsvResultSet(resultData);
     }
 }
