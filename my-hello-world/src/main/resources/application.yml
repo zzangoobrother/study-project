@@ -13,3 +13,10 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+  cassandra:
+    keyspace-name: my
+    port: 9042
+    contact-points: 127.0.0.1
+    local-datacenter: datacenter11
+    schema-action: create-if-not-exists
