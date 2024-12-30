@@ -1,8 +1,21 @@
+plugins {
+    id 'com.google.protobuf' version '0.9.4'
+}
+
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'com.google.protobuf:protobuf-java:3.25.5'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
 tasks.register("prepareKotlinBuildScriptModel") {}
+
+protobuf {
+    protoc {
+        artifact = 'com.google.protobuf:protoc:3.6.2'
+    }
+}

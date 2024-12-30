@@ -5,6 +5,8 @@ import com.example.cassandra.repository.ProductRepository;
 import com.example.dto.ProductTagsDto;
 import com.example.mysql.entity.SellerProduct;
 import com.example.mysql.repository.SellerProductRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -17,31 +19,33 @@ public class CatalogService {
 
     private final ProductRepository productRepository;
     private final SellerProductRepository sellerProductRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaTemplate<String, String> kafkaTemplate;
 
-    public CatalogService(ProductRepository productRepository, SellerProductRepository sellerProductRepository, KafkaTemplate<String, Object> kafkaTemplate) {
+    public CatalogService(ProductRepository productRepository, SellerProductRepository sellerProductRepository, KafkaTemplate<String, String> kafkaTemplate) {
         this.productRepository = productRepository;
         this.sellerProductRepository = sellerProductRepository;
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    public Product registerProduct(Long sellerId, String name, String description, Long price, Long stockCount, List<String> tags) {
+    public Product registerProduct(Long sellerId, String name, String description, Long price, Long stockCount, List<String> tags) throws JsonProcessingException {
         SellerProduct sellerProduct = new SellerProduct(sellerId);
         sellerProductRepository.save(sellerProduct);
 
         Product product = new Product(sellerProduct.getId(), sellerId, name, description, price, stockCount, tags);
 
         ProductTagsDto dto = new ProductTagsDto(product.getId(), tags);
-        kafkaTemplate.send("product_tags_added", dto);
+        ObjectMapper mapper = new ObjectMapper();
+        kafkaTemplate.send("product_tags_added", mapper.writeValueAsString(dto));
 
         return productRepository.save(product);
     }
 
-    public void deleteProduct(Long productId) {
+    public void deleteProduct(Long productId) throws JsonProcessingException {
         Optional<Product> product = productRepository.findById(productId);
         if (product.isPresent()) {
             ProductTagsDto dto = new ProductTagsDto(productId, product.get().getTags());
-            kafkaTemplate.send("product_tags_removed", dto);
+            ObjectMapper mapper = new ObjectMapper();
+            kafkaTemplate.send("product_tags_removed", mapper.writeValueAsString(dto));
         }
 
         productRepository.deleteById(productId);

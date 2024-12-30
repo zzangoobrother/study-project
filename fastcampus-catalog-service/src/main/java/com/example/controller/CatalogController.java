@@ -4,6 +4,7 @@ import com.example.cassandra.entity.Product;
 import com.example.dto.DecreaseStockCountDto;
 import com.example.dto.RegisterProductDto;
 import com.example.service.CatalogService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,12 +19,12 @@ public class CatalogController {
     }
 
     @PostMapping("/catalog/products")
-    public Product registerProduct(@RequestBody RegisterProductDto dto) {
+    public Product registerProduct(@RequestBody RegisterProductDto dto) throws JsonProcessingException {
         return catalogService.registerProduct(dto.sellerId(), dto.name(), dto.description(), dto.price(), dto.stockCount(), dto.tags());
     }
 
     @DeleteMapping("/catalog/products/{productId}")
-    public void deleteProduct(@PathVariable Long productId) {
+    public void deleteProduct(@PathVariable Long productId) throws JsonProcessingException {
         catalogService.deleteProduct(productId);
     }
 

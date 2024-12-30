@@ -1,16 +1,12 @@
+server:
+  port: 8080
 spring:
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    jdbc-url: jdbc:mysql://localhost:3306/ecommerce?useUnicode=true&serverTimezone=Asia/Seoul&autoReconnect=true&rewriteBatchedStatements=true
-    username: root
-    password: 1234
-
-  cassandra:
-    keyspace-name: catalog
-    port: 9042
-    contact-points: localhost
-    local-datacenter: dc1
-    schema-action: create_if_not_exists
+    hikari:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      jdbc-url: jdbc:mysql://localhost:3306/ecommerce?useUnicode=true&serverTimezone=Asia/Seoul&autoReconnect=true&rewriteBatchedStatements=true
+      username: root
+      password: 1234
 
   jpa:
     hibernate:
@@ -19,8 +15,7 @@ spring:
 
   kafka:
     bootstrap-servers:
-      - localhost:19092
-
+      - localhost:29092
     consumer:
       group-id: testgroup
       auto-offset-reset: earliest

@@ -1,8 +1,9 @@
 package com.example.controller;
 
-import com.example.dto.ProductTagsDto;
 import com.example.service.SearchService;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -13,16 +14,6 @@ public class SearchController {
 
     public SearchController(SearchService searchService) {
         this.searchService = searchService;
-    }
-
-    @PostMapping("/search/addTagCache")
-    public void addTagCache(@RequestBody ProductTagsDto dto) {
-        searchService.addTagCache(dto.productId(), dto.tags());
-    }
-
-    @PostMapping("/search/removeTagCache")
-    public void removeTagCache(@RequestBody ProductTagsDto dto) {
-        searchService.removeTagCache(dto.productId(), dto.tags());
     }
 
     @GetMapping("/search/tags/{tag}/productIds")
