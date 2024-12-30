@@ -16,3 +16,16 @@ spring:
     hibernate:
       ddl-auto: update
     generate-ddl: true
+
+  kafka:
+    bootstrap-servers:
+      - localhost:19092
+
+    consumer:
+      group-id: testgroup
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer

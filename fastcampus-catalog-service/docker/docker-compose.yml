@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  cassandra-node-0:
+    image: cassandra
+    environment:
+      - CASSANDRA_SEEDS=cassandra-node-0
+      - CASSANDRA_CLUSTER_NAME=MyCluster
+      - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
+      - CASSANDRA_DC=datacenter11
+    ports:
+      - "7000:7000"
+      - "7001:7001"
+      - "9042:9042"
+    healthcheck:
+      test: ("CMD-SHELL", "( $$(nodetool statusgossip) = running )")
+      interval: 20s
+      timeout: 10s
+      retries: 10
