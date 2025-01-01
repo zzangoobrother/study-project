@@ -6,6 +6,7 @@ import com.example.dto.StartOrderDto;
 import com.example.dto.StartOrderResponseDto;
 import com.example.entity.ProductOrder;
 import com.example.service.OrderService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,7 +26,7 @@ public class OrderController {
     }
 
     @PostMapping("/order/finish-order")
-    public ProductOrder finishOrder(@RequestBody FinishOrderDto dto) {
+    public ProductOrder finishOrder(@RequestBody FinishOrderDto dto) throws JsonProcessingException {
         return orderService.finishOrder(dto.orderId(), dto.paymentMethodId(), dto.addressId());
     }
 

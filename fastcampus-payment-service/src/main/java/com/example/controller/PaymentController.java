@@ -1,7 +1,6 @@
 package com.example.controller;
 
 import com.example.dto.PaymentMethodDto;
-import com.example.dto.ProcessPaymentDto;
 import com.example.entity.Payment;
 import com.example.entity.PaymentMethod;
 import com.example.service.PaymentService;
@@ -22,11 +21,6 @@ public class PaymentController {
     @PostMapping("/payments/methods")
     public PaymentMethod registerPaymentMethod(@RequestBody PaymentMethodDto dto) {
         return paymentService.registerPaymentMethod(dto.userId(), dto.paymentMethodType(), dto.creditCardNumber());
-    }
-
-    @PostMapping("/payments/process-payment")
-    public Payment processPayment(@RequestBody ProcessPaymentDto dto) {
-        return paymentService.processPayment(dto.userId(), dto.orderId(), dto.amountKRW(), dto.paymentMethodId());
     }
 
     @PostMapping("/payments/users/{userId}/first-method")

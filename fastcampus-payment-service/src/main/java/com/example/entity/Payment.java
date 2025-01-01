@@ -4,8 +4,10 @@ import com.example.enums.PaymentMethodType;
 import com.example.enums.PaymentStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+@Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(indexes = {@Index(name = "idx_userId", columnList = "userId")})

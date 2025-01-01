@@ -30,18 +30,31 @@ public class ProductOrder {
 
     private Long deliveryId;
 
-    public ProductOrder(Long userId, Long productId, Long count, OrderStatus orderStatus, Long paymentId, Long deliveryId) {
+    private String deliveryAddress;
+
+    public ProductOrder(Long userId, Long productId, Long count, OrderStatus orderStatus, Long paymentId, Long deliveryId, String deliveryAddress) {
         this.userId = userId;
         this.productId = productId;
         this.count = count;
         this.orderStatus = orderStatus;
         this.paymentId = paymentId;
         this.deliveryId = deliveryId;
+        this.deliveryAddress = deliveryAddress;
     }
 
     public void update(long paymentId, long deliveryId, OrderStatus orderStatus) {
         this.paymentId = paymentId;
         this.deliveryId = deliveryId;
         this.orderStatus = orderStatus;
+    }
+
+    public void update(long paymentId, OrderStatus orderStatus) {
+        this.paymentId = paymentId;
+        this.orderStatus = orderStatus;
+    }
+
+    public void update(OrderStatus orderStatus, String deliveryAddress) {
+        this.orderStatus = orderStatus;
+        this.deliveryAddress = deliveryAddress;
     }
 }
