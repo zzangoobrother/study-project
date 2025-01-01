@@ -48,6 +48,10 @@ public class ProductOrder {
         this.orderStatus = orderStatus;
     }
 
+    public void update(long deliveryId) {
+        this.deliveryId = deliveryId;
+    }
+
     public void update(long paymentId, OrderStatus orderStatus) {
         this.paymentId = paymentId;
         this.orderStatus = orderStatus;

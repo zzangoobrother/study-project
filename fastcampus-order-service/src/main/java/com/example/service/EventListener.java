@@ -49,6 +49,10 @@ public class EventListener {
 
         if (dto.deliveryStatus().equals("REQUESTED")) {
             ProductOrder order = orderRepository.findById(dto.orderId()).orElseThrow();
+
+            order.update(dto.deliveryId());
+            orderRepository.save(order);
+
             DecreaseStockCountDto decreaseStockCountDto = new DecreaseStockCountDto(order.getCount());
             catalogClient.decreaseStockCount(order.getProductId(), decreaseStockCountDto);
         }
