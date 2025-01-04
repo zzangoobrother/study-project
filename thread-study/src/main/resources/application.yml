@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    hikari:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      jdbc-url: jdbc:mysql://localhost:3306/ecommerce?useUnicode=true&serverTimezone=Asia/Seoul&autoReconnect=true&rewriteBatchedStatements=true
+      username: root
+      password: 1234
+      maximum-pool-size: 1
+
+  jpa:
+    hibernate:
+      ddl-auto: create
