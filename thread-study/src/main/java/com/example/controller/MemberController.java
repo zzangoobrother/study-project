@@ -5,6 +5,8 @@ import com.example.entity.Member;
 import com.example.service.MemberService;
 import org.springframework.web.bind.annotation.*;
 
+import static java.lang.Thread.sleep;
+
 @RestController
 public class MemberController {
 
@@ -20,7 +22,7 @@ public class MemberController {
     }
 
     @PostMapping("/api/v1/members")
-    public Member create(@RequestBody MemberRequest request) {
+    public Member create(@RequestBody MemberRequest request) throws InterruptedException {
         return memberService.create(request);
     }
 }

@@ -4,6 +4,7 @@ import com.example.dto.MemberRequest;
 import com.example.entity.Member;
 import com.example.repository.MemberRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class MemberService {
@@ -18,6 +19,7 @@ public class MemberService {
         return memberRepository.findById(memberId).orElseThrow();
     }
 
+    @Transactional
     public Member create(MemberRequest request) {
         return memberRepository.save(new Member(request.name(), request.age()));
     }

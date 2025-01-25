@@ -1,43 +1,51 @@
 package algorithm;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.StringTokenizer;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 public class Main {
 
     public static void main(String[] args) throws IOException {
-        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-        StringTokenizer st = new StringTokenizer(br.readLine(), " ");
+        Pizza[] menu = {
+                new Pizza("greek", 7, 5, 10),
+                new Pizza("texas", 8, 9, 13),
+                new Pizza("european", 5, 10, 13),
+        };
+        OrderItem[] order = {
+                new OrderItem("texas", "Medium", 1),
+                new OrderItem("european", "Small", 2)
+        };
+    }
 
-        int count = Integer.parseInt(st.nextToken());
+    private static int sum1() {
 
-        for (int i = 0; i < count; i++) {
-            st = new StringTokenizer(br.readLine(), " ");
-            int num = Integer.parseInt(st.nextToken());
+    }
 
-            int[] novel = new int[num + 1];
-            int[] sum = new int[num + 1];
-            int[][] dp = new int[num + 1][num + 1];
+    static class Pizza {
+        public String name;
+        public int price_S;
+        public int price_M;
+        public int priceL;
 
-            st = new StringTokenizer(br.readLine(), " ");
-            for (int j = 1; j <= num; j++) {
-                novel[j] = Integer.parseInt(st.nextToken());
-                sum[j] = sum[j - 1] + novel[j];
-            }
+        public Pizza(String name, int price_S, int price_M, int priceL) {
+            this.name = name;
+            this.price_S = price_S;
+            this.price_M = price_M;
+            this.priceL = priceL;
+        }
+    }
 
-            for (int j = 1; j <= num; j++) {
-                for (int from = 1; from + j <= num; from++) {
-                    int to = from + j;
-                    dp[from][to] = Integer.MAX_VALUE;
-                    for (int divide = from; divide < to; divide++) {
-                        dp[from][to] = Math.min(dp[from][to], dp[from][divide] + dp[divide + 1][to] + sum[to] - sum[from - 1]);
-                    }
-                }
-            }
+    static class OrderItem {
+        public String name;
+        public String size;
+        public int quantity;
 
-            System.out.println(dp[1][num]);
+        public OrderItem(String name, String size, int quantity) {
+            this.name = name;
+            this.size = size;
+            this.quantity = quantity;
         }
     }
 }
