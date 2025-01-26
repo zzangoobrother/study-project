@@ -1,9 +1,13 @@
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 
-//    runtimeOnly 'com.mysql:mysql-connector-j'
-//    runtimeOnly 'com.h2database:h2'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'micrometer.io:micrometer-registry-prometheus'
+
+    implementation 'com.google.firebase:firebase-admin:9.2.0'
+
+    runtimeOnly 'com.mysql:mysql-connector-j'
+    runtimeOnly 'com.h2database:h2'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }

@@ -1,0 +1,9 @@
+fcm:
+  service-account-file: fcm-project.json
+  project-id: fcm-project-id
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
