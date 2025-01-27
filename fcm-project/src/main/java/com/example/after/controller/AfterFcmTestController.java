@@ -1,7 +1,7 @@
-package com.example.before.controller;
+package com.example.after.controller;
 
-import com.example.before.fcm.FcmClient;
 import com.example.dto.FcmMulticastMessage;
+import com.example.after.fcm.AfterFcmClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -13,15 +13,15 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-public class FcmTestController {
+public class AfterFcmTestController {
 
-    private final FcmClient fcmClient;
+    private final AfterFcmClient fcmClient;
 
-    public FcmTestController(FcmClient fcmClient) {
+    public AfterFcmTestController(AfterFcmClient fcmClient) {
         this.fcmClient = fcmClient;
     }
 
-    @GetMapping("/api/v1/before/fcm/test")
+    @GetMapping("/api/v1/after/fcm/test")
     public void fcmTest() {
         Map<String, String> options = new HashMap<>();
         options.put("TYPE", "test");

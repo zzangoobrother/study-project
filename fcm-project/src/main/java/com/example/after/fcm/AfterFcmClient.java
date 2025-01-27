@@ -1,7 +1,7 @@
-package com.example.before.fcm;
+package com.example.after.fcm;
 
-import com.example.config.properties.FcmProperties;
 import com.example.dto.FcmMulticastMessage;
+import com.example.config.properties.FcmProperties;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.collect.Lists;
 import com.google.firebase.FirebaseApp;
@@ -10,6 +10,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.MulticastMessage;
 import com.google.firebase.messaging.Notification;
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -19,14 +20,16 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Component
-public class FcmClient {
+public class AfterFcmClient {
 
     private static final String AUTH_URL = "firebase-auth-url";
     private FirebaseApp firebaseApp;
     private final FcmProperties fcmProperties;
+    private FirebaseMessaging firebaseMessaging;
 
-    public FcmClient(FcmProperties fcmProperties) {
+    public AfterFcmClient(FcmProperties fcmProperties) {
         this.fcmProperties = fcmProperties;
     }
 
@@ -38,9 +41,12 @@ public class FcmClient {
                             GoogleCredentials
                                     .fromStream(new ClassPathResource(fcmProperties.serviceAccountFile()).getInputStream())
                                     .createScoped(Arrays.asList(AUTH_URL))
-                    ).build();
+                    )
+                    .setThreadManager(new CustomThreadManager())
+                    .build();
 
-            firebaseApp = FirebaseApp.initializeApp(options, "before");
+            firebaseApp = FirebaseApp.initializeApp(options, "after");
+            this.firebaseMessaging = FirebaseMessaging.getInstance(firebaseApp);
         } catch (IOException e) {
             throw new RuntimeException(e.getMessage());
         }
@@ -49,7 +55,8 @@ public class FcmClient {
     // 1 : N 푸쉬 전송
     public void send(FcmMulticastMessage fcmMulticastMessage) {
         List<String> tokens = fcmMulticastMessage.token();
-        List<List<String>> tokenPartition = Lists.partition(tokens, tokens.size() / 1000 + 1);
+        List<List<String>> tokenPartition = Lists.partition(tokens, 50);
+        log.info("token partition : {}", tokenPartition.size());
         List<MulticastMessage> multicastMessages = tokenPartition.stream()
                 .map(it -> createMulticastMessage(it, fcmMulticastMessage.notification().title(), fcmMulticastMessage.notification().body(), fcmMulticastMessage.notification().image(), fcmMulticastMessage.options()))
                 .toList();
