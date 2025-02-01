@@ -56,7 +56,7 @@ public class AfterFcmClient {
     public void send(FcmMulticastMessage fcmMulticastMessage) {
         List<String> tokens = fcmMulticastMessage.token();
         List<List<String>> tokenPartition = Lists.partition(tokens, 50);
-        log.info("token partition : {}", tokenPartition.size());
+
         List<MulticastMessage> multicastMessages = tokenPartition.stream()
                 .map(it -> createMulticastMessage(it, fcmMulticastMessage.notification().title(), fcmMulticastMessage.notification().body(), fcmMulticastMessage.notification().image(), fcmMulticastMessage.options()))
                 .toList();
