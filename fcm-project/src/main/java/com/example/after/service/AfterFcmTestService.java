@@ -1,13 +1,14 @@
 package com.example.after.service;
 
-import com.example.after.fcm.AfterFcmClient;
 import com.example.after.model.Device;
 import com.example.after.model.Message;
 import com.example.after.model.MessageDevice;
 import com.example.after.model.constant.MessageStatus;
+import com.example.after.queue.Queue;
 import com.example.after.repository.DeviceRepository;
 import com.example.after.repository.MessageDeviceRepository;
 import com.example.after.repository.MessageRepository;
+import com.example.dto.FcmMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +24,6 @@ import java.util.Map;
 @Service
 public class AfterFcmTestService {
 
-    private final AfterFcmClient fcmClient;
     private final DeviceRepository deviceRepository;
     private final MessageRepository messageRepository;
     private final MessageDeviceRepository messageDeviceRepository;
@@ -48,7 +48,20 @@ public class AfterFcmTestService {
                 .toList();
         messageDeviceRepository.saveAll(messageDevices);
 
+        List<FcmMessage> fcmMessages = devices.stream()
+                .map(it -> FcmMessage.builder()
+                        .notification(FcmMessage.Notification.builder()
+                                .title("test title")
+                                .body("test content")
+                                .build())
+                        .token(it.getToken())
+                        .options(options)
+                        .build())
+                .toList();
 
+        Queue.addAll(fcmMessages);
+
+        log.info("queue size : {}", Queue.size());
     }
 
     private List<Device> createdToken() {
