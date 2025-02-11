@@ -1,14 +1,12 @@
 package com.example.after.fcm;
 
-import com.example.dto.FcmMulticastMessage;
 import com.example.config.properties.FcmProperties;
+import com.example.dto.FcmMulticastMessage;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.collect.Lists;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
-import com.google.firebase.messaging.FirebaseMessaging;
-import com.google.firebase.messaging.MulticastMessage;
-import com.google.firebase.messaging.Notification;
+import com.google.firebase.messaging.*;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
@@ -22,7 +20,7 @@ import java.util.Map;
 
 @Slf4j
 @Component
-public class AfterFcmClient {
+public class AfterFcmClient implements FcmClient {
 
     private static final String AUTH_URL = "firebase-auth-url";
     private FirebaseApp firebaseApp;
@@ -53,15 +51,20 @@ public class AfterFcmClient {
     }
 
     // 1 : N 푸쉬 전송
-    public void send(FcmMulticastMessage fcmMulticastMessage) {
+    @Override
+    public BatchResponse send(FcmMulticastMessage fcmMulticastMessage) {
         List<String> tokens = fcmMulticastMessage.token();
         List<List<String>> tokenPartition = Lists.partition(tokens, 50);
 
-        List<MulticastMessage> multicastMessages = tokenPartition.stream()
-                .map(it -> createMulticastMessage(it, fcmMulticastMessage.notification().title(), fcmMulticastMessage.notification().body(), fcmMulticastMessage.notification().image(), fcmMulticastMessage.options()))
-                .toList();
+        MulticastMessage multicastMessage = createMulticastMessage(fcmMulticastMessage.token(), fcmMulticastMessage.notification().title(), fcmMulticastMessage.notification().body(), fcmMulticastMessage.notification().image(), fcmMulticastMessage.options());
 
-        multicastMessages.forEach(it -> FirebaseMessaging.getInstance(firebaseApp).sendEachForMulticastAsync(it));
+        try {
+            return FirebaseMessaging.getInstance(FirebaseApp.getInstance()).sendEachForMulticast(multicastMessage);
+        } catch (FirebaseMessagingException e) {
+            log.error("error");
+        }
+
+        return null;
     }
 
     private MulticastMessage createMulticastMessage(List<String> tokens, String title, String content, String image, Map<String, String> options) {
