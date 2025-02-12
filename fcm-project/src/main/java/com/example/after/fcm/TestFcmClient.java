@@ -12,7 +12,7 @@ public class TestFcmClient implements FcmClient {
     public BatchResponse send(FcmMulticastMessage fcmMulticastMessage) {
         try {
             Thread.sleep(300);
-            log.info("send complete");
+//            log.info("send complete");
 
             return null;
         } catch (InterruptedException e) {
