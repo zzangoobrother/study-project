@@ -17,7 +17,7 @@ public class FcmSend {
     }
 
     public void send(FcmMessage fcmMessage) {
-        fcmClient.send(FcmMulticastMessage.builder()
+        this.send(FcmMulticastMessage.builder()
                 .notification(FcmMulticastMessage.Notification.builder()
                         .title("test title")
                         .body("test content")
@@ -25,5 +25,9 @@ public class FcmSend {
                 .token(List.of(fcmMessage.token()))
                 .options(fcmMessage.options())
                 .build());
+    }
+
+    public void send(FcmMulticastMessage fcmMulticastMessage) {
+        fcmClient.send(fcmMulticastMessage);
     }
 }
