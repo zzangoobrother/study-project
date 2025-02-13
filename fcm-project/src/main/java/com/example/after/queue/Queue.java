@@ -11,17 +11,17 @@ import java.util.concurrent.LinkedBlockingQueue;
 @Slf4j
 @Component
 public class Queue {
-    private static final BlockingQueue<FcmMessage> queue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<FcmMessage> queue = new LinkedBlockingQueue<>();
 
-    public static void add(FcmMessage message) {
+    public void add(FcmMessage message) {
         queue.offer(message);
     }
 
-    public static void addAll(List<FcmMessage> messages) {
-        messages.forEach(Queue::add);
+    public void addAll(List<FcmMessage> messages) {
+        messages.forEach(queue::add);
     }
 
-    public static FcmMessage get() {
+    public FcmMessage get() {
         try {
             return queue.take();
         } catch (InterruptedException e) {
@@ -31,11 +31,11 @@ public class Queue {
         return null;
     }
 
-    public static int size() {
+    public int size() {
         return queue.size();
     }
 
-    public static boolean isEmpty() {
+    public boolean isEmpty() {
         return queue.isEmpty();
     }
 }

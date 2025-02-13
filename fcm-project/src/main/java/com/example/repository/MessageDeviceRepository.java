@@ -1,7 +1,7 @@
-package com.example.after.repository;
+package com.example.repository;
 
-import com.example.after.model.MessageDevice;
-import com.example.after.model.constant.MessageStatus;
+import com.example.model.MessageDevice;
+import com.example.model.constant.MessageStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

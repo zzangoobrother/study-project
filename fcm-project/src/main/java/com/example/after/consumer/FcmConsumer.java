@@ -16,6 +16,7 @@ import java.util.Objects;
 public class FcmConsumer implements Runnable {
 
     private final FcmSend fcmSend;
+    private final Queue queue;
 
     @PostConstruct
     public void init() {
@@ -32,8 +33,7 @@ public class FcmConsumer implements Runnable {
     }
 
     private void consumer() {
-        log.info("consumer start");
-        FcmMessage fcmMessage = Queue.get();
+        FcmMessage fcmMessage = queue.get();
 
         if (!Objects.isNull(fcmMessage)) {
             fcmSend.send(fcmMessage);

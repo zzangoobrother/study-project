@@ -12,7 +12,7 @@ public class FcmSend {
 
     private final FcmClient fcmClient;
 
-    public FcmSend(@Qualifier("testFcmClient") FcmClient fcmClient) {
+    public FcmSend(@Qualifier("afterFcmClient") FcmClient fcmClient) {
         this.fcmClient = fcmClient;
     }
 

@@ -1,5 +1,6 @@
 package com.example.before.fcm;
 
+import com.example.after.fcm.CustomThreadManager;
 import com.example.config.properties.FcmProperties;
 import com.example.dto.FcmMulticastMessage;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -38,7 +39,9 @@ public class FcmClient {
                             GoogleCredentials
                                     .fromStream(new ClassPathResource(fcmProperties.serviceAccountFile()).getInputStream())
                                     .createScoped(Arrays.asList(AUTH_URL))
-                    ).build();
+                    )
+                    .setThreadManager(new CustomThreadManager())
+                    .build();
 
             firebaseApp = FirebaseApp.initializeApp(options, "before");
         } catch (IOException e) {
@@ -49,7 +52,7 @@ public class FcmClient {
     // 1 : N 푸쉬 전송
     public void send(FcmMulticastMessage fcmMulticastMessage) {
         List<String> tokens = fcmMulticastMessage.token();
-        List<List<String>> tokenPartition = Lists.partition(tokens, tokens.size() / 1000 + 1);
+        List<List<String>> tokenPartition = Lists.partition(tokens, 500);
         List<MulticastMessage> multicastMessages = tokenPartition.stream()
                 .map(it -> createMulticastMessage(it, fcmMulticastMessage.notification().title(), fcmMulticastMessage.notification().body(), fcmMulticastMessage.notification().image(), fcmMulticastMessage.options()))
                 .toList();

@@ -2,6 +2,8 @@ package com.example.before.controller;
 
 import com.example.before.fcm.FcmClient;
 import com.example.dto.FcmMulticastMessage;
+import com.example.model.Device;
+import com.example.repository.DeviceRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -16,9 +18,11 @@ import java.util.Map;
 public class FcmTestController {
 
     private final FcmClient fcmClient;
+    private final DeviceRepository deviceRepository;
 
-    public FcmTestController(FcmClient fcmClient) {
+    public FcmTestController(FcmClient fcmClient, DeviceRepository deviceRepository) {
         this.fcmClient = fcmClient;
+        this.deviceRepository = deviceRepository;
     }
 
     @GetMapping("/api/v1/before/fcm/test")
@@ -26,7 +30,7 @@ public class FcmTestController {
         Map<String, String> options = new HashMap<>();
         options.put("TYPE", "test");
 
-        List<String> tokens = createdToken();
+        List<String> tokens = deviceRepository.findAll().stream().map(Device::getToken).toList();
         log.info("token size : {}", tokens.size());
         fcmClient.send(FcmMulticastMessage.builder()
                 .notification(FcmMulticastMessage.Notification.builder()

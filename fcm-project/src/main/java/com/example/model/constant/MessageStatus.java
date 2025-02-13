@@ -1,4 +1,4 @@
-package com.example.after.model.constant;
+package com.example.model.constant;
 
 public enum MessageStatus {
     WAITING("대기"),

@@ -54,14 +54,16 @@ public class AfterFcmClient implements FcmClient {
     @Override
     public BatchResponse send(FcmMulticastMessage fcmMulticastMessage) {
         List<String> tokens = fcmMulticastMessage.token();
-        List<List<String>> tokenPartition = Lists.partition(tokens, 50);
+        List<List<String>> tokenPartition = Lists.partition(tokens, 500);
 
-        MulticastMessage multicastMessage = createMulticastMessage(fcmMulticastMessage.token(), fcmMulticastMessage.notification().title(), fcmMulticastMessage.notification().body(), fcmMulticastMessage.notification().image(), fcmMulticastMessage.options());
+        for (List<String> token : tokenPartition) {
+            MulticastMessage multicastMessage = createMulticastMessage(token, fcmMulticastMessage.notification().title(), fcmMulticastMessage.notification().body(), fcmMulticastMessage.notification().image(), fcmMulticastMessage.options());
 
-        try {
-            return FirebaseMessaging.getInstance(FirebaseApp.getInstance()).sendEachForMulticast(multicastMessage);
-        } catch (FirebaseMessagingException e) {
-            log.error("error");
+            try {
+                return FirebaseMessaging.getInstance(FirebaseApp.getInstance("after")).sendEachForMulticast(multicastMessage);
+            } catch (FirebaseMessagingException e) {
+                log.error("error");
+            }
         }
 
         return null;

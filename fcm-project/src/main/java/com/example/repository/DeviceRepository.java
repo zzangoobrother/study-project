@@ -1,6 +1,6 @@
-package com.example.after.repository;
+package com.example.repository;
 
-import com.example.after.model.Device;
+import com.example.model.Device;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DeviceRepository extends JpaRepository<Device, Long> {

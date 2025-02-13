@@ -1,6 +1,6 @@
-package com.example.after.model;
+package com.example.model;
 
-import com.example.after.model.constant.MessageStatus;
+import com.example.model.constant.MessageStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;

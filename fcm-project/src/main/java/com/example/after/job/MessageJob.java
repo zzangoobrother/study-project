@@ -1,13 +1,13 @@
 package com.example.after.job;
 
 import com.example.after.fcm.AfterFcmClient;
-import com.example.after.model.Device;
-import com.example.after.model.Message;
-import com.example.after.model.MessageDevice;
-import com.example.after.model.constant.MessageStatus;
-import com.example.after.repository.DeviceRepository;
-import com.example.after.repository.MessageDeviceRepository;
-import com.example.after.repository.MessageRepository;
+import com.example.model.Device;
+import com.example.model.Message;
+import com.example.model.MessageDevice;
+import com.example.model.constant.MessageStatus;
+import com.example.repository.DeviceRepository;
+import com.example.repository.MessageDeviceRepository;
+import com.example.repository.MessageRepository;
 import com.example.dto.FcmMulticastMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;

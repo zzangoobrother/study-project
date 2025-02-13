@@ -2,14 +2,15 @@ package com.example.after.service;
 
 import com.example.after.fcm.FcmClient;
 import com.example.after.fcm.FcmSend;
-import com.example.after.model.Device;
-import com.example.after.model.Message;
-import com.example.after.model.MessageDevice;
-import com.example.after.model.constant.MessageStatus;
-import com.example.after.repository.DeviceRepository;
-import com.example.after.repository.MessageDeviceRepository;
-import com.example.after.repository.MessageRepository;
-import com.example.dto.FcmMulticastMessage;
+import com.example.after.queue.Queue;
+import com.example.dto.FcmMessage;
+import com.example.model.Device;
+import com.example.model.Message;
+import com.example.model.MessageDevice;
+import com.example.model.constant.MessageStatus;
+import com.example.repository.DeviceRepository;
+import com.example.repository.MessageDeviceRepository;
+import com.example.repository.MessageRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -29,13 +30,15 @@ public class AfterFcmTestService {
     private final MessageDeviceRepository messageDeviceRepository;
     private final FcmClient fcmClient;
     private final FcmSend fcmSend;
+    private final Queue queue;
 
-    public AfterFcmTestService(DeviceRepository deviceRepository, MessageRepository messageRepository, MessageDeviceRepository messageDeviceRepository, @Qualifier("testFcmClient") FcmClient fcmClient, FcmSend fcmSend) {
+    public AfterFcmTestService(DeviceRepository deviceRepository, MessageRepository messageRepository, MessageDeviceRepository messageDeviceRepository, @Qualifier("testFcmClient") FcmClient fcmClient, FcmSend fcmSend, Queue queue) {
         this.deviceRepository = deviceRepository;
         this.messageRepository = messageRepository;
         this.messageDeviceRepository = messageDeviceRepository;
         this.fcmClient = fcmClient;
         this.fcmSend = fcmSend;
+        this.queue = queue;
     }
 
     @Transactional
@@ -59,32 +62,19 @@ public class AfterFcmTestService {
                 .toList();
         messageDeviceRepository.saveAll(messageDevices);
 
-//        List<FcmMessage> fcmMessages = devices.stream()
-//                .map(it -> FcmMessage.builder()
-//                        .notification(FcmMessage.Notification.builder()
-//                                .title("test title")
-//                                .body("test content")
-//                                .build())
-//                        .token(it.getToken())
-//                        .options(options)
-//                        .build())
-//                .toList();
-
-        List<String> tokens = devices.stream()
-                .map(Device::getToken)
+        List<FcmMessage> fcmMessages = devices.stream()
+                .map(it -> FcmMessage.builder()
+                        .notification(FcmMessage.Notification.builder()
+                                .title("test title")
+                                .body("test content")
+                                .build())
+                        .token(it.getToken())
+                        .options(options)
+                        .build())
                 .toList();
 
-        FcmMulticastMessage fcmMulticastMessage = FcmMulticastMessage.builder()
-                .notification(FcmMulticastMessage.Notification.builder()
-                        .title("test title")
-                        .body("test content")
-                        .build())
-                .token(tokens)
-                .options(options)
-                .build();
-        fcmSend.send(fcmMulticastMessage);
 
-//        Queue.addAll(fcmMessages);
+        queue.addAll(fcmMessages);
 
 //        log.info("queue size : {}", Queue.size());
     }
