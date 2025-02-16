@@ -3,7 +3,6 @@ package com.example.after.fcm;
 import com.example.config.properties.FcmProperties;
 import com.example.dto.FcmMulticastMessage;
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.common.collect.Lists;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.*;
@@ -53,17 +52,12 @@ public class AfterFcmClient implements FcmClient {
     // 1 : N 푸쉬 전송
     @Override
     public BatchResponse send(FcmMulticastMessage fcmMulticastMessage) {
-        List<String> tokens = fcmMulticastMessage.token();
-        List<List<String>> tokenPartition = Lists.partition(tokens, 500);
+        MulticastMessage multicastMessage = createMulticastMessage(fcmMulticastMessage.token(), fcmMulticastMessage.notification().title(), fcmMulticastMessage.notification().body(), fcmMulticastMessage.notification().image(), fcmMulticastMessage.options());
 
-        for (List<String> token : tokenPartition) {
-            MulticastMessage multicastMessage = createMulticastMessage(token, fcmMulticastMessage.notification().title(), fcmMulticastMessage.notification().body(), fcmMulticastMessage.notification().image(), fcmMulticastMessage.options());
-
-            try {
-                return FirebaseMessaging.getInstance(FirebaseApp.getInstance("after")).sendEachForMulticast(multicastMessage);
-            } catch (FirebaseMessagingException e) {
-                log.error("error");
-            }
+        try {
+            return FirebaseMessaging.getInstance(FirebaseApp.getInstance("after")).sendEachForMulticast(multicastMessage);
+        } catch (FirebaseMessagingException e) {
+            log.error("error");
         }
 
         return null;

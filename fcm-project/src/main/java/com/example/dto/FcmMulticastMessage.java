@@ -10,6 +10,16 @@ public record FcmMulticastMessage(
         Map<String, String> options,
         List<String> token
 ) {
+    public FcmMulticastMessage toFcmMulticastMessage(FcmMulticastMessage fcmMulticastMessage, List<String> tokens) {
+        return FcmMulticastMessage.builder()
+                .notification(FcmMulticastMessage.Notification.builder()
+                        .title("test title")
+                        .body("test content")
+                        .build())
+                .token(tokens)
+                .options(fcmMulticastMessage.options())
+                .build();
+    }
 
     @Builder
     public FcmMulticastMessage {}

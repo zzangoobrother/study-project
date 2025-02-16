@@ -8,4 +8,6 @@ import java.util.List;
 
 public interface MessageDeviceRepository extends JpaRepository<MessageDevice, Long> {
     List<MessageDevice> findAllByMessageStatusAndRetryCountLessThan(MessageStatus messageStatus, int replyCount);
+
+    List<MessageDevice> findByMessageId(Long messageId);
 }

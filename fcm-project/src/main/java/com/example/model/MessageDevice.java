@@ -6,6 +6,10 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.util.Map;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -29,12 +33,17 @@ public class MessageDevice {
     @Column(name = "retry_count", nullable = false)
     private int retryCount;
 
+    @Column(name = "options", columnDefinition = "json")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String, String> option;
+
     @Builder
-    public MessageDevice(Long messageId, Long deviceId, MessageStatus messageStatus, int retryCount) {
+    public MessageDevice(Long messageId, Long deviceId, MessageStatus messageStatus, int retryCount, Map<String, String> option) {
         this.messageId = messageId;
         this.deviceId = deviceId;
         this.messageStatus = messageStatus;
         this.retryCount = retryCount;
+        this.option = option;
     }
 }
 

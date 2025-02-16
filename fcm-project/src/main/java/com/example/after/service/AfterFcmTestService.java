@@ -3,7 +3,6 @@ package com.example.after.service;
 import com.example.after.fcm.FcmClient;
 import com.example.after.fcm.FcmSend;
 import com.example.after.queue.Queue;
-import com.example.dto.FcmMessage;
 import com.example.model.Device;
 import com.example.model.Message;
 import com.example.model.MessageDevice;
@@ -50,7 +49,7 @@ public class AfterFcmTestService {
         List<Device> devices = deviceRepository.findAll();
         log.info("token size : {}", devices.size());
 
-        Message message = messageRepository.save(new Message(title, content, options));
+        Message message = messageRepository.save(new Message(title, content));
 
         List<MessageDevice> messageDevices = devices.stream()
                 .map(it -> MessageDevice.builder()
@@ -58,23 +57,12 @@ public class AfterFcmTestService {
                         .deviceId(it.getId())
                         .messageStatus(MessageStatus.WAITING)
                         .retryCount(0)
+                        .option(options)
                         .build())
                 .toList();
         messageDeviceRepository.saveAll(messageDevices);
 
-        List<FcmMessage> fcmMessages = devices.stream()
-                .map(it -> FcmMessage.builder()
-                        .notification(FcmMessage.Notification.builder()
-                                .title("test title")
-                                .body("test content")
-                                .build())
-                        .token(it.getToken())
-                        .options(options)
-                        .build())
-                .toList();
-
-
-        queue.addAll(fcmMessages);
+        queue.add(message);
 
 //        log.info("queue size : {}", Queue.size());
     }

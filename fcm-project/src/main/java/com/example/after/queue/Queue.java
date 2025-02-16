@@ -1,27 +1,22 @@
 package com.example.after.queue;
 
-import com.example.dto.FcmMessage;
+import com.example.model.Message;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.LinkedBlockingDeque;
 
 @Slf4j
 @Component
 public class Queue {
-    private final BlockingQueue<FcmMessage> queue = new LinkedBlockingQueue<>();
+    private final BlockingDeque<Message> queue = new LinkedBlockingDeque<>();
 
-    public void add(FcmMessage message) {
+    public void add(Message message) {
         queue.offer(message);
     }
 
-    public void addAll(List<FcmMessage> messages) {
-        messages.forEach(queue::add);
-    }
-
-    public FcmMessage get() {
+    public Message get() {
         try {
             return queue.take();
         } catch (InterruptedException e) {

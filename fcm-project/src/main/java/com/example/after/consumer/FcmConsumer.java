@@ -1,8 +1,8 @@
 package com.example.after.consumer;
 
-import com.example.after.fcm.FcmSend;
 import com.example.after.queue.Queue;
-import com.example.dto.FcmMessage;
+import com.example.after.service.SendService;
+import com.example.model.Message;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +15,7 @@ import java.util.Objects;
 @Component
 public class FcmConsumer implements Runnable {
 
-    private final FcmSend fcmSend;
+    private final SendService sendService;
     private final Queue queue;
 
     @PostConstruct
@@ -33,10 +33,10 @@ public class FcmConsumer implements Runnable {
     }
 
     private void consumer() {
-        FcmMessage fcmMessage = queue.get();
+        Message message = queue.get();
 
-        if (!Objects.isNull(fcmMessage)) {
-            fcmSend.send(fcmMessage);
+        if (!Objects.isNull(message)) {
+            sendService.send(message);
         }
     }
 }
