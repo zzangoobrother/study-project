@@ -34,7 +34,7 @@ public class FcmConsumer implements Runnable {
 
     private void consumer() {
         Message message = queue.get();
-
+        log.info("consumer message : {}", message.getId());
         if (!Objects.isNull(message)) {
             sendService.send(message);
         }
