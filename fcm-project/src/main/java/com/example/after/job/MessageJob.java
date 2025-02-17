@@ -1,32 +1,29 @@
 package com.example.after.job;
 
-import com.example.after.fcm.AfterFcmClient;
-import com.example.model.Device;
-import com.example.model.Message;
-import com.example.model.MessageDevice;
-import com.example.model.constant.MessageStatus;
-import com.example.repository.DeviceRepository;
-import com.example.repository.MessageDeviceRepository;
-import com.example.repository.MessageRepository;
-import com.example.dto.FcmMulticastMessage;
-import lombok.RequiredArgsConstructor;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import com.example.after.queue.Queue;
+import com.example.model.Message;
+import com.example.model.MessageDevice;
+import com.example.model.constant.MessageStatus;
+import com.example.repository.MessageDeviceRepository;
+import com.example.repository.MessageRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 @Component
 public class MessageJob {
 
     private final MessageRepository messageRepository;
-    private final DeviceRepository deviceRepository;
     private final MessageDeviceRepository messageDeviceRepository;
-    private final AfterFcmClient fcmClient;
+    private final Queue queue;
 
     // 알림 실패 재전송
     @Scheduled(fixedDelay = 60000)
@@ -37,23 +34,7 @@ public class MessageJob {
                 .collect(Collectors.groupingBy(MessageDevice::getMessageId));
 
         Set<Long> messageIds = messageDeviceMap.keySet();
-        Map<Long, Message> messageMap = messageRepository.findAllById(messageIds).stream()
-                .collect(Collectors.toMap(Message::getId, Function.identity()));
-
-        messageDeviceMap.values().forEach(it -> {
-            Long messageId = it.get(0).getMessageId();
-
-            List<Long> deviceIds = it.stream().map(MessageDevice::getDeviceId).toList();
-            List<String> tokens = deviceRepository.findAllById(deviceIds).stream().map(Device::getToken).toList();
-
-            fcmClient.send(FcmMulticastMessage.builder()
-                    .notification(FcmMulticastMessage.Notification.builder()
-                            .title(messageMap.get(messageId).getTitle())
-                            .body(messageMap.get(messageId).getContent())
-                            .build())
-                    .token(tokens)
-                    .options(messageMap.get(messageId).getOption())
-                    .build());
-        });
+        List<Message> messages = messageRepository.findAllById(messageIds);
+        messages.forEach(queue::add);
     }
 }
