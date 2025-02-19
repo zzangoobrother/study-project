@@ -23,7 +23,7 @@ import java.util.Map;
 @Component
 public class FcmClient {
 
-    private static final String AUTH_URL = "firebase-auth-url";
+    private static final String AUTH_URL = "https://www.googleapis.com/auth/cloud-platform";
     private FirebaseApp firebaseApp;
     private final FcmProperties fcmProperties;
 

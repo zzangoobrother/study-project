@@ -15,8 +15,8 @@ spring:
         dialect: org.hibernate.dialect.MySQL8Dialect
 
 fcm:
-  service-account-file: fcm-project.json
-  project-id: fcm-project-id
+  service-account-file: alone-test-f8c31-firebase-adminsdk-fbsvc-586c070321.json
+  project-id: alone-test
 
 management:
   endpoints:

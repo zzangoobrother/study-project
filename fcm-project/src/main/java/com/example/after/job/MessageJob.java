@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,11 @@ public class MessageJob {
         Set<Long> messageIds = messageDeviceMap.keySet();
         log.info("messageid : {}", messageIds.size());
         List<Message> messages = messageRepository.findAllById(messageIds);
+
+        if (CollectionUtils.isEmpty(messages)) {
+            return;
+        }
+
         log.info("message : {}", messages.get(0).getId());
         messages.forEach(queue::add);
     }
