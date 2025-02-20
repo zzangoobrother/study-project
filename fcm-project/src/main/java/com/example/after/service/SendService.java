@@ -58,32 +58,37 @@ public class SendService {
             batchResponseList.addAll(batchResponses);
         });
 
-        log.info("batch : {}", batchResponseList.size());
-        for (BatchResponse batchResponse : batchResponseList) {
-            List<SendResponse> sendResponses = batchResponse.getResponses();
-            for (int i = 0; i < sendResponses.size(); i++) {
-                MessageDevice messageDevice = messageDevices.get(i);
-                SendResponse sendResponse = sendResponses.get(i);
-                if (sendResponse.isSuccessful()) {
-                    messageDevice.completed();
-                    continue;
-                }
+        List<SendResponse> sendResponses = new ArrayList<>();
+        batchResponseList.forEach(it -> {
+            for (SendResponse sendResponse : it.getResponses()) {
+                sendResponses.add(sendResponse);
+            }
+        });
 
-                MessagingErrorCode messagingErrorCode = sendResponse.getException().getMessagingErrorCode();
-                log.info("messagingErrorCode {} ", messagingErrorCode);
-                // 재시도 처리
-                if (MessagingErrorCode.QUOTA_EXCEEDED == messagingErrorCode
-                        || MessagingErrorCode.UNAVAILABLE == messagingErrorCode
-                        || MessagingErrorCode.INTERNAL == messagingErrorCode) {
-                    log.info("재처리 {}", sendResponse.isSuccessful());
-                    messageDevice.waiting();
-                }
-                // 없는 토큰으로 실패
-                else if (MessagingErrorCode.UNREGISTERED == messagingErrorCode
-                        || MessagingErrorCode.INVALID_ARGUMENT == messagingErrorCode) {
-                    log.info("실패 {}", sendResponse.isSuccessful());
-                    messageDevice.cancel();
-                }
+        log.info("batch : {}", batchResponseList.size());
+        for (int i = 0; i < sendResponses.size(); i++) {
+            MessageDevice messageDevice = messageDevices.get(i);
+            log.info("messageDeviceId : {}", messageDevice.getId());
+            SendResponse sendResponse = sendResponses.get(i);
+            if (sendResponse.isSuccessful()) {
+                messageDevice.completed();
+                continue;
+            }
+
+            MessagingErrorCode messagingErrorCode = sendResponse.getException().getMessagingErrorCode();
+            log.info("messagingErrorCode {} ", messagingErrorCode);
+            // 재시도 처리
+            if (MessagingErrorCode.QUOTA_EXCEEDED == messagingErrorCode
+                    || MessagingErrorCode.UNAVAILABLE == messagingErrorCode
+                    || MessagingErrorCode.INTERNAL == messagingErrorCode) {
+                log.info("재처리 {}", sendResponse.isSuccessful());
+                messageDevice.waiting();
+            }
+            // 없는 토큰으로 실패
+            else if (MessagingErrorCode.UNREGISTERED == messagingErrorCode
+                    || MessagingErrorCode.INVALID_ARGUMENT == messagingErrorCode) {
+                log.info("실패 {}", sendResponse.isSuccessful());
+                messageDevice.cancel();
             }
         }
     }

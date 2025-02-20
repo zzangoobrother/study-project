@@ -1,6 +1,6 @@
 package com.example.after.consumer;
 
-import com.example.after.queue.Queue;
+import com.example.after.service.AsyncMultiProcessor;
 import com.example.after.service.SendService;
 import com.example.model.Message;
 import jakarta.annotation.PostConstruct;
@@ -12,28 +12,18 @@ import java.util.Objects;
 
 @Slf4j
 @RequiredArgsConstructor
-// @Component
-public class FcmConsumer implements Runnable {
+@Component
+public class MultiFcmConsumer {
 
+    private final AsyncMultiProcessor asyncMultiProcessor;
     private final SendService sendService;
-    private final Queue queue;
 
     @PostConstruct
     public void init() {
-        Thread thread = new Thread(this);
-        thread.setDaemon(true);
-        thread.start();
+        asyncMultiProcessor.init(this::consumer);
     }
 
-    @Override
-    public void run() {
-        while (true) {
-            consumer();
-        }
-    }
-
-    private void consumer() {
-        Message message = queue.get();
+    private void consumer(Message message) {
         log.info("consumer message : {}", message.getId());
         if (!Objects.isNull(message)) {
             sendService.send(message);

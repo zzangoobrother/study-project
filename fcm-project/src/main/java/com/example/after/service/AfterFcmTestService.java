@@ -30,14 +30,16 @@ public class AfterFcmTestService {
     private final FcmClient fcmClient;
     private final FcmSend fcmSend;
     private final Queue queue;
+    private final AsyncMultiProcessor asyncMultiProcessor;
 
-    public AfterFcmTestService(DeviceRepository deviceRepository, MessageRepository messageRepository, MessageDeviceRepository messageDeviceRepository, @Qualifier("testFcmClient") FcmClient fcmClient, FcmSend fcmSend, Queue queue) {
+    public AfterFcmTestService(DeviceRepository deviceRepository, MessageRepository messageRepository, MessageDeviceRepository messageDeviceRepository, @Qualifier("testFcmClient") FcmClient fcmClient, FcmSend fcmSend, Queue queue, AsyncMultiProcessor asyncMultiProcessor) {
         this.deviceRepository = deviceRepository;
         this.messageRepository = messageRepository;
         this.messageDeviceRepository = messageDeviceRepository;
         this.fcmClient = fcmClient;
         this.fcmSend = fcmSend;
         this.queue = queue;
+        this.asyncMultiProcessor = asyncMultiProcessor;
     }
 
     @Transactional
@@ -62,7 +64,9 @@ public class AfterFcmTestService {
                 .toList();
         messageDeviceRepository.saveAll(messageDevices);
 
-        queue.add(message);
+        // queue.add(message);
+
+        asyncMultiProcessor.produce(message);
 
 //        log.info("queue size : {}", Queue.size());
     }

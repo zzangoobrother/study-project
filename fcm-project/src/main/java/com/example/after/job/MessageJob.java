@@ -1,6 +1,7 @@
 package com.example.after.job;
 
 import com.example.after.queue.Queue;
+import com.example.after.service.AsyncMultiProcessor;
 import com.example.model.Message;
 import com.example.model.MessageDevice;
 import com.example.model.constant.MessageStatus;
@@ -24,10 +25,11 @@ public class MessageJob {
 
     private final MessageRepository messageRepository;
     private final MessageDeviceRepository messageDeviceRepository;
-    private final Queue queue;
+    // private final Queue queue;
+    private final AsyncMultiProcessor asyncMultiProcessor;
 
     // 알림 실패 재전송
-    @Scheduled(fixedDelay = 60000)
+    // @Scheduled(fixedDelay = 10000)
     public void excutor() {
         List<MessageDevice> messageDevices = messageDeviceRepository.findAllByMessageStatusAndRetryCountLessThan(MessageStatus.WAITING, 5);
         log.info("scheduled {}", messageDevices.size());
@@ -43,6 +45,8 @@ public class MessageJob {
         }
 
         log.info("message : {}", messages.get(0).getId());
-        messages.forEach(queue::add);
+        // messages.forEach(queue::add);
+
+        messages.forEach(asyncMultiProcessor::produce);
     }
 }
