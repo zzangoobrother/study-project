@@ -39,7 +39,7 @@ public class CatalogController {
     }
 
     @PostMapping("/catalog/products/{productId}/decreaseStockCount")
-    public Product getProductBySellerId(@PathVariable Long productId, @RequestBody DecreaseStockCountDto dto) {
+    public Product decreaseStockCount(@PathVariable Long productId, @RequestBody DecreaseStockCountDto dto) {
         return catalogService.decreaseStockCount(productId, dto.decreaseCount());
     }
 }
