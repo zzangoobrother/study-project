@@ -1,7 +1,12 @@
-package com.example;
+package com.example.demo.service;
+
+import com.example.demo.entity.Book;
+import com.example.demo.repository.BookRepository;
+import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
+@Service
 public class LibraryService {
 
     private final BookRepository bookRepository;
@@ -14,15 +19,15 @@ public class LibraryService {
 
     public boolean isBookAvailable(String isbn) {
         Optional<Book> book = bookRepository.findBookByIsbn(isbn);
-        return book.map(Book::available).orElse(false);
+        return book.map(Book::isAvailable).orElse(false);
     }
 
     public Optional<String> borrowBook(String isbn) {
         return bookRepository.findBookByIsbn(isbn)
-                .filter(Book::available)
+                .filter(Book::isAvailable)
                 .map(book -> {
-                    pushService.notification("대출 완료 : " + book.title());
-                    return book.title();
+                    pushService.notification("대출 완료 : " + book.getTitle());
+                    return book.getTitle();
                 });
     }
 }
