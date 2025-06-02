@@ -51,7 +51,7 @@ public class MessageHandler extends TextWebSocketHandler {
         try {
             Message receivedMessage = objectMapper.readValue(payload, Message.class);
             webSocketSessionManager.getSessions().forEach(participantSession -> {
-                if (!senderSession.getId().equals(participantSession)) {
+                if (!senderSession.getId().equals(participantSession.getId())) {
                     sendMessage(participantSession, receivedMessage);
                 }
             });
