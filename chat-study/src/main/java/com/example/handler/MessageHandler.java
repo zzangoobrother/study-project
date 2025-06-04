@@ -1,6 +1,8 @@
 package com.example.handler;
 
 import com.example.dto.Message;
+import com.example.entity.MessageEntity;
+import com.example.repository.MessageRepository;
 import com.example.session.WebSocketSessionManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Nonnull;
@@ -19,9 +21,11 @@ public class MessageHandler extends TextWebSocketHandler {
     private static final Logger log = LoggerFactory.getLogger(MessageHandler.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final WebSocketSessionManager webSocketSessionManager;
+    private final MessageRepository messageRepository;
 
-    public MessageHandler(WebSocketSessionManager webSocketSessionManager) {
+    public MessageHandler(WebSocketSessionManager webSocketSessionManager, MessageRepository messageRepository) {
         this.webSocketSessionManager = webSocketSessionManager;
+        this.messageRepository = messageRepository;
     }
 
     @Override
@@ -50,6 +54,8 @@ public class MessageHandler extends TextWebSocketHandler {
         String payload = message.getPayload();
         try {
             Message receivedMessage = objectMapper.readValue(payload, Message.class);
+            messageRepository.save(new MessageEntity(receivedMessage.username(), receivedMessage.content()));
+
             webSocketSessionManager.getSessions().forEach(participantSession -> {
                 if (!senderSession.getId().equals(participantSession.getId())) {
                     sendMessage(participantSession, receivedMessage);
