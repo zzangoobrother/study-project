@@ -4,8 +4,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class SpringSecuritySessionApplication {
+public class ChatSystemSecuritySessionApplication {
     public static void main(String[] args) {
-        SpringApplication.run(SpringSecuritySessionApplication.class, args);
+        SpringApplication.run(ChatSystemSecuritySessionApplication.class, args);
     }
 }
