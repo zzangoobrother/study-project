@@ -1,4 +1,4 @@
-package com.example.dto;
+package com.example.dto.domain;
 
 public record Message(
         String username,

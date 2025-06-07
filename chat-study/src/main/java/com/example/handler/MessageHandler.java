@@ -1,8 +1,13 @@
 package com.example.handler;
 
-import com.example.dto.Message;
+import com.example.contants.Constants;
+import com.example.dto.domain.Message;
+import com.example.dto.websocket.inbound.BaseRequest;
+import com.example.dto.websocket.inbound.KeepAliveRequest;
+import com.example.dto.websocket.inbound.MessageRequest;
 import com.example.entity.MessageEntity;
 import com.example.repository.MessageRepository;
+import com.example.service.SessionService;
 import com.example.session.WebSocketSessionManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Nonnull;
@@ -20,10 +25,12 @@ public class MessageHandler extends TextWebSocketHandler {
 
     private static final Logger log = LoggerFactory.getLogger(MessageHandler.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final SessionService sessionService;
     private final WebSocketSessionManager webSocketSessionManager;
     private final MessageRepository messageRepository;
 
-    public MessageHandler(WebSocketSessionManager webSocketSessionManager, MessageRepository messageRepository) {
+    public MessageHandler(SessionService sessionService, WebSocketSessionManager webSocketSessionManager, MessageRepository messageRepository) {
+        this.sessionService = sessionService;
         this.webSocketSessionManager = webSocketSessionManager;
         this.messageRepository = messageRepository;
     }
@@ -50,17 +57,23 @@ public class MessageHandler extends TextWebSocketHandler {
 
     @Override
     protected void handleTextMessage(WebSocketSession senderSession, @Nonnull TextMessage message) throws Exception {
-        log.info("Received TextMessage : [{}] from {}", message, senderSession.getId());
         String payload = message.getPayload();
+        log.info("Received TextMessage : [{}] from {}", payload, senderSession.getId());
         try {
-            Message receivedMessage = objectMapper.readValue(payload, Message.class);
-            messageRepository.save(new MessageEntity(receivedMessage.username(), receivedMessage.content()));
+            BaseRequest baseRequest = objectMapper.readValue(payload, BaseRequest.class);
 
-            webSocketSessionManager.getSessions().forEach(participantSession -> {
-                if (!senderSession.getId().equals(participantSession.getId())) {
-                    sendMessage(participantSession, receivedMessage);
-                }
-            });
+            if (baseRequest instanceof MessageRequest messageRequest) {
+                Message receivedMessage = new Message(messageRequest.getUsername(), messageRequest.getContent());
+                messageRepository.save(new MessageEntity(receivedMessage.username(), receivedMessage.content()));
+
+                webSocketSessionManager.getSessions().forEach(participantSession -> {
+                    if (!senderSession.getId().equals(participantSession.getId())) {
+                        sendMessage(participantSession, receivedMessage);
+                    }
+                });
+            } else if (baseRequest instanceof KeepAliveRequest) {
+                sessionService.refreshTTL((String) senderSession.getAttributes().get(Constants.HTTP_SESSION_ID.getValue()));
+            }
         } catch (Exception ex) {
             String errorMessage = "유효한 프로토콜이 아닙니다.";
             log.error("errorMessage payload : {} from {}", payload, senderSession.getId());
