@@ -1,6 +1,6 @@
 package com.example.handler;
 
-import com.example.dto.Message;
+import com.example.dto.domain.Message;
 import com.example.service.TerminalService;
 import com.example.util.JsonUtil;
 import jakarta.websocket.MessageHandler;

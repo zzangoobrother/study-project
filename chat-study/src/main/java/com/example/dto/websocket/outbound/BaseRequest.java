@@ -1,4 +1,4 @@
-package com.example.dto.websocket.inbound;
+package com.example.dto.websocket.outbound;
 
 import com.example.contants.MessageType;
 import com.fasterxml.jackson.annotation.JsonSubTypes;

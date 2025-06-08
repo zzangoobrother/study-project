@@ -2,9 +2,9 @@ package com.example.handler;
 
 import com.example.contants.Constants;
 import com.example.dto.domain.Message;
-import com.example.dto.websocket.inbound.BaseRequest;
-import com.example.dto.websocket.inbound.KeepAliveRequest;
-import com.example.dto.websocket.inbound.MessageRequest;
+import com.example.dto.websocket.outbound.BaseRequest;
+import com.example.dto.websocket.outbound.KeepAliveRequest;
+import com.example.dto.websocket.outbound.MessageRequest;
 import com.example.entity.MessageEntity;
 import com.example.repository.MessageRepository;
 import com.example.service.SessionService;

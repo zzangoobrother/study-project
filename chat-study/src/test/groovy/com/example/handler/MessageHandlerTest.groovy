@@ -1,7 +1,7 @@
 package com.example.handler
 
 import com.example.ChatStudyApplication
-import com.example.dto.websocket.inbound.MessageRequest
+import com.example.dto.websocket.outbound.MessageRequest
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
