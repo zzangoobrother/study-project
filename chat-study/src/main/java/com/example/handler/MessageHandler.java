@@ -2,6 +2,7 @@ package com.example.handler;
 
 import com.example.constants.Constants;
 import com.example.dto.domain.Message;
+import com.example.dto.domain.UserId;
 import com.example.dto.websocket.inbound.BaseRequest;
 import com.example.dto.websocket.inbound.KeepAliveRequest;
 import com.example.dto.websocket.inbound.WriteMessageRequest;
@@ -9,7 +10,7 @@ import com.example.entity.MessageEntity;
 import com.example.repository.MessageRepository;
 import com.example.service.SessionService;
 import com.example.session.WebSocketSessionManager;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.util.JsonUtil;
 import jakarta.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,12 +25,13 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 public class MessageHandler extends TextWebSocketHandler {
 
     private static final Logger log = LoggerFactory.getLogger(MessageHandler.class);
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final JsonUtil jsonUtil;
     private final SessionService sessionService;
     private final WebSocketSessionManager webSocketSessionManager;
     private final MessageRepository messageRepository;
 
-    public MessageHandler(SessionService sessionService, WebSocketSessionManager webSocketSessionManager, MessageRepository messageRepository) {
+    public MessageHandler(JsonUtil jsonUtil, SessionService sessionService, WebSocketSessionManager webSocketSessionManager, MessageRepository messageRepository) {
+        this.jsonUtil = jsonUtil;
         this.sessionService = sessionService;
         this.webSocketSessionManager = webSocketSessionManager;
         this.messageRepository = messageRepository;
@@ -40,19 +42,22 @@ public class MessageHandler extends TextWebSocketHandler {
         log.info("ConnectionEstablished : {}", session.getId());
 
         ConcurrentWebSocketSessionDecorator concurrentWebSocketSessionDecorator = new ConcurrentWebSocketSessionDecorator(session, 5000, 100 * 1024);
-        webSocketSessionManager.storeSession(concurrentWebSocketSessionDecorator);
+        UserId userId = (UserId) session.getAttributes().get(Constants.USER_ID.getValue());
+        webSocketSessionManager.putSession(userId, concurrentWebSocketSessionDecorator);
     }
 
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
         log.info("TransportError : [{}] from {}", exception.getMessage(), session.getId());
-        webSocketSessionManager.terminateSession(session.getId());
+        UserId userId = (UserId) session.getAttributes().get(Constants.USER_ID.getValue());
+        webSocketSessionManager.closeSession(userId);
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, @Nonnull CloseStatus status) throws Exception {
         log.info("ConnectionEstablished : [{}] from {}", status, session.getId());
-        webSocketSessionManager.terminateSession(session.getId());
+        UserId userId = (UserId) session.getAttributes().get(Constants.USER_ID.getValue());
+        webSocketSessionManager.closeSession(userId);
     }
 
     @Override
@@ -60,7 +65,7 @@ public class MessageHandler extends TextWebSocketHandler {
         String payload = message.getPayload();
         log.info("Received TextMessage : [{}] from {}", payload, senderSession.getId());
         try {
-            BaseRequest baseRequest = objectMapper.readValue(payload, BaseRequest.class);
+            BaseRequest baseRequest = jsonUtil.fromJson(payload, BaseRequest.class).get();
 
             if (baseRequest instanceof WriteMessageRequest messageRequest) {
                 Message receivedMessage = new Message(messageRequest.getUsername(), messageRequest.getContent());
@@ -78,16 +83,6 @@ public class MessageHandler extends TextWebSocketHandler {
             String errorMessage = "유효한 프로토콜이 아닙니다.";
             log.error("errorMessage payload : {} from {}", payload, senderSession.getId());
             sendMessage(senderSession, new Message("system", errorMessage));
-        }
-    }
-
-    private void sendMessage(WebSocketSession session, Message message) {
-        try {
-            String msg = objectMapper.writeValueAsString(message);
-            session.sendMessage(new TextMessage(msg));
-            log.info("send message : {} to {}", msg, session.getId());
-        } catch (Exception ex) {
-            log.error("메시지 전송 실패 to {} error : {}", session.getId(), ex.getMessage());
         }
     }
 }
