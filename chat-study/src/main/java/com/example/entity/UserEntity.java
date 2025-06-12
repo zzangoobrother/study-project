@@ -3,10 +3,11 @@ package com.example.entity;
 import jakarta.persistence.*;
 
 import java.util.Objects;
+import java.util.UUID;
 
 @Table(name = "message_user")
 @Entity
-public class MessageUserEntity extends BaseEntity {
+public class UserEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -19,11 +20,18 @@ public class MessageUserEntity extends BaseEntity {
     @Column(name = "password", nullable = false)
     private String password;
 
-    public MessageUserEntity() {}
+    @Column(name = "connection_invite_code", nullable = false)
+    private String connectionInviteCode;
 
-    public MessageUserEntity(String username, String password) {
+    @Column(name = "connection_count", nullable = false)
+    private int connectionCount;
+
+    public UserEntity() {}
+
+    public UserEntity(String username, String password) {
         this.username = username;
         this.password = password;
+        this.connectionInviteCode = UUID.randomUUID().toString().replace("-", "");
     }
 
     public Long getUserId() {
@@ -38,11 +46,23 @@ public class MessageUserEntity extends BaseEntity {
         return password;
     }
 
+    public String getConnectionInviteCode() {
+        return connectionInviteCode;
+    }
+
+    public int getConnectionCount() {
+        return connectionCount;
+    }
+
+    public void setConnectionCount(int connectionCount) {
+        this.connectionCount = connectionCount;
+    }
+
     @Override
     public boolean equals(Object object) {
         if (this == object) return true;
         if (object == null || getClass() != object.getClass()) return false;
-        MessageUserEntity that = (MessageUserEntity) object;
+        UserEntity that = (UserEntity) object;
         return Objects.equals(username, that.username);
     }
 

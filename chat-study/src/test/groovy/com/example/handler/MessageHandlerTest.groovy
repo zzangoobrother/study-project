@@ -1,7 +1,7 @@
 package com.example.handler
 
 import com.example.ChatStudyApplication
-import com.example.dto.websocket.outbound.MessageRequest
+import com.example.dto.websocket.inbound.WriteMessageRequest
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -44,9 +44,9 @@ class MessageHandlerTest extends Specification{
 
 
         when:
-        clientA.session.sendMessage(new TextMessage(objectMapper.writeValueAsString(new MessageRequest("clientA", "안녕하세요. A입니다."))))
-        clientB.session.sendMessage(new TextMessage(objectMapper.writeValueAsString(new MessageRequest("clientB", "안녕하세요. B입니다."))))
-        clientC.session.sendMessage(new TextMessage(objectMapper.writeValueAsString(new MessageRequest("clientC", "안녕하세요. C입니다."))))
+        clientA.session.sendMessage(new TextMessage(objectMapper.writeValueAsString(new WriteMessageRequest("clientA", "안녕하세요. A입니다."))))
+        clientB.session.sendMessage(new TextMessage(objectMapper.writeValueAsString(new WriteMessageRequest("clientB", "안녕하세요. B입니다."))))
+        clientC.session.sendMessage(new TextMessage(objectMapper.writeValueAsString(new WriteMessageRequest("clientC", "안녕하세요. C입니다."))))
 
         then:
         def resultA = clientA.queue.poll(1, TimeUnit.SECONDS) + clientA.queue.poll(1, TimeUnit.SECONDS)

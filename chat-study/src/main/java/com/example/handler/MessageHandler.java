@@ -1,10 +1,10 @@
 package com.example.handler;
 
-import com.example.contants.Constants;
+import com.example.constants.Constants;
 import com.example.dto.domain.Message;
-import com.example.dto.websocket.outbound.BaseRequest;
-import com.example.dto.websocket.outbound.KeepAliveRequest;
-import com.example.dto.websocket.outbound.MessageRequest;
+import com.example.dto.websocket.inbound.BaseRequest;
+import com.example.dto.websocket.inbound.KeepAliveRequest;
+import com.example.dto.websocket.inbound.WriteMessageRequest;
 import com.example.entity.MessageEntity;
 import com.example.repository.MessageRepository;
 import com.example.service.SessionService;
@@ -62,7 +62,7 @@ public class MessageHandler extends TextWebSocketHandler {
         try {
             BaseRequest baseRequest = objectMapper.readValue(payload, BaseRequest.class);
 
-            if (baseRequest instanceof MessageRequest messageRequest) {
+            if (baseRequest instanceof WriteMessageRequest messageRequest) {
                 Message receivedMessage = new Message(messageRequest.getUsername(), messageRequest.getContent());
                 messageRepository.save(new MessageEntity(receivedMessage.username(), receivedMessage.content()));
 

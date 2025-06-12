@@ -1,12 +1,13 @@
-package com.example.dto.websocket.outbound;
+package com.example.dto.websocket.inbound;
 
-import com.example.contants.MessageType;
+import com.example.constants.MessageType;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({
-        @JsonSubTypes.Type(value = MessageRequest.class, name = MessageType.MESSAGE),
+        @JsonSubTypes.Type(value = InviteRequest.class, name = MessageType.INVITE_REQUEST),
+        @JsonSubTypes.Type(value = WriteMessageRequest.class, name = MessageType.WRITE_MESSAGE),
         @JsonSubTypes.Type(value = KeepAliveRequest.class, name = MessageType.KEEP_ALIVE)
 })
 public abstract class BaseRequest {
