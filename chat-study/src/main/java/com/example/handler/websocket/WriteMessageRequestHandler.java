@@ -1,7 +1,7 @@
 package com.example.handler.websocket;
 
-import com.example.dto.domain.Message;
 import com.example.dto.websocket.inbound.WriteMessageRequest;
+import com.example.dto.websocket.outbound.MessageNotification;
 import com.example.entity.MessageEntity;
 import com.example.repository.MessageRepository;
 import com.example.session.WebSocketSessionManager;
@@ -22,8 +22,8 @@ public class WriteMessageRequestHandler implements BaseRequestHandler<WriteMessa
 
     @Override
     public void handleRequest(WebSocketSession senderSession, WriteMessageRequest request) {
-        Message receivedMessage = new Message(request.getUsername(), request.getContent());
-        messageRepository.save(new MessageEntity(receivedMessage.username(), receivedMessage.content()));
+        MessageNotification receivedMessage = new MessageNotification(request.getUsername(), request.getContent());
+        messageRepository.save(new MessageEntity(receivedMessage.getUsername(), receivedMessage.getContent()));
 
         webSocketSessionManager.getSessions().forEach(participantSession -> {
             if (!senderSession.getId().equals(participantSession.getId())) {

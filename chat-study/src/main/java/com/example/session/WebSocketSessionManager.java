@@ -1,7 +1,7 @@
 package com.example.session;
 
-import com.example.dto.domain.Message;
 import com.example.dto.domain.UserId;
+import com.example.dto.websocket.outbound.BaseMessage;
 import com.example.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +50,7 @@ public class WebSocketSessionManager {
         }
     }
 
-    public void sendMessage(WebSocketSession session, Message message) {
+    public void sendMessage(WebSocketSession session, BaseMessage message) {
         jsonUtil.toJson(message).ifPresent(msg -> {
             try {
                 session.sendMessage(new TextMessage(msg));

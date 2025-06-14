@@ -22,7 +22,7 @@ import java.util.concurrent.BlockingQueue
 import java.util.concurrent.TimeUnit
 
 @SpringBootTest(classes = ChatStudyApplication, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class MessageHandlerTest extends Specification{
+class WebSocketHandlerTest extends Specification{
 
     @LocalServerPort
     int port
