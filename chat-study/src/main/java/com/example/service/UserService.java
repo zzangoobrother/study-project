@@ -2,7 +2,7 @@ package com.example.service;
 
 import com.example.dto.domain.InviteCode;
 import com.example.dto.domain.UserId;
-import com.example.dto.projection.InviteCodeProjection;
+import com.example.dto.projection.CountProjection;
 import com.example.dto.projection.UsernameProjection;
 import com.example.entity.User;
 import com.example.entity.UserEntity;
@@ -46,6 +46,11 @@ public class UserService {
     public Optional<InviteCode> getInviteCode(UserId userId) {
         return userRepository.findInviteCodeByUserId(userId.id())
                 .map(inviteCode -> new InviteCode(inviteCode.getConnectionInviteCode()));
+    }
+
+    public Optional<Integer> getConnectionCount(UserId userId) {
+        return userRepository.findCountByUserId(userId.id())
+                .map(CountProjection::getConnectionCount);
     }
 
     @Transactional

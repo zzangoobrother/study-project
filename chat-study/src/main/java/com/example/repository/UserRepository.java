@@ -1,5 +1,6 @@
 package com.example.repository;
 
+import com.example.dto.projection.CountProjection;
 import com.example.dto.projection.InviteCodeProjection;
 import com.example.dto.projection.UsernameProjection;
 import com.example.entity.UserEntity;
@@ -21,6 +22,8 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
     Optional<UserEntity> findByConnectionInviteCode(@NonNull String connectionInviteCode);
 
     Optional<InviteCodeProjection> findInviteCodeByUserId(@NonNull Long userId);
+
+    Optional<CountProjection> findCountByUserId(@NonNull Long userId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<UserEntity> findForUpdateByUserId(@NonNull Long userId);

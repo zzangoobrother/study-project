@@ -10,7 +10,7 @@ public class InviteResponse extends BaseMessage {
     private final UserConnectionStatus status;
 
     public InviteResponse(InviteCode inviteCode, UserConnectionStatus status) {
-        super(MessageType.INVITE_REQUEST);
+        super(MessageType.INVITE_RESPONSE);
         this.inviteCode = inviteCode;
         this.status = status;
     }

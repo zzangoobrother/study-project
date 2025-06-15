@@ -1,10 +1,6 @@
 package com.example.dto
 
-import com.example.dto.websocket.inbound.AcceptRequest
-import com.example.dto.websocket.inbound.BaseRequest
-import com.example.dto.websocket.inbound.InviteRequest
-import com.example.dto.websocket.inbound.KeepAliveRequest
-import com.example.dto.websocket.inbound.WriteMessageRequest
+import com.example.dto.websocket.inbound.*
 import com.example.util.JsonUtil
 import com.fasterxml.jackson.databind.ObjectMapper
 import spock.lang.Specification
@@ -25,10 +21,13 @@ class RequestTypeMappingSpec extends Specification {
         validate(request)
 
         where:
-        payload | expectedClass | validate
-        '{"type" : "INVITE_REQUEST", "userInviteCode" : "TestInviteCode123"}' | InviteRequest | {req -> (req as InviteRequest).userInviteCode.code() == "TestInviteCode123"}
-        '{"type" : "ACCEPT_REQUEST", "username" : "testuser"}' | AcceptRequest | { req -> (req as AcceptRequest).username == "testuser"}
-        '{"type" : "WRITE_MESSAGE", "username" : "testuser", "content" : "test message"}' | WriteMessageRequest | { req -> (req as WriteMessageRequest).getContent() == "test message"}
-        '{"type" : "KEEP_ALIVE"}' | KeepAliveRequest | { req -> (req as KeepAliveRequest).getType() == "KEEP_ALIVE"}
+        payload                                                                             | expectedClass                 | validate
+        '{"type" : "FETCH_USER_INVITECODE_REQUEST"}'                                        | FetchUserInvitecodeRequest    | {req -> (req as FetchUserInvitecodeRequest).type == 'FETCH_USER_INVITECODE_REQUEST'}
+        '{"type" : "FETCH_CONNECTIONS_REQUEST", "status" : "ACCEPTED"}'                     | FetchConnectionsRequest       | {req -> (req as FetchConnectionsRequest).status.name() == 'ACCEPTED'}
+        '{"type" : "INVITE_REQUEST", "userInviteCode" : "TestInviteCode123"}'               | InviteRequest                 | {req -> (req as InviteRequest).userInviteCode.code() == "TestInviteCode123"}
+        '{"type" : "ACCEPT_REQUEST", "username" : "testuser"}'                              | AcceptRequest                 | { req -> (req as AcceptRequest).username == "testuser"}
+        '{"type" : "REJECT_REQUEST", "username" : "testuser"}'                              | RejectRequest                 | { req -> (req as RejectRequest).username == "testuser"}
+        '{"type" : "WRITE_MESSAGE", "username" : "testuser", "content" : "test message"}'   | WriteMessageRequest           | { req -> (req as WriteMessageRequest).getContent() == "test message"}
+        '{"type" : "KEEP_ALIVE"}'                                                           | KeepAliveRequest              | { req -> (req as KeepAliveRequest).getType() == "KEEP_ALIVE"}
     }
 }
