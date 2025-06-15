@@ -2,6 +2,7 @@ package com.example.service;
 
 import com.example.dto.domain.InviteCode;
 import com.example.dto.domain.UserId;
+import com.example.dto.projection.InviteCodeProjection;
 import com.example.dto.projection.UsernameProjection;
 import com.example.entity.User;
 import com.example.entity.UserEntity;
@@ -33,8 +34,18 @@ public class UserService {
         return userRepository.findByUserId(userId.id()).map(UsernameProjection::getUsername);
     }
 
+    public Optional<UserId> getUserId(String username) {
+        return userRepository.findByUsername(username)
+                .map(userEntity -> new UserId(userEntity.getUserId()));
+    }
+
     public Optional<User> getUser(InviteCode inviteCode) {
         return userRepository.findByConnectionInviteCode(inviteCode.code()).map(entity -> new User(new UserId(entity.getUserId()), entity.getUsername()));
+    }
+
+    public Optional<InviteCode> getInviteCode(UserId userId) {
+        return userRepository.findInviteCodeByUserId(userId.id())
+                .map(inviteCode -> new InviteCode(inviteCode.getConnectionInviteCode()));
     }
 
     @Transactional
