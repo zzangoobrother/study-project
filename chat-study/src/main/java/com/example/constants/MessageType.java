@@ -12,6 +12,8 @@ public class MessageType {
     public static final String ACCEPT_RESPONSE = "ACCEPT_RESPONSE";
     public static final String REJECT_REQUEST = "REJECT_REQUEST";
     public static final String REJECT_RESPONSE = "REJECT_RESPONSE";
+    public static final String DISCONNECT_REQUEST = "DISCONNECT_REQUEST";
+    public static final String DISCONNECT_RESPONSE = "DISCONNECT_RESPONSE";
     public static final String WRITE_MESSAGE = "WRITE_MESSAGE";
 
     // Notification

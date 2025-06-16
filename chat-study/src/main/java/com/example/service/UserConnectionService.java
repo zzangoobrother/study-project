@@ -33,8 +33,8 @@ public class UserConnectionService {
     }
 
     public List<User> getUsersByStatus(UserId userId, UserConnectionStatus status) {
-        List<UserIdUsernameProjection> usersA = userConnectionRepository.findByPartnerAUserIdUserIdAndStatus(userId.id(), status);
-        List<UserIdUsernameProjection> usersB = userConnectionRepository.findByPartnerBUserIdUserIdAndStatus(userId.id(), status);
+        List<UserIdUsernameProjection> usersA = userConnectionRepository.findByPartnerAUserIdAndStatus(userId.id(), status);
+        List<UserIdUsernameProjection> usersB = userConnectionRepository.findByPartnerBUserIdAndStatus(userId.id(), status);
         return Stream.concat(usersA.stream(), usersB.stream())
                 .map(it -> new User(new UserId(it.getUserId()), it.getUsername()))
                 .toList();
@@ -141,6 +141,31 @@ public class UserConnectionService {
                         return Pair.of(false, "Reject failed.");
                     }
                 }).orElse(Pair.of(false, "Reject failed."));
+    }
+
+    public Pair<Boolean, String> disconnect(UserId senderUserId, String partnerUsername) {
+        return userService.getUserId(partnerUsername)
+                .filter(partnerUserId -> !senderUserId.equals(partnerUserId))
+                .map(partnerUserId -> {
+                    try {
+                        UserConnectionStatus userConnectionStatus = getStatus(senderUserId, partnerUserId);
+                        if (userConnectionStatus == UserConnectionStatus.ACCEPTED) {
+                            userConnectionLimitService.disconnect(senderUserId, partnerUserId);
+                            return Pair.of(true, partnerUsername);
+                        } else if (userConnectionStatus == UserConnectionStatus.REJECTED &&
+                                getInviterUserId(senderUserId, partnerUserId)
+                                        .filter(inviterUserId -> inviterUserId.equals(partnerUserId))
+                                        .isPresent()
+                        ) {
+                            setStatus(senderUserId, partnerUserId, UserConnectionStatus.DISCONNECTED);
+                            return Pair.of(true, partnerUsername);
+                        }
+                    } catch (Exception ex) {
+                        log.error("Disconnect failed. cause : {}", ex.getMessage());
+                    }
+
+                    return Pair.of(false, "Disconnect failed.");
+                }).orElse(Pair.of(false, "Disconnect failed."));
     }
 
     private Optional<UserId> getInviterUserId(UserId partnerAUserId, UserId partnerBUserId) {

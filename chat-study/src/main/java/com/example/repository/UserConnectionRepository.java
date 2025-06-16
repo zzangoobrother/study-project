@@ -29,12 +29,12 @@ public interface UserConnectionRepository extends JpaRepository<UserConnectionEn
             "inner join UserEntity userB " +
             "on u.partnerBUserId = userB.userId " +
             "where u.partnerAUserId = :userId and u.status = :status")
-    List<UserIdUsernameProjection> findByPartnerAUserIdUserIdAndStatus(@NonNull @Param("userId") Long userId, @NonNull @Param("status") UserConnectionStatus status);
+    List<UserIdUsernameProjection> findByPartnerAUserIdAndStatus(@NonNull @Param("userId") Long userId, @NonNull @Param("status") UserConnectionStatus status);
 
     @Query("select u.partnerAUserId as userId, userA.username as username " +
             "from UserConnectionEntity u " +
             "inner join UserEntity userA " +
             "on u.partnerAUserId = userA.userId " +
             "where u.partnerBUserId = :userId and u.status = :status")
-    List<UserIdUsernameProjection> findByPartnerBUserIdUserIdAndStatus(@NonNull @Param("userId") Long userId, @NonNull @Param("status") UserConnectionStatus status);
+    List<UserIdUsernameProjection> findByPartnerBUserIdAndStatus(@NonNull @Param("userId") Long userId, @NonNull @Param("status") UserConnectionStatus status);
 }
