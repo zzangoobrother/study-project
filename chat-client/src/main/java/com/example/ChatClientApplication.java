@@ -1,6 +1,5 @@
 package com.example;
 
-import com.example.dto.websocket.outbound.MessageRequest;
 import com.example.handler.CommandHandler;
 import com.example.handler.WebSocketMessageHandler;
 import com.example.handler.WebSocketSender;

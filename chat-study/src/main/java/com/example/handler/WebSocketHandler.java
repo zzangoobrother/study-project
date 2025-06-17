@@ -3,7 +3,7 @@ package com.example.handler;
 import com.example.constants.Constants;
 import com.example.dto.domain.UserId;
 import com.example.dto.websocket.inbound.BaseRequest;
-import com.example.handler.websocket.RequestHandlerDispatcher;
+import com.example.handler.websocket.RequestDispatcher;
 import com.example.session.WebSocketSessionManager;
 import com.example.util.JsonUtil;
 import jakarta.annotation.Nonnull;
@@ -22,12 +22,12 @@ public class WebSocketHandler extends TextWebSocketHandler {
     private static final Logger log = LoggerFactory.getLogger(WebSocketHandler.class);
     private final JsonUtil jsonUtil;
     private final WebSocketSessionManager webSocketSessionManager;
-    private final RequestHandlerDispatcher requestHandlerDispatcher;
+    private final RequestDispatcher requestDispatcher;
 
-    public WebSocketHandler(JsonUtil jsonUtil, WebSocketSessionManager webSocketSessionManager, RequestHandlerDispatcher requestHandlerDispatcher) {
+    public WebSocketHandler(JsonUtil jsonUtil, WebSocketSessionManager webSocketSessionManager, RequestDispatcher requestDispatcher) {
         this.jsonUtil = jsonUtil;
         this.webSocketSessionManager = webSocketSessionManager;
-        this.requestHandlerDispatcher = requestHandlerDispatcher;
+        this.requestDispatcher = requestDispatcher;
     }
 
     @Override
@@ -57,6 +57,6 @@ public class WebSocketHandler extends TextWebSocketHandler {
     protected void handleTextMessage(WebSocketSession senderSession, @Nonnull TextMessage message) throws Exception {
         String payload = message.getPayload();
         log.info("Received TextMessage : [{}] from {}", payload, senderSession.getId());
-        jsonUtil.fromJson(payload, BaseRequest.class).ifPresent(baseRequest -> requestHandlerDispatcher.dispatchRequest(senderSession, baseRequest));
+        jsonUtil.fromJson(payload, BaseRequest.class).ifPresent(baseRequest -> requestDispatcher.dispatchRequest(senderSession, baseRequest));
     }
 }

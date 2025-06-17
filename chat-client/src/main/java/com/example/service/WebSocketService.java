@@ -1,8 +1,5 @@
 package com.example.service;
 
-import com.example.dto.websocket.outbound.BaseRequest;
-import com.example.dto.websocket.outbound.KeepAliveRequest;
-import com.example.dto.websocket.outbound.MessageRequest;
 import com.example.handler.WebSocketMessageHandler;
 import com.example.handler.WebSocketSender;
 import com.example.handler.WebSocketSessionHandler;

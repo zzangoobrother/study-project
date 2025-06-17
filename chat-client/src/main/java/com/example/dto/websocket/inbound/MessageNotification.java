@@ -1,14 +1,14 @@
-package com.example.dto.websocket.outbound;
+package com.example.dto.websocket.inbound;
 
-import com.example.contants.MessageType;
+import com.example.constants.MessageType;
 
-public class MessageRequest extends BaseRequest {
+public class MessageNotification extends BaseMessage {
 
     private final String username;
     private final String content;
 
-    public MessageRequest(String username, String content) {
-        super(MessageType.MESSAGE);
+    public MessageNotification(String username, String content) {
+        super(MessageType.NOTIFY_MESSAGE);
         this.username = username;
         this.content = content;
     }
