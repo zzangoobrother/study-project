@@ -1,21 +1,17 @@
 package com.example.handler;
 
-import com.example.dto.websocket.inbound.BaseMessage;
-import com.example.service.TerminalService;
-import com.example.util.JsonUtil;
 import jakarta.websocket.MessageHandler;
 
 public class WebSocketMessageHandler implements MessageHandler.Whole<String> {
 
-    private final TerminalService terminalService;
+    private final InboundMessageHandler inboundMessageHandler;
 
-    public WebSocketMessageHandler(TerminalService terminalService) {
-        this.terminalService = terminalService;
+    public WebSocketMessageHandler(InboundMessageHandler inboundMessageHandler) {
+        this.inboundMessageHandler = inboundMessageHandler;
     }
 
     @Override
     public void onMessage(String payload) {
-        JsonUtil.fromJson(payload, BaseMessage.class)
-                .ifPresent(message -> terminalService.printMessage(message.username(), message.content()));
+        inboundMessageHandler.handle(payload);
     }
 }

@@ -45,7 +45,7 @@ public class TerminalService {
     }
 
     public void printMessage(String username, String content) {
-        lineReader.printAbove(String.format("%s : %s", username, content));
+        lineReader.printAbove("%s : %s".formatted(username, content));
     }
 
     public void printSystemMessage(String content) {

@@ -1,6 +1,8 @@
 package com.example;
 
+import com.example.dto.websocket.outbound.WriteMessageRequest;
 import com.example.handler.CommandHandler;
+import com.example.handler.InboundMessageHandler;
 import com.example.handler.WebSocketMessageHandler;
 import com.example.handler.WebSocketSender;
 import com.example.service.RestApiService;
@@ -23,10 +25,11 @@ public class ChatClientApplication {
             return;
         }
 
+        InboundMessageHandler inboundMessageHandler = new InboundMessageHandler(terminalService);
         RestApiService restApiService = new RestApiService(terminalService, BASE_URL);
         WebSocketSender webSocketSender = new WebSocketSender(terminalService);
         WebSocketService webSocketService = new WebSocketService(terminalService, webSocketSender, BASE_URL, WEBSOCKET_ENDPOINT);
-        webSocketService.setWebSocketMessageHandler(new WebSocketMessageHandler(terminalService));
+        webSocketService.setWebSocketMessageHandler(new WebSocketMessageHandler(inboundMessageHandler));
         CommandHandler commandHandler = new CommandHandler(restApiService, webSocketService, terminalService);
 
         while (true) {
@@ -40,7 +43,7 @@ public class ChatClientApplication {
                 }
             } else if (!input.isEmpty()) {
                 terminalService.printMessage("<me>", input);
-                webSocketService.sendMessage(new MessageRequest("test client", input));
+                webSocketService.sendMessage(new WriteMessageRequest("test client", input));
             }
         }
     }

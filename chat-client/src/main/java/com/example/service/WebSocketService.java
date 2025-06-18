@@ -1,5 +1,8 @@
 package com.example.service;
 
+import com.example.dto.websocket.outbound.BaseRequest;
+import com.example.dto.websocket.outbound.KeepAliveRequest;
+import com.example.dto.websocket.outbound.WriteMessageRequest;
 import com.example.handler.WebSocketMessageHandler;
 import com.example.handler.WebSocketSender;
 import com.example.handler.WebSocketSessionHandler;
@@ -53,7 +56,7 @@ public class WebSocketService {
             enableKeepAlive();
             return true;
         } catch (Exception ex) {
-            terminalService.printSystemMessage(String.format("Failed to connect to [%s] error : %s", webSocketUrl, ex.getMessage()));
+            terminalService.printSystemMessage("Failed to connect to [%s] error : %s".formatted(webSocketUrl, ex.getMessage()));
             return false;
         }
     }
@@ -69,13 +72,13 @@ public class WebSocketService {
                 session = null;
             }
         } catch (Exception ex) {
-            terminalService.printSystemMessage(String.format("Failed to close error : %s", webSocketUrl, ex.getMessage()));
+            terminalService.printSystemMessage("Failed to close error : %s".formatted(webSocketUrl, ex.getMessage()));
         }
     }
 
     public void sendMessage(BaseRequest baseRequest) {
         if (session != null && session.isOpen()) {
-            if (baseRequest instanceof MessageRequest messageRequest) {
+            if (baseRequest instanceof WriteMessageRequest messageRequest) {
                 webSocketSender.sendMessage(session, messageRequest);
                 return;
             }

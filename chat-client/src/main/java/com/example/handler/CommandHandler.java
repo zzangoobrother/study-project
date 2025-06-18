@@ -1,5 +1,8 @@
 package com.example.handler;
 
+import com.example.constants.UserConnectionStatus;
+import com.example.dto.domain.InviteCode;
+import com.example.dto.websocket.outbound.*;
 import com.example.service.RestApiService;
 import com.example.service.TerminalService;
 import com.example.service.WebSocketService;
@@ -36,6 +39,13 @@ public class CommandHandler {
         commands.put("unregister", this::unregister);
         commands.put("login", this::login);
         commands.put("logout", this::logout);
+        commands.put("invitecode", this::invitecode);
+        commands.put("invite", this::invite);
+        commands.put("accept", this::accept);
+        commands.put("reject", this::reject);
+        commands.put("connections", this::connections);
+        commands.put("disconnect", this::disconnect);
+        commands.put("pending", this::pending);
         commands.put("clear", this::clear);
         commands.put("exit", this::exit);
         commands.put("help", this::help);
@@ -89,6 +99,60 @@ public class CommandHandler {
         return true;
     }
 
+    private Boolean invitecode(String[] params) {
+        webSocketService.sendMessage(new FetchUserInvitecodeRequest());
+        terminalService.printSystemMessage("Get invitecode for mine.");
+        return true;
+    }
+
+    private Boolean invite(String[] params) {
+        if (params.length > 0) {
+            webSocketService.sendMessage(new InviteRequest(new InviteCode(params[0])));
+            terminalService.printSystemMessage("Invite user.");
+        }
+
+        return true;
+    }
+
+    private Boolean accept(String[] params) {
+        if (params.length > 0) {
+            webSocketService.sendMessage(new AcceptRequest(params[0]));
+            terminalService.printSystemMessage("Accept user invite.");
+        }
+
+        return true;
+    }
+
+    private Boolean reject(String[] params) {
+        if (params.length > 0) {
+            webSocketService.sendMessage(new RejectRequest(params[0]));
+            terminalService.printSystemMessage("Reject user invite.");
+        }
+
+        return true;
+    }
+
+    private Boolean disconnect(String[] params) {
+        if (params.length > 0) {
+            webSocketService.sendMessage(new DisconnectRequest(params[0]));
+            terminalService.printSystemMessage("Disconnect user.");
+        }
+
+        return true;
+    }
+
+    private Boolean connections(String[] params) {
+        webSocketService.sendMessage(new FetchConnectionsRequest(UserConnectionStatus.ACCEPTED));
+        terminalService.printSystemMessage("Get connection list");
+        return true;
+    }
+
+    private Boolean pending(String[] params) {
+        webSocketService.sendMessage(new FetchConnectionsRequest(UserConnectionStatus.PENDING));
+        terminalService.printSystemMessage("Get pending list");
+        return true;
+    }
+
     private Boolean clear(String[] params) {
         terminalService.clearTerminal();
         terminalService.printSystemMessage("Terminal cleared.");
@@ -108,6 +172,13 @@ public class CommandHandler {
                         '/register' Register a new user. ex: /register <Username> <Password>
                         '/unregister' Register current user.. ex: /unregister
                         '/login' Login. ex: /login <Username> <Password>
+                        '/invitecode' Get the InviteCode of mine. ex: /invitecode
+                        '/invite' Invite a user to connect. ex: /invite <InviteCode>
+                        '/accept' Accept the invite request received. ex: /accept <InviterUsername>
+                        '/reject' Reject the invite request received. ex: /reject <InviterUsername>
+                        '/disconnect' Disconnect user. ex: /disconnect <ConnectedUsername>
+                        '/connections' View the list of commected user. ex user. ex: /connections
+                        '/pending' View the list of pending invites. ex: /pending
                         '/logout' logout. ex: /logout
                         '/clear' Clear the terminal. ex: /clear
                         '/exit' Exit the client. ex: /exit
