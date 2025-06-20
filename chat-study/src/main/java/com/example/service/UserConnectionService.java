@@ -93,33 +93,27 @@ public class UserConnectionService {
     }
 
     public Pair<Optional<UserId>, String> accept(UserId acceptorUserId, String inviterUsername) {
-        log.info("11");
-        log.info(inviterUsername);
         Optional<UserId> userId = userService.getUserId(inviterUsername);
         if (userId.isEmpty()) {
             return Pair.of(Optional.empty(), "Invalid username.");
         }
 
-        log.info("22");
         UserId inviterUserId = userId.get();
 
         if (acceptorUserId.equals(inviterUserId)) {
             return Pair.of(Optional.empty(), "Can't self accept.");
         }
 
-        log.info("33");
         if (getInviterUserId(acceptorUserId, inviterUserId)
                 .filter(invitationSenderUserId -> invitationSenderUserId.equals(inviterUserId))
                 .isEmpty()) {
             return Pair.of(Optional.empty(), "Invalid username.");
         }
 
-        log.info("44");
         UserConnectionStatus userConnectionStatus = getStatus(inviterUserId, acceptorUserId);
         if (userConnectionStatus == UserConnectionStatus.ACCEPTED) {
             return Pair.of(Optional.empty(), "Already connected.");
         }
-        log.info("55");
         if (userConnectionStatus != UserConnectionStatus.PENDING) {
             return Pair.of(Optional.empty(), "Accept failed.");
         }
@@ -131,7 +125,6 @@ public class UserConnectionService {
         }
 
         try {
-            log.info("66");
             userConnectionLimitService.accept(acceptorUserId, inviterUserId);
             return Pair.of(Optional.of(inviterUserId), acceptorUsername.get());
         } catch (EntityNotFoundException ex) {
