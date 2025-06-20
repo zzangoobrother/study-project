@@ -9,7 +9,7 @@ public class AcceptRequest extends BaseRequest {
     private final String username;
 
     @JsonCreator
-    public AcceptRequest(@JsonProperty("userInviteCode") String username) {
+    public AcceptRequest(@JsonProperty("username") String username) {
         super(MessageType.ACCEPT_REQUEST);
         this.username = username;
     }

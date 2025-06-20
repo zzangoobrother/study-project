@@ -9,7 +9,6 @@ public class InviteRequest extends BaseRequest {
 
     private final InviteCode userInviteCode;
 
-    @JsonCreator
     public InviteRequest( InviteCode userInviteCode) {
         super(MessageType.INVITE_REQUEST);
         this.userInviteCode = userInviteCode;

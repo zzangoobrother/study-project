@@ -3,7 +3,7 @@ package com.example.service;
 import com.example.constants.UserConnectionStatus;
 import com.example.dto.domain.InviteCode;
 import com.example.dto.domain.UserId;
-import com.example.dto.projection.UserIdUsernameProjection;
+import com.example.dto.projection.UserIdUsernameInviterUserIdProjection;
 import com.example.entity.User;
 import com.example.entity.UserConnectionEntity;
 import com.example.repository.UserConnectionRepository;
@@ -33,11 +33,21 @@ public class UserConnectionService {
     }
 
     public List<User> getUsersByStatus(UserId userId, UserConnectionStatus status) {
-        List<UserIdUsernameProjection> usersA = userConnectionRepository.findByPartnerAUserIdAndStatus(userId.id(), status);
-        List<UserIdUsernameProjection> usersB = userConnectionRepository.findByPartnerBUserIdAndStatus(userId.id(), status);
-        return Stream.concat(usersA.stream(), usersB.stream())
-                .map(it -> new User(new UserId(it.getUserId()), it.getUsername()))
-                .toList();
+        List<UserIdUsernameInviterUserIdProjection> usersA = userConnectionRepository.findByPartnerAUserIdAndStatus(userId.id(), status);
+        List<UserIdUsernameInviterUserIdProjection> usersB = userConnectionRepository.findByPartnerBUserIdAndStatus(userId.id(), status);
+
+        if (status == UserConnectionStatus.ACCEPTED) {
+            return Stream.concat(usersA.stream(), usersB.stream())
+                    .map(it -> new User(new UserId(it.getUserId()), it.getUsername()))
+                    .toList();
+        } else {
+            return Stream.concat(usersA.stream(), usersB.stream())
+                    .filter(item -> !item.getInviterUserId().equals(userId.id()))
+                    .map(it -> new User(new UserId(it.getUserId()), it.getUsername()))
+                    .toList();
+        }
+
+
     }
 
     @Transactional
@@ -83,27 +93,33 @@ public class UserConnectionService {
     }
 
     public Pair<Optional<UserId>, String> accept(UserId acceptorUserId, String inviterUsername) {
+        log.info("11");
+        log.info(inviterUsername);
         Optional<UserId> userId = userService.getUserId(inviterUsername);
         if (userId.isEmpty()) {
             return Pair.of(Optional.empty(), "Invalid username.");
         }
 
+        log.info("22");
         UserId inviterUserId = userId.get();
 
         if (acceptorUserId.equals(inviterUserId)) {
             return Pair.of(Optional.empty(), "Can't self accept.");
         }
 
+        log.info("33");
         if (getInviterUserId(acceptorUserId, inviterUserId)
                 .filter(invitationSenderUserId -> invitationSenderUserId.equals(inviterUserId))
                 .isEmpty()) {
             return Pair.of(Optional.empty(), "Invalid username.");
         }
 
+        log.info("44");
         UserConnectionStatus userConnectionStatus = getStatus(inviterUserId, acceptorUserId);
         if (userConnectionStatus == UserConnectionStatus.ACCEPTED) {
             return Pair.of(Optional.empty(), "Already connected.");
         }
+        log.info("55");
         if (userConnectionStatus != UserConnectionStatus.PENDING) {
             return Pair.of(Optional.empty(), "Accept failed.");
         }
@@ -115,6 +131,7 @@ public class UserConnectionService {
         }
 
         try {
+            log.info("66");
             userConnectionLimitService.accept(acceptorUserId, inviterUserId);
             return Pair.of(Optional.of(inviterUserId), acceptorUsername.get());
         } catch (EntityNotFoundException ex) {
