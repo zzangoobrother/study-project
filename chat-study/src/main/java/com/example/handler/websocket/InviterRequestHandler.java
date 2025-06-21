@@ -1,6 +1,6 @@
 package com.example.handler.websocket;
 
-import com.example.constants.Constants;
+import com.example.constants.IdKey;
 import com.example.constants.MessageType;
 import com.example.constants.UserConnectionStatus;
 import com.example.dto.domain.UserId;
@@ -30,7 +30,7 @@ public class InviterRequestHandler implements BaseRequestHandler<InviteRequest> 
 
     @Override
     public void handleRequest(WebSocketSession senderSession, InviteRequest request) {
-        UserId inviterUserId = (UserId)senderSession.getAttributes().get(Constants.USER_ID.getValue());
+        UserId inviterUserId = (UserId)senderSession.getAttributes().get(IdKey.USER_ID.getValue());
         Pair<Optional<UserId>, String> result = userConnectionService.invite(inviterUserId,
                 request.getUserInviteCode());
         result.getFirst().ifPresentOrElse(partnerUserId -> {

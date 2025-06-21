@@ -1,6 +1,6 @@
 package com.example.handler.websocket;
 
-import com.example.constants.Constants;
+import com.example.constants.IdKey;
 import com.example.dto.domain.Connection;
 import com.example.dto.domain.UserId;
 import com.example.dto.websocket.inbound.FetchConnectionsRequest;
@@ -26,7 +26,7 @@ public class FetchConnectionsRequestHandler implements BaseRequestHandler<FetchC
 
     @Override
     public void handleRequest(WebSocketSession senderSession, FetchConnectionsRequest request) {
-        UserId senderUserId = (UserId)senderSession.getAttributes().get(Constants.USER_ID.getValue());
+        UserId senderUserId = (UserId)senderSession.getAttributes().get(IdKey.USER_ID.getValue());
         List<Connection> connections = userConnectionService.getUsersByStatus(senderUserId, request.getStatus()).stream()
                 .map(user -> new Connection(user.username(), request.getStatus()))
                 .toList();

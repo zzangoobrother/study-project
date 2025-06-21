@@ -1,6 +1,6 @@
 package com.example.auth;
 
-import com.example.constants.Constants;
+import com.example.constants.IdKey;
 import com.example.dto.domain.UserId;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
@@ -35,13 +35,13 @@ public class WebSocketHttpSessionHandshakeInterceptor extends HttpSessionHandsha
 
             HttpSession httpSession = servletServerHttpRequest.getServletRequest().getSession(false);
             if (httpSession == null) {
-                attributes.put(Constants.HTTP_SESSION_ID.getValue(), httpSession.getId());
+                attributes.put(IdKey.HTTP_SESSION_ID.getValue(), httpSession.getId());
                 return true;
             }
 
             MessageUserDetails messageUserDetails = (MessageUserDetails) authentication.getPrincipal();
-            attributes.put(Constants.HTTP_SESSION_ID.getValue(), httpSession.getId());
-            attributes.put(Constants.USER_ID.getValue(), new UserId(messageUserDetails.getUserId()));
+            attributes.put(IdKey.HTTP_SESSION_ID.getValue(), httpSession.getId());
+            attributes.put(IdKey.USER_ID.getValue(), new UserId(messageUserDetails.getUserId()));
             return true;
         } else {
             log.info("WebSocket Handshake failed. request : {}", request.getClass());

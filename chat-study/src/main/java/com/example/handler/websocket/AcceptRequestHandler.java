@@ -1,6 +1,6 @@
 package com.example.handler.websocket;
 
-import com.example.constants.Constants;
+import com.example.constants.IdKey;
 import com.example.constants.MessageType;
 import com.example.dto.domain.UserId;
 import com.example.dto.websocket.inbound.AcceptRequest;
@@ -29,7 +29,7 @@ public class AcceptRequestHandler implements BaseRequestHandler<AcceptRequest> {
 
     @Override
     public void handleRequest(WebSocketSession senderSession, AcceptRequest request) {
-        UserId acceptorUserId = (UserId)senderSession.getAttributes().get(Constants.USER_ID.getValue());
+        UserId acceptorUserId = (UserId)senderSession.getAttributes().get(IdKey.USER_ID.getValue());
         Pair<Optional<UserId>, String> result = userConnectionService.accept(acceptorUserId, request.getUsername());
         result.getFirst().ifPresentOrElse(inviterUserId -> {
             webSocketSessionManager.sendMessage(senderSession, new AcceptResponse(request.getUsername()));

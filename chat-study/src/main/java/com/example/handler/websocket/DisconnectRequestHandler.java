@@ -1,6 +1,6 @@
 package com.example.handler.websocket;
 
-import com.example.constants.Constants;
+import com.example.constants.IdKey;
 import com.example.constants.MessageType;
 import com.example.constants.UserConnectionStatus;
 import com.example.dto.domain.UserId;
@@ -27,7 +27,7 @@ public class DisconnectRequestHandler implements BaseRequestHandler<DisconnectRe
 
     @Override
     public void handleRequest(WebSocketSession senderSession, DisconnectRequest request) {
-        UserId senderUserId = (UserId)senderSession.getAttributes().get(Constants.USER_ID.getValue());
+        UserId senderUserId = (UserId)senderSession.getAttributes().get(IdKey.USER_ID.getValue());
         Pair<Boolean, String> result = userConnectionService.disconnect(senderUserId, request.getUsername());
         if (result.getFirst()) {
             webSocketSessionManager.sendMessage(senderSession, new DisconnectResponse(request.getUsername(), UserConnectionStatus.DISCONNECTED));

@@ -1,6 +1,6 @@
 package com.example.handler;
 
-import com.example.constants.Constants;
+import com.example.constants.IdKey;
 import com.example.dto.domain.UserId;
 import com.example.dto.websocket.inbound.BaseRequest;
 import com.example.handler.websocket.RequestDispatcher;
@@ -35,21 +35,21 @@ public class WebSocketHandler extends TextWebSocketHandler {
         log.info("ConnectionEstablished : {}", session.getId());
 
         ConcurrentWebSocketSessionDecorator concurrentWebSocketSessionDecorator = new ConcurrentWebSocketSessionDecorator(session, 5000, 100 * 1024);
-        UserId userId = (UserId) session.getAttributes().get(Constants.USER_ID.getValue());
+        UserId userId = (UserId) session.getAttributes().get(IdKey.USER_ID.getValue());
         webSocketSessionManager.putSession(userId, concurrentWebSocketSessionDecorator);
     }
 
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
         log.info("TransportError : [{}] from {}", exception.getMessage(), session.getId());
-        UserId userId = (UserId) session.getAttributes().get(Constants.USER_ID.getValue());
+        UserId userId = (UserId) session.getAttributes().get(IdKey.USER_ID.getValue());
         webSocketSessionManager.closeSession(userId);
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, @Nonnull CloseStatus status) throws Exception {
         log.info("ConnectionEstablished : [{}] from {}", status, session.getId());
-        UserId userId = (UserId) session.getAttributes().get(Constants.USER_ID.getValue());
+        UserId userId = (UserId) session.getAttributes().get(IdKey.USER_ID.getValue());
         webSocketSessionManager.closeSession(userId);
     }
 

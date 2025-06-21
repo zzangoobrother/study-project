@@ -7,7 +7,6 @@ import com.example.dto.projection.UserIdUsernameInviterUserIdProjection;
 import com.example.entity.User;
 import com.example.entity.UserConnectionEntity;
 import com.example.repository.UserConnectionRepository;
-import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.util.Pair;
@@ -46,7 +45,12 @@ public class UserConnectionService {
                     .map(it -> new User(new UserId(it.getUserId()), it.getUsername()))
                     .toList();
         }
+    }
 
+    public UserConnectionStatus getStatus(UserId inviterUserId, UserId partnerUserId) {
+        return userConnectionRepository.findUserConnectionStatusByPartnerAUserIdAndPartnerBUserId(Long.min(inviterUserId.id(), partnerUserId.id()), Long.max(inviterUserId.id(), partnerUserId.id()))
+                .map(status -> UserConnectionStatus.valueOf(status.getStatus()))
+                .orElse(UserConnectionStatus.NONE);
 
     }
 
@@ -127,11 +131,11 @@ public class UserConnectionService {
         try {
             userConnectionLimitService.accept(acceptorUserId, inviterUserId);
             return Pair.of(Optional.of(inviterUserId), acceptorUsername.get());
-        } catch (EntityNotFoundException ex) {
-            log.error("Accept failed. cause : {}", ex.getMessage());
-            return Pair.of(Optional.empty(), "Accept failed.");
         } catch (IllegalStateException ex) {
             return Pair.of(Optional.empty(), ex.getMessage());
+        } catch (Exception ex) {
+            log.error("Accept failed. cause : {}", ex.getMessage());
+            return Pair.of(Optional.empty(), "Accept failed.");
         }
     }
 
@@ -181,13 +185,6 @@ public class UserConnectionService {
     private Optional<UserId> getInviterUserId(UserId partnerAUserId, UserId partnerBUserId) {
         return userConnectionRepository.findInviterUserIdByPartnerAUserIdAndPartnerBUserId(Long.min(partnerAUserId.id(), partnerBUserId.id()), Long.max(partnerAUserId.id(), partnerBUserId.id()))
                 .map(inviterUserId -> new UserId(inviterUserId.getInviterUserId()));
-    }
-
-    private UserConnectionStatus getStatus(UserId inviterUserId, UserId partnerUserId) {
-        return userConnectionRepository.findUserConnectionStatusByPartnerAUserIdAndPartnerBUserId(Long.min(inviterUserId.id(), partnerUserId.id()), Long.max(inviterUserId.id(), partnerUserId.id()))
-                .map(status -> UserConnectionStatus.valueOf(status.getStatus()))
-                .orElse(UserConnectionStatus.NONE);
-
     }
 
     private void setStatus(UserId inviterUserId, UserId partnerUserId, UserConnectionStatus userConnectionStatus) {

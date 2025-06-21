@@ -1,6 +1,6 @@
 package com.example.handler.websocket;
 
-import com.example.constants.Constants;
+import com.example.constants.IdKey;
 import com.example.constants.MessageType;
 import com.example.dto.domain.UserId;
 import com.example.dto.websocket.inbound.FetchUserInvitecodeRequest;
@@ -24,7 +24,7 @@ public class FetchUserInvitecodeRequestHandler implements BaseRequestHandler<Fet
 
     @Override
     public void handleRequest(WebSocketSession senderSession, FetchUserInvitecodeRequest request) {
-        UserId senderUserId = (UserId)senderSession.getAttributes().get(Constants.USER_ID.getValue());
+        UserId senderUserId = (UserId)senderSession.getAttributes().get(IdKey.USER_ID.getValue());
         userService.getInviteCode(senderUserId)
                 .ifPresentOrElse(
                         inviteCode -> webSocketSessionManager.sendMessage(senderSession, new FetchUserInvitecodeResponse(inviteCode)),
