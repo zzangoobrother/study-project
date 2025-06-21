@@ -21,12 +21,25 @@ public class SessionService {
 
     private final SessionRepository<? extends Session> httpSessionRepository;
     private final StringRedisTemplate stringRedisTemplate;
-    private final String NAMESPACE = "message:user";
     private final long TTL = 300;
 
     public SessionService(SessionRepository<? extends Session> httpSessionRepository, StringRedisTemplate stringRedisTemplate) {
         this.httpSessionRepository = httpSessionRepository;
         this.stringRedisTemplate = stringRedisTemplate;
+    }
+
+    public boolean isOnline(UserId userId, ChannelId channelId) {
+        String channelIdKey = buildChannelIdKey(userId);
+        try {
+            String chId = stringRedisTemplate.opsForValue().get(channelIdKey);
+            if (chId != null && chId.equals(channelId.id().toString())) {
+                return true;
+            }
+        } catch (Exception ex) {
+            log.error("Redis get failed. key : {}, cause : {}", channelIdKey, ex.getMessage());
+        }
+
+        return false;
     }
 
     public void refreshTTL(UserId userId, String httpSessionId) {
@@ -59,6 +72,7 @@ public class SessionService {
     }
 
     private String buildChannelIdKey(UserId userId) {
+        String NAMESPACE = "message:user";
         return "%s:%d:%s".formatted(NAMESPACE, userId.id(), IdKey.CHANNEL_ID);
     }
 }

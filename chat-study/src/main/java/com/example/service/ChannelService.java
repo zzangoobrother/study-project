@@ -1,6 +1,7 @@
 package com.example.service;
 
 import com.example.constants.ResultType;
+import com.example.constants.UserConnectionStatus;
 import com.example.dto.domain.Channel;
 import com.example.dto.domain.ChannelId;
 import com.example.dto.domain.UserId;
@@ -24,11 +25,13 @@ public class ChannelService {
     private static final Logger log = LoggerFactory.getLogger(UserConnectionService.class);
 
     private final SessionService sessionService;
+    private final UserConnectionService userConnectionService;
     private final ChannelRepository channelRepository;
     private final UserChannelRepository userChannelRepository;
 
-    public ChannelService(SessionService sessionService, ChannelRepository channelRepository, UserChannelRepository userChannelRepository) {
+    public ChannelService(SessionService sessionService, UserConnectionService userConnectionService, ChannelRepository channelRepository, UserChannelRepository userChannelRepository) {
         this.sessionService = sessionService;
+        this.userConnectionService = userConnectionService;
         this.channelRepository = channelRepository;
         this.userChannelRepository = userChannelRepository;
     }
@@ -37,11 +40,26 @@ public class ChannelService {
         return userChannelRepository.existsByUserIdAndChannelId(userId.id(), channelId.id());
     }
 
+    public List<UserId> getParticipantIds(ChannelId channelId) {
+        return userChannelRepository.findUserIdByChannelId(channelId.id()).stream()
+                .map(userId -> new UserId(userId.getUserId()))
+                .toList();
+    }
+
+    public boolean isOnline(UserId userId, ChannelId channelId) {
+        return sessionService.isOnline(userId, channelId);
+    }
+
     @Transactional
     public Pair<Optional<Channel>, ResultType> create(UserId senderUserId, UserId participantId, String title) {
         if (title == null || title.isEmpty()) {
             log.warn("Invalid args : title is empty.");
             return Pair.of(Optional.empty(), ResultType.INVALID_ARGS);
+        }
+
+        if (userConnectionService.getStatus(senderUserId, participantId) != UserConnectionStatus.ACCEPTED) {
+            log.warn("Included Unconnected user. participantId : {}", participantId);
+            return Pair.of(Optional.empty(), ResultType.NOT_ALLOWED);
         }
 
         try {

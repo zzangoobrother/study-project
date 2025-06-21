@@ -9,7 +9,7 @@ public class EnterResponse extends BaseMessage {
     private final String title;
 
     public EnterResponse(ChannelId channelId, String title) {
-        super(MessageType.Enter_RESPONSE);
+        super(MessageType.ENTER_RESPONSE);
         this.channelId = channelId;
         this.title = title;
     }

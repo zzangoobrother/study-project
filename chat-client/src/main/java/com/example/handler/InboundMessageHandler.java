@@ -2,14 +2,17 @@ package com.example.handler;
 
 import com.example.dto.websocket.inbound.*;
 import com.example.service.TerminalService;
+import com.example.service.UserService;
 import com.example.util.JsonUtil;
 
 public class InboundMessageHandler {
 
     private final TerminalService terminalService;
+    private final UserService userService;
 
-    public InboundMessageHandler(TerminalService terminalService) {
+    public InboundMessageHandler(TerminalService terminalService, UserService userService) {
         this.terminalService = terminalService;
+        this.userService = userService;
     }
 
     public void handle(String payload) {
@@ -33,6 +36,14 @@ public class InboundMessageHandler {
                         disconnect(disconnectResponse);
                     } else if (message instanceof FetchConnectionsResponse fetchConnectionsResponse) {
                         fetchConnections(fetchConnectionsResponse);
+                    } else if (message instanceof CreateResponse createResponse) {
+                        create(createResponse);
+                    } else if (message instanceof JoinNotification joinNotification) {
+                        joinNotification(joinNotification);
+                    } else if (message instanceof EnterResponse enterResponse) {
+                        enter(enterResponse);
+                    } else if (message instanceof ErrorResponse errorResponse) {
+                        error(errorResponse);
                     }
                 });
     }
@@ -71,5 +82,22 @@ public class InboundMessageHandler {
 
     private void fetchConnections(FetchConnectionsResponse fetchConnectionsResponse) {
         fetchConnectionsResponse.getConnections().forEach(connection -> terminalService.printSystemMessage("%s : %s".formatted(connection.username(), connection.status())));
+    }
+
+    private void create(CreateResponse createResponse) {
+        terminalService.printSystemMessage("Created channel %s : %s".formatted(createResponse.getChannelId(), createResponse.getTitle()));
+    }
+
+    private void joinNotification(JoinNotification joinNotification) {
+        terminalService.printSystemMessage("Joined channel %s : %s".formatted(joinNotification.getChannelId(), joinNotification.getTitle()));
+    }
+
+    private void enter(EnterResponse enterResponse) {
+        userService.moveToChannel(enterResponse.getChannelId());
+        terminalService.printSystemMessage("Enter channel %s : %s".formatted(enterResponse.getChannelId(), enterResponse.getTitle()));
+    }
+
+    private void error(ErrorResponse errorResponse) {
+        terminalService.printSystemMessage("Error %s : %s".formatted(errorResponse.getMessageType(), errorResponse.getMessage()));
     }
 }

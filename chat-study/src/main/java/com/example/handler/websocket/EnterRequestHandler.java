@@ -34,7 +34,7 @@ public class EnterRequestHandler implements BaseRequestHandler<EnterRequest> {
         result.getFirst()
                 .ifPresentOrElse(
                         title -> webSocketSessionManager.sendMessage(senderSession, new EnterResponse(request.getChannelId(), title)),
-                                () -> webSocketSessionManager.sendMessage(senderSession, new ErrorResponse(MessageType.Enter_REQUEST, result.getSecond().getMessage()))
+                                () -> webSocketSessionManager.sendMessage(senderSession, new ErrorResponse(MessageType.ENTER_REQUEST, result.getSecond().getMessage()))
                 );
     }
 }

@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS message (
     message_sequence    BIGINT AUTO_INCREMENT,
-    user_name           VARCHAR(20)     NOT NULL,
+    user_id             BIGINT          NOT NULL,
     content             VARCHAR(1000)   NOT NULL,
     created_at          TIMESTAMP       NOT NULL,
     updated_at          TIMESTAMP       NOT NULL,

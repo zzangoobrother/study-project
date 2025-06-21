@@ -16,8 +16,8 @@ public class MessageType {
     public static final String DISCONNECT_RESPONSE = "DISCONNECT_RESPONSE";
     public static final String CREATE_REQUEST = "CREATE_REQUEST";
     public static final String CREATE_RESPONSE = "CREATE_RESPONSE";
-    public static final String Enter_REQUEST = "Enter_REQUEST";
-    public static final String Enter_RESPONSE = "Enter_RESPONSE";
+    public static final String ENTER_REQUEST = "ENTER_REQUEST";
+    public static final String ENTER_RESPONSE = "ENTER_RESPONSE";
     public static final String WRITE_MESSAGE = "WRITE_MESSAGE";
 
     // Notification

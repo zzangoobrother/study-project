@@ -2,9 +2,9 @@ package com.example.dto.websocket.outbound;
 
 import com.example.constants.MessageType;
 
-public class KeepAliveRequest extends BaseRequest {
+public class KeepAlive extends BaseRequest {
 
-    public KeepAliveRequest() {
+    public KeepAlive() {
         super(MessageType.KEEP_ALIVE);
     }
 }

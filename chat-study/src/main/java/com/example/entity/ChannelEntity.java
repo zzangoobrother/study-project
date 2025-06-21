@@ -3,6 +3,7 @@ package com.example.entity;
 import jakarta.persistence.*;
 
 import java.util.Objects;
+import java.util.UUID;
 
 @Table(name = "channel")
 @Entity
@@ -27,6 +28,7 @@ public class ChannelEntity extends BaseEntity {
     public ChannelEntity(String title, int headCount) {
         this.title = title;
         this.headCount = headCount;
+        this.channelInviteCode = UUID.randomUUID().toString().replace("-", "");
     }
 
     public Long getChannelId() {
