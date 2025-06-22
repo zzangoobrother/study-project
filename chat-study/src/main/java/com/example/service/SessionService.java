@@ -55,6 +55,28 @@ public class SessionService {
         return Collections.emptyList();
     }
 
+    public boolean setActiveChannel(UserId userId, ChannelId channelId) {
+        String channelIdKey = buildChannelIdKey(userId);
+        try {
+            stringRedisTemplate.opsForValue().set(channelIdKey, channelId.id().toString(), TTL, TimeUnit.SECONDS);
+            return true;
+        } catch (Exception ex) {
+            log.error("Redis set failed. key : {}, channelId : {}", channelIdKey, channelId);
+            return false;
+        }
+    }
+
+    public boolean removeActiveChannel(UserId userId) {
+        String channelIdKey = buildChannelIdKey(userId);
+        try {
+            stringRedisTemplate.delete(channelIdKey);
+            return true;
+        } catch (Exception ex) {
+            log.error("Redis set failed. key : {}", channelIdKey);
+            return false;
+        }
+    }
+
     public void refreshTTL(UserId userId, String httpSessionId) {
         String channelIdKey = buildChannelIdKey(userId);
         try {
@@ -65,17 +87,6 @@ public class SessionService {
             }
         } catch (Exception ex) {
             log.error("Redis expire failed. key : {}", channelIdKey);
-        }
-    }
-
-    public boolean setActiveChannel(UserId userId, ChannelId channelId) {
-        String channelIdKey = buildChannelIdKey(userId);
-        try {
-            stringRedisTemplate.opsForValue().set(channelIdKey, channelId.id().toString(), TTL, TimeUnit.SECONDS);
-            return true;
-        } catch (Exception ex) {
-            log.error("Redis set failed. key : {}, channelId : {}", channelIdKey, channelId);
-            return false;
         }
     }
 
