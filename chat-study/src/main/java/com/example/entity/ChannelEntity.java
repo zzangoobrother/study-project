@@ -17,8 +17,8 @@ public class ChannelEntity extends BaseEntity {
     @Column(name = "title", nullable = false)
     private String title;
 
-    @Column(name = "channel_invite_code", nullable = false)
-    private String channelInviteCode;
+    @Column(name = "invite_code", nullable = false)
+    private String inviteCode;
 
     @Column(name = "head_count", nullable = false)
     private int headCount;
@@ -28,7 +28,7 @@ public class ChannelEntity extends BaseEntity {
     public ChannelEntity(String title, int headCount) {
         this.title = title;
         this.headCount = headCount;
-        this.channelInviteCode = UUID.randomUUID().toString().replace("-", "");
+        this.inviteCode = UUID.randomUUID().toString().replace("-", "");
     }
 
     public Long getChannelId() {
@@ -39,8 +39,8 @@ public class ChannelEntity extends BaseEntity {
         return title;
     }
 
-    public String getChannelInviteCode() {
-        return channelInviteCode;
+    public String getInviteCode() {
+        return inviteCode;
     }
 
     public int getHeadCount() {
@@ -69,7 +69,7 @@ public class ChannelEntity extends BaseEntity {
         return "ChannelEntity{" +
                 "channelId=" + channelId +
                 ", title='" + title + '\'' +
-                ", channelInviteCode='" + channelInviteCode + '\'' +
+                ", inviteCode='" + inviteCode + '\'' +
                 ", headCount=" + headCount +
                 '}';
     }

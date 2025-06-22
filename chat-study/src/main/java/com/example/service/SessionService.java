@@ -13,6 +13,9 @@ import org.springframework.session.SessionRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -28,18 +31,28 @@ public class SessionService {
         this.stringRedisTemplate = stringRedisTemplate;
     }
 
-    public boolean isOnline(UserId userId, ChannelId channelId) {
-        String channelIdKey = buildChannelIdKey(userId);
+    public List<UserId> getOnlineParticipantUSerIds(ChannelId channelId, List<UserId> userIds) {
+        List<String> channelIdKeys = userIds.stream().map(this::buildChannelIdKey).toList();
+
         try {
-            String chId = stringRedisTemplate.opsForValue().get(channelIdKey);
-            if (chId != null && chId.equals(channelId.id().toString())) {
-                return true;
+            List<String> channelIds = stringRedisTemplate.opsForValue().multiGet(channelIdKeys);
+            if (channelIds != null) {
+                List<UserId> onlineParticipantUSerIds = new ArrayList<>(channelIds.size());
+                String chId = channelId.toString();
+                for (int idx = 0; idx < userIds.size(); idx++) {
+                    String value = channelIds.get(idx);
+                    if (value != null && value.equals(chId)) {
+                        onlineParticipantUSerIds.add(userIds.get(idx));
+                    }
+                }
+
+                return onlineParticipantUSerIds;
             }
         } catch (Exception ex) {
-            log.error("Redis get failed. key : {}, cause : {}", channelIdKey, ex.getMessage());
+            log.error("Redis get failed. key : {}, cause : {}", channelIdKeys, ex.getMessage());
         }
 
-        return false;
+        return Collections.emptyList();
     }
 
     public void refreshTTL(UserId userId, String httpSessionId) {
@@ -73,6 +86,6 @@ public class SessionService {
 
     private String buildChannelIdKey(UserId userId) {
         String NAMESPACE = "message:user";
-        return "%s:%d:%s".formatted(NAMESPACE, userId.id(), IdKey.CHANNEL_ID);
+        return "%s:%d:%s".formatted(NAMESPACE, userId.id(), IdKey.CHANNEL_ID.getValue());
     }
 }

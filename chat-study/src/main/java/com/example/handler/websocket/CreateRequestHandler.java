@@ -16,7 +16,9 @@ import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 @Component
 public class CreateRequestHandler implements BaseRequestHandler<CreateRequest> {
@@ -35,24 +37,36 @@ public class CreateRequestHandler implements BaseRequestHandler<CreateRequest> {
     public void handleRequest(WebSocketSession senderSession, CreateRequest request) {
         UserId senderUserId = (UserId)senderSession.getAttributes().get(IdKey.USER_ID.getValue());
 
-        Optional<UserId> userId = userService.getUserId(request.getParticipantUsername());
-        if (userId.isEmpty()) {
+        List<UserId> participantIds = userService.getUserIds(request.getParticipantUsernames());
+        if (participantIds.isEmpty()) {
             webSocketSessionManager.sendMessage(senderSession, new ErrorResponse(MessageType.CREATE_REQUEST, ResultType.NOT_FOUND.getMessage()));
             return;
         }
 
-        UserId participantId = userId.get();
         Pair<Optional<Channel>, ResultType> result;
         try {
-            result = channelService.create(senderUserId, participantId, request.getTitle());
+            result = channelService.create(senderUserId, participantIds, request.getTitle());
         } catch (Exception ex) {
             webSocketSessionManager.sendMessage(senderSession, new ErrorResponse(MessageType.CREATE_REQUEST, ResultType.FAILED.getMessage()));
             return;
         }
 
-        result.getFirst().ifPresentOrElse(channel -> {
-            webSocketSessionManager.sendMessage(senderSession, new CreateResponse(channel.channelId(), channel.title()));
-            webSocketSessionManager.sendMessage(webSocketSessionManager.getSession(participantId), new JoinNotification(channel.channelId(), channel.title()));
-        }, () -> webSocketSessionManager.sendMessage(senderSession, new ErrorResponse(MessageType.CREATE_REQUEST, result.getSecond().getMessage())));
+        if (result.getFirst().isEmpty()) {
+            webSocketSessionManager.sendMessage(senderSession, new ErrorResponse(MessageType.CREATE_REQUEST, result.getSecond().getMessage()));
+            return;
+        }
+
+        Channel channel = result.getFirst().get();
+        webSocketSessionManager.sendMessage(senderSession, new CreateResponse(channel.channelId(), channel.title()));
+        participantIds.forEach(participantId -> {
+            CompletableFuture.runAsync(() -> {
+                WebSocketSession participantSession = webSocketSessionManager.getSession(participantId);
+                if (participantSession != null) {
+                    webSocketSessionManager.sendMessage(
+                            participantSession,
+                            new JoinNotification(channel.channelId(), channel.title()));
+                }
+            });
+        });
     }
 }

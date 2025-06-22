@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -39,13 +40,19 @@ public class UserService {
                 .map(userEntity -> new UserId(userEntity.getUserId()));
     }
 
+    public List<UserId> getUserIds(List<String> usernames) {
+        return userRepository.findByUsernameIn(usernames).stream()
+                .map(projection -> new UserId(projection.getUserId()))
+                .toList();
+    }
+
     public Optional<User> getUser(InviteCode inviteCode) {
-        return userRepository.findByConnectionInviteCode(inviteCode.code()).map(entity -> new User(new UserId(entity.getUserId()), entity.getUsername()));
+        return userRepository.findByInviteCode(inviteCode.code()).map(entity -> new User(new UserId(entity.getUserId()), entity.getUsername()));
     }
 
     public Optional<InviteCode> getInviteCode(UserId userId) {
         return userRepository.findInviteCodeByUserId(userId.id())
-                .map(inviteCode -> new InviteCode(inviteCode.getConnectionInviteCode()));
+                .map(inviteCode -> new InviteCode(inviteCode.getInviteCode()));
     }
 
     public Optional<Integer> getConnectionCount(UserId userId) {

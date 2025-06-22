@@ -4,6 +4,7 @@ import com.example.constants.ResultType;
 import com.example.constants.UserConnectionStatus;
 import com.example.dto.domain.Channel;
 import com.example.dto.domain.ChannelId;
+import com.example.dto.domain.InviteCode;
 import com.example.dto.domain.UserId;
 import com.example.dto.projection.ChannelTitleProjection;
 import com.example.entity.ChannelEntity;
@@ -18,11 +19,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class ChannelService {
 
     private static final Logger log = LoggerFactory.getLogger(UserConnectionService.class);
+    private static final int LIMIT_HEAD_COUNT = 100;
 
     private final SessionService sessionService;
     private final UserConnectionService userConnectionService;
@@ -36,6 +39,17 @@ public class ChannelService {
         this.userChannelRepository = userChannelRepository;
     }
 
+    public Optional<InviteCode> getInviteCode(ChannelId channelId) {
+        Optional<InviteCode> inviteCode = channelRepository.findChannelInviteCodeByChannelId(channelId.id())
+                .map(projection -> new InviteCode(projection.getInviteCode()));
+
+        if (inviteCode.isEmpty()) {
+            log.warn("Invite code is not exist. ChannelId : {}", channelId);
+        }
+
+        return inviteCode;
+    }
+
     public boolean isJoined(ChannelId channelId, UserId userId) {
         return userChannelRepository.existsByUserIdAndChannelId(userId.id(), channelId.id());
     }
@@ -46,29 +60,35 @@ public class ChannelService {
                 .toList();
     }
 
-    public boolean isOnline(UserId userId, ChannelId channelId) {
-        return sessionService.isOnline(userId, channelId);
+    public List<UserId> getOnlineParticipantIds(ChannelId channelId) {
+        return sessionService.getOnlineParticipantUSerIds(channelId, getParticipantIds(channelId));
     }
 
     @Transactional
-    public Pair<Optional<Channel>, ResultType> create(UserId senderUserId, UserId participantId, String title) {
+    public Pair<Optional<Channel>, ResultType> create(UserId senderUserId, List<UserId> participantIds, String title) {
         if (title == null || title.isEmpty()) {
             log.warn("Invalid args : title is empty.");
             return Pair.of(Optional.empty(), ResultType.INVALID_ARGS);
         }
 
-        if (userConnectionService.getStatus(senderUserId, participantId) != UserConnectionStatus.ACCEPTED) {
-            log.warn("Included Unconnected user. participantId : {}", participantId);
+        int headCount = participantIds.size() + 1;
+        if (headCount > LIMIT_HEAD_COUNT) {
+            log.warn("Over limit of channel. senderUserId : {}, participantIds count : {}, title : {}", senderUserId, participantIds.size(), title);
+            return Pair.of(Optional.empty(), ResultType.OVER_LIMIT);
+        }
+
+        if (userConnectionService.countConnectionStatus(senderUserId, participantIds, UserConnectionStatus.ACCEPTED) != participantIds.size()) {
+            log.warn("Included Unconnected user. participantIds : {}", participantIds);
             return Pair.of(Optional.empty(), ResultType.NOT_ALLOWED);
         }
 
         try {
-            final int HEAD_COUNT = 2;
-            ChannelEntity channelEntity = channelRepository.save(new ChannelEntity(title, HEAD_COUNT));
+            ChannelEntity channelEntity = channelRepository.save(new ChannelEntity(title, headCount));
             Long channelId = channelEntity.getChannelId();
-            List<UserChannelEntity> userChannelEntities = List.of(new UserChannelEntity(senderUserId.id(), channelId, 0), new UserChannelEntity(participantId.id(), channelId, 0));
+            List<UserChannelEntity> userChannelEntities = participantIds.stream().map(participantId -> new UserChannelEntity(participantId.id(), channelId, 0)).collect(Collectors.toList());
+            userChannelEntities.add(new UserChannelEntity(senderUserId.id(), channelId, 0));
             userChannelRepository.saveAll(userChannelEntities);
-            Channel channel = new Channel(new ChannelId(channelId), title, HEAD_COUNT);
+            Channel channel = new Channel(new ChannelId(channelId), title, headCount);
             return Pair.of(Optional.of(channel), ResultType.SUCCESS);
         } catch (Exception ex) {
             log.error("Create failed. cause : {}", ex.getMessage());

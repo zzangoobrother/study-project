@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,6 +24,10 @@ public interface UserConnectionRepository extends JpaRepository<UserConnectionEn
     Optional<UserConnectionEntity> findByPartnerAUserIdAndPartnerBUserIdAndStatus(@NonNull Long partnerAUserId, @NonNull Long partnerBUserId, @NonNull UserConnectionStatus status);
 
     Optional<InviterUserIdProjection> findInviterUserIdByPartnerAUserIdAndPartnerBUserId(@NonNull Long partnerAUserId, @NonNull Long partnerBUserId);
+
+    long countByPartnerAUserIdAndPartnerBUserIdInAndStatus(@NonNull Long partnerAUserId, @NonNull Collection<Long> partnerBUserIds, @NonNull UserConnectionStatus status);
+
+    long countByPartnerBUserIdAndPartnerAUserIdInAndStatus(@NonNull Long partnerBUserId, @NonNull Collection<Long> partnerAUserIds, @NonNull UserConnectionStatus status);
 
     @Query("select u.partnerBUserId as userId, userB.username as username, u.inviterUserId as inviterUserId " +
             "from UserConnectionEntity u " +

@@ -14,6 +14,8 @@ public class MessageType {
     public static final String REJECT_RESPONSE = "REJECT_RESPONSE";
     public static final String DISCONNECT_REQUEST = "DISCONNECT_REQUEST";
     public static final String DISCONNECT_RESPONSE = "DISCONNECT_RESPONSE";
+    public static final String FETCH_CHANNEL_INVITECODE_REQUEST = "FETCH_CHANNEL_INVITECODE_REQUEST";
+    public static final String FETCH_CHANNEL_INVITECODE_RESPONSE = "FETCH_CHANNEL_INVITECODE_RESPONSE";
     public static final String CREATE_REQUEST = "CREATE_REQUEST";
     public static final String CREATE_RESPONSE = "CREATE_RESPONSE";
     public static final String ENTER_REQUEST = "ENTER_REQUEST";

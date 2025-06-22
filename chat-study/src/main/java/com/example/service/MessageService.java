@@ -8,16 +8,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 @Service
 public class MessageService {
 
     private static final Logger log = LoggerFactory.getLogger(MessageService.class);
+    private static final int THREAD_POOL_SIZE = 10;
 
     private final ChannelService channelService;
     private final MessageRepository messageRepository;
+    private final ExecutorService senderThreadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
     public MessageService(ChannelService channelService, MessageRepository messageRepository) {
         this.channelService = channelService;
@@ -32,13 +36,8 @@ public class MessageService {
             return;
         }
 
-        List<UserId> participantIds = channelService.getParticipantIds(channelId);
-        participantIds.stream()
-                .filter(userId -> !senderUserId.equals(userId))
-                .forEach(participantId -> {
-                    if (channelService.isOnline(participantId, channelId)) {
-                        messageSender.accept(participantId);
-                    }
-                });
+        channelService.getOnlineParticipantIds(channelId).stream()
+                .filter(participantId -> !senderUserId.equals(participantId))
+                .forEach(participantId -> CompletableFuture.runAsync(() -> messageSender.accept(participantId), senderThreadPool));
     }
 }

@@ -20,8 +20,8 @@ public class UserEntity extends BaseEntity {
     @Column(name = "password", nullable = false)
     private String password;
 
-    @Column(name = "connection_invite_code", nullable = false)
-    private String connectionInviteCode;
+    @Column(name = "invite_code", nullable = false)
+    private String inviteCode;
 
     @Column(name = "connection_count", nullable = false)
     private int connectionCount;
@@ -31,7 +31,7 @@ public class UserEntity extends BaseEntity {
     public UserEntity(String username, String password) {
         this.username = username;
         this.password = password;
-        this.connectionInviteCode = UUID.randomUUID().toString().replace("-", "");
+        this.inviteCode = UUID.randomUUID().toString().replace("-", "");
     }
 
     public Long getUserId() {
@@ -46,8 +46,8 @@ public class UserEntity extends BaseEntity {
         return password;
     }
 
-    public String getConnectionInviteCode() {
-        return connectionInviteCode;
+    public String getInviteCode() {
+        return inviteCode;
     }
 
     public int getConnectionCount() {
