@@ -54,6 +54,12 @@ public class TerminalService {
 
     public void clearTerminal() {
         terminal.puts(InfoCmp.Capability.clear_screen);
-        terminal.flush();
+        flush();
+    }
+
+    public void flush() {
+        if (terminal != null) {
+            terminal.flush();
+        }
     }
 }

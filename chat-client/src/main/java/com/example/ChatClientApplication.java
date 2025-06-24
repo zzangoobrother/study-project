@@ -9,6 +9,7 @@ import com.example.service.RestApiService;
 import com.example.service.TerminalService;
 import com.example.service.UserService;
 import com.example.service.WebSocketService;
+import org.jline.reader.UserInterruptException;
 
 import java.io.IOException;
 
@@ -37,17 +38,25 @@ public class ChatClientApplication {
         terminalService.printSystemMessage("'/help' Help for command. ex : /help");
 
         while (true) {
-            String input = terminalService.readLine("Enter message : ");
-            if (!input.isEmpty() && input.charAt(0) == '/') {
-                String[] parts = input.split(" ", 2);
-                String command = parts[0].substring(1);
-                String argument = parts.length > 1 ? parts[1] : "";
-                if (!commandHandler.process(command, argument)) {
-                    break;
+            try {
+                String input = terminalService.readLine("Enter message : ");
+                if (!input.isEmpty() && input.charAt(0) == '/') {
+                    String[] parts = input.split(" ", 2);
+                    String command = parts[0].substring(1);
+                    String argument = parts.length > 1 ? parts[1] : "";
+                    if (!commandHandler.process(command, argument)) {
+                        break;
+                    }
+                } else if (!input.isEmpty() && userService.isInChannel()) {
+                    terminalService.printMessage("<me>", input);
+                    webSocketService.sendMessage(new WriteMessage(userService.getChannelId(), input));
                 }
-            } else if (!input.isEmpty() && userService.isInChannel()) {
-                terminalService.printMessage("<me>", input);
-                webSocketService.sendMessage(new WriteMessage(userService.getChannelId(), input));
+            } catch (UserInterruptException ex) {
+                terminalService.flush();
+                commandHandler.process("exit", "");
+                return;
+            } catch (NumberFormatException ex) {
+                terminalService.printSystemMessage("Invalid Input : " + ex.getMessage());
             }
         }
     }

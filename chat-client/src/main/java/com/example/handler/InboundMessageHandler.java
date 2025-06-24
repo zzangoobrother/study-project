@@ -84,8 +84,22 @@ public class InboundMessageHandler {
         fetchConnectionsResponse.getConnections().forEach(connection -> terminalService.printSystemMessage("%s : %s".formatted(connection.username(), connection.status())));
     }
 
+    private void fetchChannels(FetchChannelsResponse fetchChannelsResponse) {
+        fetchChannelsResponse.getChannels().forEach(channel -> {
+            terminalService.printSystemMessage("%s : %s".formatted(channel.channelId(), channel.title(), channel.headCount()));
+        });
+    }
+
+    private void fetchChannelInviteCode(FetchChannelInviteCodeResponse fetchChannelInviteCodeResponse) {
+        terminalService.printSystemMessage("%s InviteCode: %s".formatted(fetchChannelInviteCodeResponse.getChannelId(), fetchChannelInviteCodeResponse.getInviteCode()));
+    }
+
     private void create(CreateResponse createResponse) {
         terminalService.printSystemMessage("Created channel %s : %s".formatted(createResponse.getChannelId(), createResponse.getTitle()));
+    }
+
+    private void join(JoinResponse joinResponse) {
+        terminalService.printSystemMessage("Joined channel %s : %s".formatted(joinResponse.getChannelId(), joinResponse.getTitle()));
     }
 
     private void joinNotification(JoinNotification joinNotification) {
