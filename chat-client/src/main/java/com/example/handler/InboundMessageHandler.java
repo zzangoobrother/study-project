@@ -36,12 +36,22 @@ public class InboundMessageHandler {
                         disconnect(disconnectResponse);
                     } else if (message instanceof FetchConnectionsResponse fetchConnectionsResponse) {
                         fetchConnections(fetchConnectionsResponse);
+                    } else if (message instanceof FetchChannelsResponse fetchChannelsResponse) {
+                        fetchChannels(fetchChannelsResponse);
+                    } else if (message instanceof FetchChannelInviteCodeResponse fetchChannelInviteCodeResponse) {
+                        fetchChannelInviteCode(fetchChannelInviteCodeResponse);
                     } else if (message instanceof CreateResponse createResponse) {
                         create(createResponse);
+                    } else if (message instanceof JoinResponse joinResponse) {
+                        join(joinResponse);
                     } else if (message instanceof JoinNotification joinNotification) {
                         joinNotification(joinNotification);
                     } else if (message instanceof EnterResponse enterResponse) {
                         enter(enterResponse);
+                    } else if (message instanceof LeaveResponse leaveResponse) {
+                        leave(leaveResponse);
+                    } else if (message instanceof QuitResponse quitResponse) {
+                        quit(quitResponse);
                     } else if (message instanceof ErrorResponse errorResponse) {
                         error(errorResponse);
                     }
@@ -109,6 +119,15 @@ public class InboundMessageHandler {
     private void enter(EnterResponse enterResponse) {
         userService.moveToChannel(enterResponse.getChannelId());
         terminalService.printSystemMessage("Enter channel %s : %s".formatted(enterResponse.getChannelId(), enterResponse.getTitle()));
+    }
+
+    private void leave(LeaveResponse leaveResponse) {
+        terminalService.printSystemMessage("Leave channel %s".formatted(userService.getChannelId()));
+        userService.moveToLobby();
+    }
+
+    private void quit(QuitResponse quitResponse) {
+        terminalService.printSystemMessage("Quit channel %s".formatted(quitResponse.getChannelId()));
     }
 
     private void error(ErrorResponse errorResponse) {

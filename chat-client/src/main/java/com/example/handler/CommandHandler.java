@@ -222,7 +222,7 @@ public class CommandHandler {
     }
 
     private Boolean leave(String[] params) {
-        if (userService.isInLobby()) {
+        if (userService.isInChannel()) {
             webSocketService.sendMessage(new LeaveRequest());
             terminalService.printSystemMessage("Request leave channel.");
         }
@@ -269,10 +269,10 @@ public class CommandHandler {
                         '/create' Create a channel. (Up to 99 users) ex : /create <Title> <Username1> ...
                         '/join' Join a channel. ex : /join <InviteCode>
                         '/enter' Enter a channel. ex : /enter <ChannelId>
-                        '/leave' Leave a channel. ex : /leave
                         '/quit' Quit a channel. ex : /quit <ChannelId>
 
                         Commands For Channel
+                        '/leave' Leave a channel. ex : /leave
                         
                         Commands For Lobby/Channel
                         '/logout' logout. ex: /logout
