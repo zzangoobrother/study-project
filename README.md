@@ -32,4 +32,5 @@
   - <a href='https://github.com/zzangoobrother/study-project/tree/master/inflearn-security-study' target='_blank' >inflearn-security-study</a>
 
 ### 패스트캠퍼스 강의
-
+  - <a href='https://github.com/zzangoobrother/study-project/tree/master/chat-study' target='_blank' >채팅 서버</a>
+  - <a href='https://github.com/zzangoobrother/study-project/tree/master/chat-client' target='_blank' >채팅 클라이언트</a>
