@@ -11,7 +11,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(value = RejectResponse.class, name = MessageType.REJECT_RESPONSE),
         @JsonSubTypes.Type(value = DisconnectResponse.class, name = MessageType.DISCONNECT_RESPONSE),
         @JsonSubTypes.Type(value = CreateResponse.class, name = MessageType.CREATE_RESPONSE),
-        @JsonSubTypes.Type(value = CreateResponse.class, name = MessageType.CREATE_RESPONSE),
+        @JsonSubTypes.Type(value = JoinResponse.class, name = MessageType.JOIN_RESPONSE),
         @JsonSubTypes.Type(value = EnterResponse.class, name = MessageType.ENTER_RESPONSE),
         @JsonSubTypes.Type(value = LeaveResponse.class, name = MessageType.LEAVE_RESPONSE),
         @JsonSubTypes.Type(value = QuitResponse.class, name = MessageType.QUIT_RESPONSE),

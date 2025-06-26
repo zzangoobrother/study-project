@@ -35,7 +35,7 @@ public class WebSocketHttpSessionHandshakeInterceptor extends HttpSessionHandsha
 
             HttpSession httpSession = servletServerHttpRequest.getServletRequest().getSession(false);
             if (httpSession == null) {
-                attributes.put(IdKey.HTTP_SESSION_ID.getValue(), httpSession.getId());
+                response.setStatusCode(HttpStatus.UNAUTHORIZED);
                 return true;
             }
 

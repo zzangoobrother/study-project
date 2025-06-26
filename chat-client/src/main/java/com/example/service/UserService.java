@@ -31,7 +31,7 @@ public class UserService {
 
     public void logout() {
         this.username = "";
-        this.channelId = null;
+        moveToLobby();
     }
 
     public void moveToLobby() {
