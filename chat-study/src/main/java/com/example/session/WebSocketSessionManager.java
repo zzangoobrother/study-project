@@ -1,7 +1,6 @@
 package com.example.session;
 
 import com.example.dto.domain.UserId;
-import com.example.dto.websocket.outbound.BaseMessage;
 import com.example.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,7 +24,7 @@ public class WebSocketSessionManager {
         this.jsonUtil = jsonUtil;
     }
 
-    public List<WebSocketSession> getSessions() {
+    public List<WebSocketSession> getSessions(UserId participantId) {
         return sessions.values().stream().toList();
     }
 
@@ -50,14 +50,13 @@ public class WebSocketSessionManager {
         }
     }
 
-    public void sendMessage(WebSocketSession session, BaseMessage message) {
-        jsonUtil.toJson(message).ifPresent(msg -> {
-            try {
-                session.sendMessage(new TextMessage(msg));
-                log.info("send message : {} to {}", msg, session.getId());
-            } catch (Exception ex) {
-                log.error("메시지 전송 실패 cause : {}", ex.getMessage());
-            }
-        });
+    public void sendMessage(WebSocketSession session, String message) throws IOException {
+        try {
+            session.sendMessage(new TextMessage(message));
+            log.info("send message : {} to {}", message, session.getId());
+        } catch (IOException ex) {
+            log.error("Send message failed. cause : {}", ex.getMessage());
+            throw ex;
+        }
     }
 }

@@ -8,8 +8,8 @@ import com.example.dto.websocket.inbound.InviteRequest;
 import com.example.dto.websocket.outbound.ErrorResponse;
 import com.example.dto.websocket.outbound.InviteNotification;
 import com.example.dto.websocket.outbound.InviteResponse;
+import com.example.service.ClientNotificationService;
 import com.example.service.UserConnectionService;
-import com.example.session.WebSocketSessionManager;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
@@ -20,12 +20,11 @@ import java.util.Optional;
 public class InviterRequestHandler implements BaseRequestHandler<InviteRequest> {
 
     private final UserConnectionService userConnectionService;
-    private final WebSocketSessionManager webSocketSessionManager;
+    private final ClientNotificationService clientNotificationService;
 
-    public InviterRequestHandler(UserConnectionService userConnectionService,
-                                 WebSocketSessionManager webSocketSessionManager) {
+    public InviterRequestHandler(UserConnectionService userConnectionService, ClientNotificationService clientNotificationService) {
         this.userConnectionService = userConnectionService;
-        this.webSocketSessionManager = webSocketSessionManager;
+        this.clientNotificationService = clientNotificationService;
     }
 
     @Override
@@ -35,11 +34,11 @@ public class InviterRequestHandler implements BaseRequestHandler<InviteRequest> 
                 request.getUserInviteCode());
         result.getFirst().ifPresentOrElse(partnerUserId -> {
             String inviterUsername = result.getSecond();
-            webSocketSessionManager.sendMessage(senderSession, new InviteResponse(request.getUserInviteCode(), UserConnectionStatus.PENDING));
-            webSocketSessionManager.sendMessage(webSocketSessionManager.getSession(partnerUserId), new InviteNotification(inviterUsername));
+            clientNotificationService.sendMessage(senderSession, inviterUserId, new InviteResponse(request.getUserInviteCode(), UserConnectionStatus.PENDING));
+            clientNotificationService.sendMessage(partnerUserId, new InviteNotification(inviterUsername));
         }, () -> {
             String errorMessage = result.getSecond();
-            webSocketSessionManager.sendMessage(senderSession, new ErrorResponse(MessageType.INVITE_REQUEST, errorMessage));
+            clientNotificationService.sendMessage(senderSession, inviterUserId, new ErrorResponse(MessageType.INVITE_REQUEST, errorMessage));
         });
     }
 }

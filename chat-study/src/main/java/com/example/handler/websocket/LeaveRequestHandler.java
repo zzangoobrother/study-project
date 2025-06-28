@@ -7,7 +7,7 @@ import com.example.dto.websocket.inbound.LeaveRequest;
 import com.example.dto.websocket.outbound.ErrorResponse;
 import com.example.dto.websocket.outbound.LeaveResponse;
 import com.example.service.ChannelService;
-import com.example.session.WebSocketSessionManager;
+import com.example.service.ClientNotificationService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -15,11 +15,11 @@ import org.springframework.web.socket.WebSocketSession;
 public class LeaveRequestHandler implements BaseRequestHandler<LeaveRequest> {
 
     private final ChannelService channelService;
-    private final WebSocketSessionManager webSocketSessionManager;
+    private final ClientNotificationService clientNotificationService;
 
-    public LeaveRequestHandler(ChannelService channelService, WebSocketSessionManager webSocketSessionManager) {
+    public LeaveRequestHandler(ChannelService channelService, ClientNotificationService clientNotificationService) {
         this.channelService = channelService;
-        this.webSocketSessionManager = webSocketSessionManager;
+        this.clientNotificationService = clientNotificationService;
     }
 
     @Override
@@ -27,9 +27,9 @@ public class LeaveRequestHandler implements BaseRequestHandler<LeaveRequest> {
         UserId senderUserId = (UserId)senderSession.getAttributes().get(IdKey.USER_ID.getValue());
 
         if (channelService.leave(senderUserId)) {
-            webSocketSessionManager.sendMessage(senderSession, new LeaveResponse());
+            clientNotificationService.sendMessage(senderSession, senderUserId, new LeaveResponse());
         } else {
-            webSocketSessionManager.sendMessage(senderSession, new ErrorResponse(MessageType.LEAVE_REQUEST, "Leave failed."));
+            clientNotificationService.sendMessage(senderSession, senderUserId, new ErrorResponse(MessageType.LEAVE_REQUEST, "Leave failed."));
         }
     }
 }

@@ -2,6 +2,7 @@ package com.example.integration
 
 import com.example.ChatStudyApplication
 import com.example.dto.domain.ChannelId
+import com.example.dto.domain.UserId
 import com.example.dto.websocket.inbound.WriteMessage
 import com.example.service.ChannelService
 import com.example.service.UserService
@@ -51,7 +52,8 @@ class WebSocketHandlerTest extends Specification{
 
         def (clientA, clientB, clientC) = [createClient(sessionIdA), createClient(sessionIdB), createClient(sessionIdC)]
 
-        channelService.getOnlineParticipantIds(_ as ChannelId) >> List.of(userService.getUserId("testuserA").get(), userService.getUserId("testuserB").get(), userService.getUserId("testuserC").get())
+        channelService.getParticipantIds(_ as ChannelId) >> List.of(userService.getUserId("testuserA").get(), userService.getUserId("testuserB").get(), userService.getUserId("testuserC").get())
+        channelService.getOnlineParticipantIds(_ as ChannelId, _ as List<UserId>) >> List.of(userService.getUserId("testuserA").get(), userService.getUserId("testuserB").get(), userService.getUserId("testuserC").get())
 
 
         when:

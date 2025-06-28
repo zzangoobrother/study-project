@@ -61,8 +61,8 @@ public class ChannelService {
                 .toList();
     }
 
-    public List<UserId> getOnlineParticipantIds(ChannelId channelId) {
-        return sessionService.getOnlineParticipantUSerIds(channelId, getParticipantIds(channelId));
+    public List<UserId> getOnlineParticipantIds(ChannelId channelId, List<UserId> userIds) {
+        return sessionService.getOnlineParticipantUSerIds(channelId, userIds);
     }
 
     public Optional<Channel> getChannel(InviteCode inviteCode) {

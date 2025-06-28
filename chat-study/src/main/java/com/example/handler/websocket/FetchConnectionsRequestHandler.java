@@ -5,8 +5,8 @@ import com.example.dto.domain.Connection;
 import com.example.dto.domain.UserId;
 import com.example.dto.websocket.inbound.FetchConnectionsRequest;
 import com.example.dto.websocket.outbound.FetchConnectionsResponse;
+import com.example.service.ClientNotificationService;
 import com.example.service.UserConnectionService;
-import com.example.session.WebSocketSessionManager;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -16,12 +16,11 @@ import java.util.List;
 public class FetchConnectionsRequestHandler implements BaseRequestHandler<FetchConnectionsRequest> {
 
     private final UserConnectionService userConnectionService;
-    private final WebSocketSessionManager webSocketSessionManager;
+    private final ClientNotificationService clientNotificationService;
 
-    public FetchConnectionsRequestHandler(UserConnectionService userConnectionService,
-                                          WebSocketSessionManager webSocketSessionManager) {
+    public FetchConnectionsRequestHandler(UserConnectionService userConnectionService, ClientNotificationService clientNotificationService) {
         this.userConnectionService = userConnectionService;
-        this.webSocketSessionManager = webSocketSessionManager;
+        this.clientNotificationService = clientNotificationService;
     }
 
     @Override
@@ -31,6 +30,6 @@ public class FetchConnectionsRequestHandler implements BaseRequestHandler<FetchC
                 .map(user -> new Connection(user.username(), request.getStatus()))
                 .toList();
 
-        webSocketSessionManager.sendMessage(senderSession, new FetchConnectionsResponse(connections));
+        clientNotificationService.sendMessage(senderSession, senderUserId, new FetchConnectionsResponse(connections));
     }
 }
