@@ -1,7 +1,12 @@
 services:
-  mysql:
+  mysql-source:
     image: mysql:8.0.40
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     environment:
       MYSQL_ROOT_PASSWORD: root1234
       MYSQL_DATABASE: chatsystem
@@ -10,7 +15,33 @@ services:
     ports:
       - "13306:3306"
     volumes:
-      - ./data/mysql:/var/lib/mysql
+      - ./data/mysql-source:/var/lib/mysql
+      - ./init-scripts-source:/docker-entrypoint-initdb.d
+    command: >
+      --server-id=1
+      --log_bin=/var/lib/mysql/mysql-bin.log
+      --enforce-gtid-consistency=ON
+      --gtid-mode=ON
+
+  mysql-replica:
+    image: mysql:8.0.40
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root1234
+    ports:
+      - "13307:3306"
+    volumes:
+      - ./data/mysql-replica:/var/lib/mysql
+      - ./init-scripts-replica:/docker-entrypoint-initdb.d
+    depends_on:
+      mysql-source:
+        condition: service_healthy
+    command: >
+      --server-id=2
+      --relay_log=/var/lib/mysql/mysql-relay-bin.log
+      --enforce-gtid-consistency=ON
+      --gtid-mode=ON
+      --read-only=1
 
   redis:
     image: redis:7.4.1

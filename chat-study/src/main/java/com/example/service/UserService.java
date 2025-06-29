@@ -31,30 +31,36 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    @Transactional(readOnly = true)
     public Optional<String> getUsername(UserId userId) {
         return userRepository.findByUserId(userId.id()).map(UsernameProjection::getUsername);
     }
 
+    @Transactional(readOnly = true)
     public Optional<UserId> getUserId(String username) {
-        return userRepository.findByUsername(username)
-                .map(userEntity -> new UserId(userEntity.getUserId()));
+        return userRepository.findUserIdByUsername(username)
+                .map(projection -> new UserId(projection.getUserId()));
     }
 
+    @Transactional(readOnly = true)
     public List<UserId> getUserIds(List<String> usernames) {
         return userRepository.findByUsernameIn(usernames).stream()
                 .map(projection -> new UserId(projection.getUserId()))
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public Optional<User> getUser(InviteCode inviteCode) {
         return userRepository.findByInviteCode(inviteCode.code()).map(entity -> new User(new UserId(entity.getUserId()), entity.getUsername()));
     }
 
+    @Transactional(readOnly = true)
     public Optional<InviteCode> getInviteCode(UserId userId) {
         return userRepository.findInviteCodeByUserId(userId.id())
                 .map(inviteCode -> new InviteCode(inviteCode.getInviteCode()));
     }
 
+    @Transactional(readOnly = true)
     public Optional<Integer> getConnectionCount(UserId userId) {
         return userRepository.findCountByUserId(userId.id())
                 .map(CountProjection::getConnectionCount);

@@ -12,6 +12,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Optional;
@@ -46,13 +48,6 @@ public class UserConnectionService {
                     .map(it -> new User(new UserId(it.getUserId()), it.getUsername()))
                     .toList();
         }
-    }
-
-    public UserConnectionStatus getStatus(UserId inviterUserId, UserId partnerUserId) {
-        return userConnectionRepository.findUserConnectionStatusByPartnerAUserIdAndPartnerBUserId(Long.min(inviterUserId.id(), partnerUserId.id()), Long.max(inviterUserId.id(), partnerUserId.id()))
-                .map(status -> UserConnectionStatus.valueOf(status.getStatus()))
-                .orElse(UserConnectionStatus.NONE);
-
     }
 
     @Transactional(readOnly = true)
@@ -92,6 +87,7 @@ public class UserConnectionService {
                     setStatus(inviterUserId, partnerUserId, UserConnectionStatus.PENDING);
                     yield Pair.of(Optional.of(partnerUserId), inviterUsername.get());
                 } catch (Exception ex) {
+                    TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
                     log.error("Set pending failed. cause : {}", ex.getMessage());
                     yield Pair.of(Optional.empty(), "InviteRequest failed.");
                 }
@@ -104,6 +100,7 @@ public class UserConnectionService {
         };
     }
 
+    @Transactional
     public Pair<Optional<UserId>, String> accept(UserId acceptorUserId, String inviterUsername) {
         Optional<UserId> userId = userService.getUserId(inviterUsername);
         if (userId.isEmpty()) {
@@ -140,13 +137,21 @@ public class UserConnectionService {
             userConnectionLimitService.accept(acceptorUserId, inviterUserId);
             return Pair.of(Optional.of(inviterUserId), acceptorUsername.get());
         } catch (IllegalStateException ex) {
+            if (TransactionSynchronizationManager.isActualTransactionActive()) {
+                TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            }
+
             return Pair.of(Optional.empty(), ex.getMessage());
         } catch (Exception ex) {
+            if (TransactionSynchronizationManager.isActualTransactionActive()) {
+                TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            }
             log.error("Accept failed. cause : {}", ex.getMessage());
             return Pair.of(Optional.empty(), "Accept failed.");
         }
     }
 
+    @Transactional
     public Pair<Boolean, String> reject(UserId senderUserId, String inviterUsername) {
         return userService.getUserId(inviterUsername)
                 .filter(inviterUserId -> !inviterUserId.equals(senderUserId))
@@ -159,12 +164,17 @@ public class UserConnectionService {
                         setStatus(inviterUserId, senderUserId, UserConnectionStatus.REJECTED);
                         return Pair.of(true, inviterUsername);
                     } catch (Exception ex) {
+                        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+                            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+                        }
+
                         log.error("Set rejected failed. cause : {}", ex.getMessage());
                         return Pair.of(false, "Reject failed.");
                     }
                 }).orElse(Pair.of(false, "Reject failed."));
     }
 
+    @Transactional
     public Pair<Boolean, String> disconnect(UserId senderUserId, String partnerUsername) {
         return userService.getUserId(partnerUsername)
                 .filter(partnerUserId -> !senderUserId.equals(partnerUserId))
@@ -183,11 +193,21 @@ public class UserConnectionService {
                             return Pair.of(true, partnerUsername);
                         }
                     } catch (Exception ex) {
+                        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+                            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+                        }
                         log.error("Disconnect failed. cause : {}", ex.getMessage());
                     }
 
                     return Pair.of(false, "Disconnect failed.");
                 }).orElse(Pair.of(false, "Disconnect failed."));
+    }
+
+    private UserConnectionStatus getStatus(UserId inviterUserId, UserId partnerUserId) {
+        return userConnectionRepository.findUserConnectionStatusByPartnerAUserIdAndPartnerBUserId(Long.min(inviterUserId.id(), partnerUserId.id()), Long.max(inviterUserId.id(), partnerUserId.id()))
+                .map(status -> UserConnectionStatus.valueOf(status.getStatus()))
+                .orElse(UserConnectionStatus.NONE);
+
     }
 
     private Optional<UserId> getInviterUserId(UserId partnerAUserId, UserId partnerBUserId) {

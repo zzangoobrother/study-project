@@ -82,10 +82,12 @@ public class UserConnectionLimitService {
         userConnectionEntity.setStatus(UserConnectionStatus.DISCONNECTED);
     }
 
+    @Transactional(readOnly = true)
     public int getLimitConnection() {
         return limitConnection;
     }
 
+    @Transactional(readOnly = true)
     public void setLimitConnection(int limitConnection) {
         this.limitConnection = limitConnection;
     }
