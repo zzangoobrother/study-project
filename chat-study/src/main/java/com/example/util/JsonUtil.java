@@ -5,6 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -21,8 +23,17 @@ public class JsonUtil {
         try {
             return Optional.of(objectMapper.readValue(json, clazz));
         } catch (Exception ex) {
-            log.error("Failed JSON to Object : " + ex.getMessage());
+            log.error("Failed JSON to Object : {}" + ex.getMessage());
             return Optional.empty();
+        }
+    }
+
+    public <T> List<T> fromJsonToList(String json, Class<T> clazz) {
+        try {
+            return objectMapper.readerForListOf(clazz).readValue(json);
+        } catch (Exception ex) {
+            log.error("Failed JSON to List : {}" + ex.getMessage());
+            return Collections.emptyList();
         }
     }
 

@@ -1,5 +1,6 @@
 package com.example.service;
 
+import com.example.constants.KeyPrefix;
 import com.example.constants.UserConnectionStatus;
 import com.example.dto.domain.InviteCode;
 import com.example.dto.domain.UserId;
@@ -7,6 +8,7 @@ import com.example.dto.projection.UserIdUsernameInviterUserIdProjection;
 import com.example.entity.User;
 import com.example.entity.UserConnectionEntity;
 import com.example.repository.UserConnectionRepository;
+import com.example.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.util.Pair;
@@ -23,31 +25,51 @@ import java.util.stream.Stream;
 public class UserConnectionService {
     private static final Logger log = LoggerFactory.getLogger(UserConnectionService.class);
 
+    private final long TTL = 600;
+
     private final UserService userService;
+    private final CacheService cacheService;
     private final UserConnectionLimitService userConnectionLimitService;
     private final UserConnectionRepository userConnectionRepository;
+    private final JsonUtil jsonUtil;
 
-    public UserConnectionService(UserService userService, UserConnectionLimitService userConnectionLimitService, UserConnectionRepository userConnectionRepository) {
+    public UserConnectionService(UserService userService, CacheService cacheService, UserConnectionLimitService userConnectionLimitService, UserConnectionRepository userConnectionRepository, JsonUtil jsonUtil) {
         this.userService = userService;
+        this.cacheService = cacheService;
         this.userConnectionLimitService = userConnectionLimitService;
         this.userConnectionRepository = userConnectionRepository;
+        this.jsonUtil = jsonUtil;
     }
 
     @Transactional(readOnly = true)
     public List<User> getUsersByStatus(UserId userId, UserConnectionStatus status) {
+        String key = cacheService.buildKey(KeyPrefix.CONNECTIONS_STATUS, userId.id().toString(), status.name());
+        Optional<String> cachedUsers = cacheService.get(key);
+        if (cachedUsers.isPresent()) {
+            return jsonUtil.fromJsonToList(cachedUsers.get(), User.class);
+        }
+
         List<UserIdUsernameInviterUserIdProjection> usersA = userConnectionRepository.findByPartnerAUserIdAndStatus(userId.id(), status);
         List<UserIdUsernameInviterUserIdProjection> usersB = userConnectionRepository.findByPartnerBUserIdAndStatus(userId.id(), status);
 
+        List<User> fromDb;
         if (status == UserConnectionStatus.ACCEPTED) {
-            return Stream.concat(usersA.stream(), usersB.stream())
+            fromDb = Stream.concat(usersA.stream(), usersB.stream())
                     .map(it -> new User(new UserId(it.getUserId()), it.getUsername()))
                     .toList();
+
         } else {
-            return Stream.concat(usersA.stream(), usersB.stream())
+            fromDb = Stream.concat(usersA.stream(), usersB.stream())
                     .filter(item -> !item.getInviterUserId().equals(userId.id()))
                     .map(it -> new User(new UserId(it.getUserId()), it.getUsername()))
                     .toList();
         }
+
+        if (fromDb.isEmpty()) {
+            jsonUtil.toJson(fromDb).ifPresent(json -> cacheService.set(key, json, TTL));
+        }
+
+        return fromDb;
     }
 
     @Transactional(readOnly = true)
@@ -204,15 +226,41 @@ public class UserConnectionService {
     }
 
     private UserConnectionStatus getStatus(UserId inviterUserId, UserId partnerUserId) {
-        return userConnectionRepository.findUserConnectionStatusByPartnerAUserIdAndPartnerBUserId(Long.min(inviterUserId.id(), partnerUserId.id()), Long.max(inviterUserId.id(), partnerUserId.id()))
+        long partnerA = Long.min(inviterUserId.id(), partnerUserId.id());
+        long partnerB = Long.max(inviterUserId.id(), partnerUserId.id());
+
+        String key = cacheService.buildKey(KeyPrefix.CONNECTION_STATUS, String.valueOf(partnerA), String.valueOf(partnerB));
+        Optional<String> cachedConnectionStatus = cacheService.get(key);
+        if (cachedConnectionStatus.isPresent()) {
+            return UserConnectionStatus.valueOf(cachedConnectionStatus.get());
+        }
+
+        UserConnectionStatus fromDb = userConnectionRepository.findUserConnectionStatusByPartnerAUserIdAndPartnerBUserId(partnerA, partnerB)
                 .map(status -> UserConnectionStatus.valueOf(status.getStatus()))
                 .orElse(UserConnectionStatus.NONE);
+
+        cacheService.set(key, fromDb.name(), TTL);
+
+        return fromDb;
 
     }
 
     private Optional<UserId> getInviterUserId(UserId partnerAUserId, UserId partnerBUserId) {
-        return userConnectionRepository.findInviterUserIdByPartnerAUserIdAndPartnerBUserId(Long.min(partnerAUserId.id(), partnerBUserId.id()), Long.max(partnerAUserId.id(), partnerBUserId.id()))
+        long partnerA = Long.min(partnerAUserId.id(), partnerBUserId.id());
+        long partnerB = Long.max(partnerAUserId.id(), partnerBUserId.id());
+
+        String key = cacheService.buildKey(KeyPrefix.INVITER_USER_ID, String.valueOf(partnerA), String.valueOf(partnerB));
+        Optional<String> cachedInviterUserId = cacheService.get(key);
+        if (cachedInviterUserId.isPresent()) {
+            return Optional.of(new UserId(Long.valueOf(cachedInviterUserId.get())));
+        }
+
+        Optional<UserId> fromDb = userConnectionRepository.findInviterUserIdByPartnerAUserIdAndPartnerBUserId(partnerA, partnerB)
                 .map(inviterUserId -> new UserId(inviterUserId.getInviterUserId()));
+
+        fromDb.ifPresent(userId -> cacheService.set(key, userId.id().toString(), TTL));
+
+        return fromDb;
     }
 
     private void setStatus(UserId inviterUserId, UserId partnerUserId, UserConnectionStatus userConnectionStatus) {
@@ -220,6 +268,15 @@ public class UserConnectionService {
             throw new IllegalArgumentException("Can't set to accepted.");
         }
 
-        userConnectionRepository.save(new UserConnectionEntity(Long.min(inviterUserId.id(), partnerUserId.id()), Long.max(inviterUserId.id(), partnerUserId.id()), userConnectionStatus, inviterUserId.id()));
+        long partnerA = Long.min(inviterUserId.id(), partnerUserId.id());
+        long partnerB = Long.max(inviterUserId.id(), partnerUserId.id());
+
+        userConnectionRepository.save(new UserConnectionEntity(partnerA, partnerB, userConnectionStatus, inviterUserId.id()));
+
+        cacheService.delete(List.of(
+                cacheService.buildKey(KeyPrefix.CONNECTION_STATUS, String.valueOf(partnerA), String.valueOf(partnerB)),
+                cacheService.buildKey(KeyPrefix.CONNECTIONS_STATUS, inviterUserId.id().toString(), userConnectionStatus.name()),
+                cacheService.buildKey(KeyPrefix.CONNECTIONS_STATUS, inviterUserId.id().toString(), userConnectionStatus.name())
+        ));
     }
 }
