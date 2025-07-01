@@ -1,11 +1,13 @@
 package com.example.integration
 
 import com.example.ChatStudyApplication
+import com.example.constants.KeyPrefix
 import com.example.constants.UserConnectionStatus
 import com.example.dto.domain.UserId
 import com.example.entity.UserConnectionId
 import com.example.repository.UserConnectionRepository
 import com.example.repository.UserRepository
+import com.example.service.CacheService
 import com.example.service.UserConnectionLimitService
 import com.example.service.UserConnectionService
 import com.example.service.UserService
@@ -32,6 +34,9 @@ class UserConnectionServiceSpec extends Specification {
 
     @Autowired
     UserConnectionRepository userConnectionRepository
+
+    @Autowired
+    CacheService cacheService
 
     def '연결 요청 수락은 연결 제한 수를 넘을 수 없다.'() {
         given:
@@ -100,49 +105,54 @@ class UserConnectionServiceSpec extends Specification {
     def cleanup() {
         (0..19).each {
             userService.getUserId("testuser${it}").ifPresent {userId -> {
+                def userInviteCode = cacheService.get(cacheService.buildKey(KeyPrefix.USER_INVITECODE, userId.id().toString())).orElse("")
+                cacheService.delete(
+                        List.of(
+                                cacheService.buildKey(KeyPrefix.USER_ID, "testuser${it}"),
+                                cacheService.buildKey(KeyPrefix.USERNAME, userId.id().toString()),
+                                cacheService.buildKey(KeyPrefix.USER, userId.id().toString()),
+                                cacheService.buildKey(KeyPrefix.USER, userInviteCode),
+                                cacheService.buildKey(KeyPrefix.USER_INVITECODE, userId.id().toString())
+                        )
+                )
+
                 userRepository.deleteById(userId.id())
                 userConnectionRepository.findByPartnerAUserIdAndStatus(userId.id(), UserConnectionStatus.PENDING).each {
-                    userConnectionRepository.deleteById(new UserConnectionId(
-                            Long.min(userId.id(), it.getUserId()),
-                            Long.max(userId.id(), it.getUserId())
-                    ))
+                    clearConnection(userId.id(), it.getUserId())
                 }
 
                 userConnectionRepository.findByPartnerBUserIdAndStatus(userId.id(), UserConnectionStatus.PENDING).each {
-                    userConnectionRepository.deleteById(new UserConnectionId(
-                            Long.min(userId.id(), it.getUserId()),
-                            Long.max(userId.id(), it.getUserId())
-                    ))
+                    clearConnection(userId.id(), it.getUserId())
                 }
 
                 userConnectionRepository.findByPartnerAUserIdAndStatus(userId.id(), UserConnectionStatus.ACCEPTED).each {
-                    userConnectionRepository.deleteById(new UserConnectionId(
-                            Long.min(userId.id(), it.getUserId()),
-                            Long.max(userId.id(), it.getUserId())
-                    ))
+                    clearConnection(userId.id(), it.getUserId())
                 }
 
                 userConnectionRepository.findByPartnerBUserIdAndStatus(userId.id(), UserConnectionStatus.ACCEPTED).each {
-                    userConnectionRepository.deleteById(new UserConnectionId(
-                            Long.min(userId.id(), it.getUserId()),
-                            Long.max(userId.id(), it.getUserId())
-                    ))
+                    clearConnection(userId.id(), it.getUserId())
                 }
 
                 userConnectionRepository.findByPartnerAUserIdAndStatus(userId.id(), UserConnectionStatus.DISCONNECTED).each {
-                    userConnectionRepository.deleteById(new UserConnectionId(
-                            Long.min(userId.id(), it.getUserId()),
-                            Long.max(userId.id(), it.getUserId())
-                    ))
+                    clearConnection(userId.id(), it.getUserId())
                 }
 
                 userConnectionRepository.findByPartnerBUserIdAndStatus(userId.id(), UserConnectionStatus.DISCONNECTED).each {
-                    userConnectionRepository.deleteById(new UserConnectionId(
-                            Long.min(userId.id(), it.getUserId()),
-                            Long.max(userId.id(), it.getUserId())
-                    ))
+                    clearConnection(userId.id(), it.getUserId())
                 }
             }}
         }
+    }
+
+    def clearConnection(Long partnerA, Long partnerB) {
+        def first = Long.min(partnerA, partnerB)
+        def second = Long.min(partnerA, partnerB)
+        userConnectionRepository.deleteById(new UserConnectionId(first, second))
+        cacheService.delete(
+                List.of(
+                        KeyPrefix.CONNECTION_STATUS, String.valueOf(first), String.valueOf(second),
+                        KeyPrefix.INVITER_USER_ID, String.valueOf(first), String.valueOf(second)
+                )
+        )
     }
 }

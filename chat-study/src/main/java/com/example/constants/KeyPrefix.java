@@ -13,6 +13,7 @@ public class KeyPrefix {
     public static final String INVITER_USER_ID = "message:connection:inviter_id";
 
     public static final String CHANNEL = "message:channel";
+    public static final String CHANNELS = "message:channels";
     public static final String CHANNEL_INVITECODE = "message:channel_invitecode";
     public static final String JOINED_CHANNEL = "message:joined_channel";
     public static final String PARTICIPANT_IDS = "message:participant_ids";

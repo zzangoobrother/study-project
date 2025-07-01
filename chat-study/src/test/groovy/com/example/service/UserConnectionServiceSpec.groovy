@@ -10,6 +10,8 @@ import com.example.entity.UserConnectionEntity
 import com.example.entity.UserEntity
 import com.example.repository.UserConnectionRepository
 import com.example.repository.UserRepository
+import com.example.util.JsonUtil
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.data.util.Pair
 import spock.lang.Specification
 
@@ -18,12 +20,13 @@ class UserConnectionServiceSpec extends Specification {
     UserConnectionService userConnectionService
     UserConnectionLimitService userConnectionLimitService
     UserService userService = Stub()
+    CacheService cacheService = Stub()
     UserRepository userRepository = Stub()
     UserConnectionRepository userConnectionRepository = Stub()
 
     def setup() {
-        userConnectionLimitService = new UserConnectionLimitService(userRepository, userConnectionRepository)
-        userConnectionService = new UserConnectionService(userService, userConnectionLimitService, userConnectionRepository)
+        userConnectionLimitService = new UserConnectionLimitService(cacheService, userRepository, userConnectionRepository)
+        userConnectionService = new UserConnectionService(userService, cacheService, userConnectionLimitService, userConnectionRepository, new JsonUtil(new ObjectMapper()))
     }
 
 
