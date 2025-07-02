@@ -65,7 +65,7 @@ public class UserConnectionService {
                     .toList();
         }
 
-        if (fromDb.isEmpty()) {
+        if (!fromDb.isEmpty()) {
             jsonUtil.toJson(fromDb).ifPresent(json -> cacheService.set(key, json, TTL));
         }
 
