@@ -2,6 +2,7 @@ package com.example.service;
 
 import com.example.constants.MessageType;
 import com.example.dto.domain.UserId;
+import com.example.dto.kafka.outbound.*;
 import com.example.dto.websocket.outbound.BaseMessage;
 import com.example.session.WebSocketSessionManager;
 import com.example.util.JsonUtil;
@@ -26,15 +27,15 @@ public class ClientNotificationService {
         this.pushService = pushService;
         this.jsonUtil = jsonUtil;
 
-        pushService.registerPushMessageType(MessageType.INVITE_RESPONSE);
-        pushService.registerPushMessageType(MessageType.ASK_INVITE);
-        pushService.registerPushMessageType(MessageType.ACCEPT_RESPONSE);
-        pushService.registerPushMessageType(MessageType.NOTIFY_ACCEPT);
-        pushService.registerPushMessageType(MessageType.NOTIFY_JOIN);
-        pushService.registerPushMessageType(MessageType.DISCONNECT_RESPONSE);
-        pushService.registerPushMessageType(MessageType.REJECT_RESPONSE);
-        pushService.registerPushMessageType(MessageType.CREATE_RESPONSE);
-        pushService.registerPushMessageType(MessageType.QUIT_RESPONSE);
+        pushService.registerPushMessageType(MessageType.INVITE_RESPONSE, InviteResponseRecord.class);
+        pushService.registerPushMessageType(MessageType.ASK_INVITE, InviteNotificationRecord.class);
+        pushService.registerPushMessageType(MessageType.ACCEPT_RESPONSE, AcceptResponseRecord.class);
+        pushService.registerPushMessageType(MessageType.NOTIFY_ACCEPT, AcceptNotificationRecord.class);
+        pushService.registerPushMessageType(MessageType.NOTIFY_JOIN, JoinNotificationRecord.class);
+        pushService.registerPushMessageType(MessageType.DISCONNECT_RESPONSE, DisconnectResponseRecord.class);
+        pushService.registerPushMessageType(MessageType.REJECT_RESPONSE, RejectResponseRecord.class);
+        pushService.registerPushMessageType(MessageType.CREATE_RESPONSE, CreateResponseRecord.class);
+        pushService.registerPushMessageType(MessageType.QUIT_RESPONSE, QuitResponseRecord.class);
     }
 
     public void sendMessage(UserId userId, BaseMessage message) {

@@ -1,0 +1,19 @@
+spring:
+  kafka:
+    bootstrap-servers: localhost:19094,localhost:19095,localhost:19096
+    consumer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        allow.auth.create.topics: false
+        enable.auto.commit: false
+        partition.assignment.strategy: org.apache.kafka.clients.consumer.CooperativeStickyAssignor
+      auto-offset-reset: latest
+
+message-system:
+  kafka:
+    listeners:
+      push:
+        topic: push-notification
+        group-id: push-group
+        concurrency: 3

@@ -3,6 +3,7 @@ package com.example.service;
 import com.example.constants.MessageType;
 import com.example.dto.domain.ChannelId;
 import com.example.dto.domain.UserId;
+import com.example.dto.kafka.outbound.MessageNotificationRecord;
 import com.example.dto.websocket.outbound.BaseMessage;
 import com.example.entity.MessageEntity;
 import com.example.repository.MessageRepository;
@@ -40,7 +41,7 @@ public class MessageService {
         this.jsonUtil = jsonUtil;
         this.messageRepository = messageRepository;
 
-        pushService.registerPushMessageType(MessageType.NOTIFY_MESSAGE);
+        pushService.registerPushMessageType(MessageType.NOTIFY_MESSAGE, MessageNotificationRecord.class);
     }
 
     @Transactional
