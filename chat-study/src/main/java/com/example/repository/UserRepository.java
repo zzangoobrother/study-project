@@ -18,8 +18,6 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<UserEntity, Long> {
 
-    Optional<UserEntity> findByUsername(@NonNull String username);
-
     Optional<UserIdProjection> findUserIdByUsername(@NonNull String username);
 
     List<UserIdProjection> findByUsernameIn(@NonNull Collection<String> usernames);

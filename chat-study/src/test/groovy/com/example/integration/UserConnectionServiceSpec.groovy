@@ -5,6 +5,7 @@ import com.example.constants.KeyPrefix
 import com.example.constants.UserConnectionStatus
 import com.example.dto.domain.UserId
 import com.example.entity.UserConnectionId
+import com.example.entity.UserEntity
 import com.example.repository.UserConnectionRepository
 import com.example.repository.UserRepository
 import com.example.service.CacheService
@@ -41,7 +42,7 @@ class UserConnectionServiceSpec extends Specification {
     def '연결 요청 수락은 연결 제한 수를 넘을 수 없다.'() {
         given:
         userConnectionLimitService.setLimitConnection(10)
-        (0..19).each{userService.addUser("testuser${it}", "testpass${it}") }
+        (0..19).each{addUser("testuser${it}", "testpass${it}") }
         def userIdA = userService.getUserId("testuser0").get()
         def inviteCodeA = userService.getInviteCode(userIdA).get()
 
@@ -73,7 +74,7 @@ class UserConnectionServiceSpec extends Specification {
 
     def '연결 요청 카운트는 0보다 작을 수 없다.'() {
         given:
-        (0..10).each{userService.addUser("testuser${it}", "testpass${it}") }
+        (0..10).each{addUser("testuser${it}", "testpass${it}") }
         def userIdA = userService.getUserId("testuser0").get()
         def inviteCodeA = userService.getInviteCode(userIdA).get()
 
@@ -100,6 +101,12 @@ class UserConnectionServiceSpec extends Specification {
         then:
         result.count { it == true } == 5
         userService.getConnectionCount(userService.getUserId("testuser0").get()).get() == 0
+    }
+
+    def addUser(String username, String password) {
+        UserEntity messageUser = userRepository.save(new UserEntity(username, password));
+
+        return new UserId(messageUser.getUserId());
     }
 
     def cleanup() {

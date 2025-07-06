@@ -6,8 +6,6 @@ import com.example.dto.domain.ChannelId;
 import com.example.dto.domain.UserId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.session.Session;
 import org.springframework.session.SessionRepository;
 import org.springframework.stereotype.Service;
@@ -66,11 +64,6 @@ public class SessionService {
         } catch (Exception ex) {
             log.error("Redis find failed. httpSessionId : {}, cause : {}", httpSessionId, ex.getMessage());
         }
-    }
-
-    public String getUsername() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication.getName();
     }
 
     private String buildChannelIdKey(UserId userId) {

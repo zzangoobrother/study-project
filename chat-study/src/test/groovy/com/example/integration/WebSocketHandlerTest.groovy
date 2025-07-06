@@ -29,6 +29,8 @@ import java.util.concurrent.TimeUnit
 @SpringBootTest(classes = ChatStudyApplication, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class WebSocketHandlerTest extends Specification{
 
+    int restPort = 8080;
+
     @LocalServerPort
     int port
 
@@ -85,7 +87,7 @@ class WebSocketHandlerTest extends Specification{
     }
 
     def register(String username, String password) {
-        def url = "http://localhost:${port}/api/v1/auth/register"
+        def url = "http://localhost:${restPort}/api/v1/auth/register"
         def headers = new HttpHeaders(["Content-Type" : "application/json"])
         def jsonBody = objectMapper.writeValueAsString([username : username, password : password])
         def httpEntity = new HttpEntity(jsonBody, headers)
@@ -96,7 +98,7 @@ class WebSocketHandlerTest extends Specification{
     }
 
     def unregister(String sessionId) {
-        def url = "http://localhost:${port}/api/v1/auth/unregister"
+        def url = "http://localhost:${restPort}/api/v1/auth/unregister"
         def headers = new HttpHeaders()
         headers.add("Content-Type", "application/json")
         headers.add("Cookie", "SESSION=${sessionId}")
@@ -106,7 +108,7 @@ class WebSocketHandlerTest extends Specification{
     }
 
     def login(String username, String password) {
-        def url = "http://localhost:${port}/api/v1/auth/login"
+        def url = "http://localhost:${restPort}/api/v1/auth/login"
         def headers = new HttpHeaders(["Content-Type" : "application/json"])
         def jsonBody = objectMapper.writeValueAsString([username : username, password : password])
         def httpEntity = new HttpEntity(jsonBody, headers)
