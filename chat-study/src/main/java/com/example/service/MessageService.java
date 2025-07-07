@@ -2,6 +2,7 @@ package com.example.service;
 
 import com.example.constants.MessageType;
 import com.example.dto.domain.ChannelId;
+import com.example.dto.domain.MessageSeqId;
 import com.example.dto.domain.UserId;
 import com.example.dto.kafka.outbound.MessageNotificationRecord;
 import com.example.dto.websocket.outbound.BaseMessage;
@@ -45,7 +46,7 @@ public class MessageService {
     }
 
     @Transactional
-    public void sendMessage(UserId senderUserId, String content, ChannelId channelId, BaseMessage message) {
+    public void sendMessage(UserId senderUserId, String content, ChannelId channelId, MessageSeqId messageSeqId, BaseMessage message) {
         Optional<String> json = jsonUtil.toJson(message);
         if (json.isEmpty()) {
             log.error("Send message failed. messageType : {}", message.getType());
@@ -54,7 +55,7 @@ public class MessageService {
         String payload = json.get();
 
         try {
-            messageRepository.save(new MessageEntity(senderUserId.id(), content));
+            messageRepository.save(new MessageEntity(channelId.id(), messageSeqId.id(), senderUserId.id(), content));
         } catch (Exception ex) {
             log.error("Send message failed. cause : {}", ex.getMessage());
             return;

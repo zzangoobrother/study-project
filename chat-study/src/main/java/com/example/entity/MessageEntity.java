@@ -5,12 +5,16 @@ import jakarta.persistence.*;
 import java.util.Objects;
 
 @Table(name = "message")
+@IdClass(ChannelSequenceId.class)
 @Entity
 public class MessageEntity extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "message_sequence")
+    @Column(name = "channel_id", nullable = false)
+    private Long channelId;
+
+    @Id
+    @Column(name = "message_sequence", nullable = false)
     private Long messageSequence;
 
     @Column(name = "user_id", nullable = false)
@@ -21,9 +25,15 @@ public class MessageEntity extends BaseEntity {
 
     public MessageEntity() {}
 
-    public MessageEntity(Long userId, String content) {
+    public MessageEntity(Long channelId, Long messageSequence, Long userId, String content) {
+        this.channelId = channelId;
+        this.messageSequence = messageSequence;
         this.userId = userId;
         this.content = content;
+    }
+
+    public Long getChannelId() {
+        return channelId;
     }
 
     public Long getMessageSequence() {
@@ -39,28 +49,25 @@ public class MessageEntity extends BaseEntity {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o)
-            return true;
-        if (o == null || getClass() != o.getClass())
-            return false;
-        MessageEntity that = (MessageEntity)o;
-        return Objects.equals(messageSequence, that.messageSequence);
+    public boolean equals(Object object) {
+        if (this == object) return true;
+        if (object == null || getClass() != object.getClass()) return false;
+        MessageEntity that = (MessageEntity) object;
+        return Objects.equals(channelId, that.channelId) && Objects.equals(messageSequence, that.messageSequence);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(messageSequence);
+        return Objects.hash(channelId, messageSequence);
     }
 
     @Override
     public String toString() {
         return "MessageEntity{" +
-                "messageSequence=" + messageSequence +
-                ", userId='" + userId + '\'' +
+                "channelId=" + channelId +
+                ", messageSequence=" + messageSequence +
+                ", userId=" + userId +
                 ", content='" + content + '\'' +
-                ", createdAt=" + getCreatedAt() +
-                ", updatedAt=" + getUpdatedAt() +
                 '}';
     }
 }
