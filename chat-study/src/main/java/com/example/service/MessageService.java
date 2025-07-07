@@ -8,6 +8,7 @@ import com.example.dto.kafka.outbound.MessageNotificationRecord;
 import com.example.dto.websocket.outbound.BaseMessage;
 import com.example.entity.MessageEntity;
 import com.example.repository.MessageRepository;
+import com.example.repository.UserChannelRepository;
 import com.example.session.WebSocketSessionManager;
 import com.example.util.JsonUtil;
 import org.slf4j.Logger;
@@ -33,20 +34,22 @@ public class MessageService {
     private final WebSocketSessionManager webSocketSessionManager;
     private final JsonUtil jsonUtil;
     private final MessageRepository messageRepository;
+    private final UserChannelRepository userChannelRepository;
     private final ExecutorService senderThreadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
-    public MessageService(ChannelService channelService, PushService pushService, WebSocketSessionManager webSocketSessionManager, JsonUtil jsonUtil, MessageRepository messageRepository) {
+    public MessageService(ChannelService channelService, PushService pushService, WebSocketSessionManager webSocketSessionManager, JsonUtil jsonUtil, MessageRepository messageRepository, UserChannelRepository userChannelRepository) {
         this.channelService = channelService;
         this.pushService = pushService;
         this.webSocketSessionManager = webSocketSessionManager;
         this.jsonUtil = jsonUtil;
         this.messageRepository = messageRepository;
+        this.userChannelRepository = userChannelRepository;
 
         pushService.registerPushMessageType(MessageType.NOTIFY_MESSAGE, MessageNotificationRecord.class);
     }
 
     @Transactional
-    public void sendMessage(UserId senderUserId, String content, ChannelId channelId, MessageSeqId messageSeqId, BaseMessage message) {
+    public void sendMessage(UserId senderUserId, String content, ChannelId channelId, MessageSeqId messageSeqId, Long serial, BaseMessage message) {
         Optional<String> json = jsonUtil.toJson(message);
         if (json.isEmpty()) {
             log.error("Send message failed. messageType : {}", message.getType());
@@ -85,6 +88,13 @@ public class MessageService {
             } else {
                 pushService.pushMessage(participantId, MessageType.NOTIFY_MESSAGE, payload);
             }
+        }
+    }
+
+    @Transactional
+    public void updateLastReadMsgSeq(UserId userId, ChannelId channelId, MessageSeqId messageSeqId) {
+        if (userChannelRepository.updateLastReadMsgSeqByUserIdAndChannelId(userId.id(), channelId.id(), messageSeqId.id()) == 0) {
+            log.error("Update LastReadMsgSeq failed. No record found for UserId : {} and ChannelId : {}", userId.id(), channelId.id());
         }
     }
 }

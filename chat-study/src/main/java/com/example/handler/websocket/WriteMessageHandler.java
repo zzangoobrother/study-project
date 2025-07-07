@@ -33,7 +33,7 @@ public class WriteMessageHandler implements BaseRequestHandler<WriteMessage> {
 
         messageSeqIdGenerator.getNext(channelId)
                 .ifPresent(messageSeqId ->
-                        messageService.sendMessage(senderUserId, content, channelId, messageSeqId, new MessageNotification(channelId, messageSeqId, senderUsername, content))
+                        messageService.sendMessage(senderUserId, content, channelId, messageSeqId, request.getSerial(), new MessageNotification(channelId, messageSeqId, senderUsername, content))
                 );
     }
 }

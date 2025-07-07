@@ -29,6 +29,12 @@ public class MessageType {
     public static final String QUIT_REQUEST = "QUIT_REQUEST";
     public static final String QUIT_RESPONSE = "QUIT_RESPONSE";
     public static final String WRITE_MESSAGE = "WRITE_MESSAGE";
+    public static final String FETCH_MESSAGES_REQUEST = "FETCH_MESSAGES_REQUEST";
+    public static final String FETCH_MESSAGES_RESPONSE = "FETCH_MESSAGES_RESPONSE";
+
+    // Ack
+    public static final String READ_MESSAGES_ACK = "READ_MESSAGES_ACK";
+    public static final String WRITE_MESSAGES_ACK = "WRITE_MESSAGES_ACK";
 
     // Notification
     public static final String ASK_INVITE = "ASK_INVITE";
