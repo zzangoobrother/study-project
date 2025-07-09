@@ -5,10 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -54,6 +51,10 @@ public class CacheService {
         }
 
         return false;
+    }
+
+    public boolean set(Map<String, String> map, Long ttlSeconds) {
+
     }
 
     public boolean expire(String key, Long ttlSeconds) {

@@ -3,14 +3,12 @@ package com.example.service;
 import com.example.constants.KeyPrefix;
 import com.example.constants.ResultType;
 import com.example.constants.UserConnectionStatus;
-import com.example.dto.domain.Channel;
-import com.example.dto.domain.ChannelId;
-import com.example.dto.domain.InviteCode;
-import com.example.dto.domain.UserId;
+import com.example.dto.domain.*;
 import com.example.dto.projection.ChannelTitleProjection;
 import com.example.entity.ChannelEntity;
 import com.example.entity.UserChannelEntity;
 import com.example.repository.ChannelRepository;
+import com.example.repository.MessageRepository;
 import com.example.repository.UserChannelRepository;
 import com.example.util.JsonUtil;
 import jakarta.persistence.EntityNotFoundException;
@@ -36,14 +34,16 @@ public class ChannelService {
     private final CacheService cacheService;
     private final ChannelRepository channelRepository;
     private final UserChannelRepository userChannelRepository;
+    private final MessageRepository messageRepository;
     private final JsonUtil jsonUtil;
 
-    public ChannelService(SessionService sessionService, UserConnectionService userConnectionService, CacheService cacheService, ChannelRepository channelRepository, UserChannelRepository userChannelRepository, JsonUtil jsonUtil) {
+    public ChannelService(SessionService sessionService, UserConnectionService userConnectionService, CacheService cacheService, ChannelRepository channelRepository, UserChannelRepository userChannelRepository, MessageRepository messageRepository, JsonUtil jsonUtil) {
         this.sessionService = sessionService;
         this.userConnectionService = userConnectionService;
         this.cacheService = cacheService;
         this.channelRepository = channelRepository;
         this.userChannelRepository = userChannelRepository;
+        this.messageRepository = messageRepository;
         this.jsonUtil = jsonUtil;
     }
 
@@ -211,7 +211,7 @@ public class ChannelService {
     }
 
     @Transactional(readOnly = true)
-    public Pair<Optional<String>, ResultType> enter(ChannelId channelId, UserId userId) {
+    public Pair<Optional<ChannelEntry>, ResultType> enter(ChannelId channelId, UserId userId) {
         if (!isJoined(channelId, userId)) {
             log.warn("Enter channel failed. User not joined the channel. channelId : {}, userId : {}", channelId, userId);
             return Pair.of(Optional.empty(), ResultType.NOT_JOINED);
@@ -223,8 +223,16 @@ public class ChannelService {
             return Pair.of(Optional.empty(), ResultType.NOT_FOUND);
         }
 
+        Optional<MessageSeqId> lastReadMsgSeq = userChannelRepository.findLastReadMsgSeqByUserIdAndChannelId(userId.id(), channelId.id()).map(lastReadMsgSeqProjection -> new MessageSeqId(lastReadMsgSeqProjection.getLastReadMsgSeq()));
+        if (lastReadMsgSeq.isEmpty()) {
+            log.error("Enter Channel failed. No record found for USerId : {} and ChannelId : {}", userId.id(), channelId.id());
+            return Pair.of(Optional.empty(), ResultType.NOT_FOUND);
+        }
+
+        MessageSeqId lastChannelMessageSeqId = messageRepository.findLastMessageSequenceByChannelId(channelId.id()).map(MessageSeqId::new).orElse(new MessageSeqId(0L));
+
         if (sessionService.setActiveChannel(userId, channelId)) {
-            return Pair.of(title, ResultType.SUCCESS);
+            return Pair.of(Optional.of(new ChannelEntry(title.get(), lastReadMsgSeq.get(), lastChannelMessageSeqId)), ResultType.SUCCESS);
         }
 
         log.error("Enter channel failed. channelId : {}, userId : {}", channelId, userId);

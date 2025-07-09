@@ -6,6 +6,7 @@ import com.example.dto.domain.MessageSeqId;
 import com.example.dto.domain.UserId;
 import com.example.dto.kafka.outbound.MessageNotificationRecord;
 import com.example.dto.websocket.outbound.BaseMessage;
+import com.example.dto.websocket.outbound.WriteMessageAck;
 import com.example.entity.MessageEntity;
 import com.example.repository.MessageRepository;
 import com.example.repository.UserChannelRepository;
@@ -70,6 +71,20 @@ public class MessageService {
         for (int idx = 0; idx < allParticipantIds.size(); idx++) {
             UserId participantId = allParticipantIds.get(idx);
             if (senderUserId.equals(participantId)) {
+                updateLastReadMsgSeq(senderUserId, channelId, messageSeqId);
+                jsonUtil.toJson(new WriteMessageAck(serial, messageSeqId))
+                        .ifPresent(writeMessageAck -> CompletableFuture.runAsync(
+                                () -> {
+                                    try {
+                                        WebSocketSession senderSession = webSocketSessionManager.getSession(senderUserId);
+                                        if (senderSession != null) {
+                                            webSocketSessionManager.sendMessage(senderSession, writeMessageAck);
+                                        }
+                                    } catch (Exception ex) {
+                                        log.warn("Send writeMessageAck failed. userId : {}, cause : {}", senderUserId.id(), ex.getMessage());
+                                    }
+                                }, senderThreadPool
+                        ));
                 continue;
             }
             if (onlineParticipantIds.get(idx) != null) {

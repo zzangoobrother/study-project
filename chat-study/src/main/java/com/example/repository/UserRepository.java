@@ -1,9 +1,6 @@
 package com.example.repository;
 
-import com.example.dto.projection.CountProjection;
-import com.example.dto.projection.InviteCodeProjection;
-import com.example.dto.projection.UserIdProjection;
-import com.example.dto.projection.UsernameProjection;
+import com.example.dto.projection.*;
 import com.example.entity.UserEntity;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,6 +18,8 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
     Optional<UserIdProjection> findUserIdByUsername(@NonNull String username);
 
     List<UserIdProjection> findByUsernameIn(@NonNull Collection<String> usernames);
+
+    List<UserIdUsernameProjection> findByUserIdIn(@NonNull Collection<Long> userIds);
 
     Optional<UsernameProjection> findByUserId(@NonNull Long userId);
 

@@ -21,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(value = QuitRequest.class, name = MessageType.QUIT_REQUEST),
         @JsonSubTypes.Type(value = WriteMessage.class, name = MessageType.WRITE_MESSAGE),
         @JsonSubTypes.Type(value = ReadMessageAck.class, name = MessageType.READ_MESSAGES_ACK),
+        @JsonSubTypes.Type(value = FetchMessageRequest.class, name = MessageType.FETCH_MESSAGES_REQUEST),
         @JsonSubTypes.Type(value = KeepAlive.class, name = MessageType.KEEP_ALIVE)
 })
 public abstract class BaseRequest {
