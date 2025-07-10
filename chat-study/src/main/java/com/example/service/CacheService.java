@@ -2,6 +2,9 @@ package com.example.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.RedisOperations;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -54,7 +57,21 @@ public class CacheService {
     }
 
     public boolean set(Map<String, String> map, Long ttlSeconds) {
+        try {
+            stringRedisTemplate.executePipelined(new SessionCallback<>() {
+                @Override
+                @SuppressWarnings("unchecked")
+                public <K, V> Object execute(RedisOperations<K, V> operations) throws DataAccessException {
+                    map.forEach((key, value) -> operations.opsForValue().set((K)key, (V)value, ttlSeconds));
+                    return null;
+                }
+            });
+            return true;
+        } catch (Exception ex) {
+            log.error("Redis multiset failed key : {}, cause : {}", map.keySet(), ex.getMessage());
+        }
 
+        return false;
     }
 
     public boolean expire(String key, Long ttlSeconds) {

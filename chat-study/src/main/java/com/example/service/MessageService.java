@@ -1,10 +1,13 @@
 package com.example.service;
 
 import com.example.constants.MessageType;
+import com.example.constants.ResultType;
 import com.example.dto.domain.ChannelId;
+import com.example.dto.domain.Message;
 import com.example.dto.domain.MessageSeqId;
 import com.example.dto.domain.UserId;
 import com.example.dto.kafka.outbound.MessageNotificationRecord;
+import com.example.dto.projection.MessageInfoProjection;
 import com.example.dto.websocket.outbound.BaseMessage;
 import com.example.dto.websocket.outbound.WriteMessageAck;
 import com.example.entity.MessageEntity;
@@ -14,15 +17,16 @@ import com.example.session.WebSocketSessionManager;
 import com.example.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.socket.WebSocketSession;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 @Service
 public class MessageService {
@@ -30,6 +34,7 @@ public class MessageService {
     private static final Logger log = LoggerFactory.getLogger(MessageService.class);
     private static final int THREAD_POOL_SIZE = 10;
 
+    private final UserService userService;
     private final ChannelService channelService;
     private final PushService pushService;
     private final WebSocketSessionManager webSocketSessionManager;
@@ -38,7 +43,8 @@ public class MessageService {
     private final UserChannelRepository userChannelRepository;
     private final ExecutorService senderThreadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
-    public MessageService(ChannelService channelService, PushService pushService, WebSocketSessionManager webSocketSessionManager, JsonUtil jsonUtil, MessageRepository messageRepository, UserChannelRepository userChannelRepository) {
+    public MessageService(UserService userService, ChannelService channelService, PushService pushService, WebSocketSessionManager webSocketSessionManager, JsonUtil jsonUtil, MessageRepository messageRepository, UserChannelRepository userChannelRepository) {
+        this.userService = userService;
         this.channelService = channelService;
         this.pushService = pushService;
         this.webSocketSessionManager = webSocketSessionManager;
@@ -47,6 +53,33 @@ public class MessageService {
         this.userChannelRepository = userChannelRepository;
 
         pushService.registerPushMessageType(MessageType.NOTIFY_MESSAGE, MessageNotificationRecord.class);
+    }
+
+    @Transactional(readOnly = true)
+    public Pair<List<Message>, ResultType> getMessages(ChannelId channelId, MessageSeqId startMessageSeqId, MessageSeqId endMessageSeqId) {
+        List<MessageInfoProjection> messageInfos = messageRepository.findByChannelIdAndMessageSequenceBetween(
+                channelId.id(), startMessageSeqId.id(), endMessageSeqId.id());
+        Set<UserId> userIds = messageInfos.stream()
+                .map(proj -> new UserId(proj.getUserId()))
+                .collect(Collectors.toUnmodifiableSet());
+
+        if (userIds.isEmpty()) {
+            return Pair.of(Collections.emptyList(), ResultType.SUCCESS);
+        }
+
+        Pair<Map<UserId, String>, ResultType> result = userService.getUsernames(userIds);
+        if (result.getSecond() == ResultType.SUCCESS) {
+            List<Message> messages = messageInfos.stream()
+                    .map(proj -> {
+                        UserId userId = new UserId(proj.getUserId());
+                        return new Message(channelId, new MessageSeqId(proj.getMessageSequence()),
+                                result.getFirst().getOrDefault(userId, "unknown"), proj.getContent());
+                    }).toList();
+
+            return Pair.of(messages, ResultType.SUCCESS);
+        } else {
+            return Pair.of(Collections.emptyList(), result.getSecond());
+        }
     }
 
     @Transactional
