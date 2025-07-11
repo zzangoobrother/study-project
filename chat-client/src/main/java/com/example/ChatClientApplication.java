@@ -4,11 +4,7 @@ import com.example.dto.websocket.outbound.WriteMessage;
 import com.example.handler.CommandHandler;
 import com.example.handler.InboundMessageHandler;
 import com.example.handler.WebSocketMessageHandler;
-import com.example.handler.WebSocketSender;
-import com.example.service.RestApiService;
-import com.example.service.TerminalService;
-import com.example.service.UserService;
-import com.example.service.WebSocketService;
+import com.example.service.*;
 import org.jline.reader.UserInterruptException;
 
 import java.io.IOException;
@@ -28,12 +24,13 @@ public class ChatClientApplication {
         }
 
         UserService userService = new UserService();
-        InboundMessageHandler inboundMessageHandler = new InboundMessageHandler(terminalService, userService);
+        MessageService messageService = new MessageService(userService, terminalService);
+        InboundMessageHandler inboundMessageHandler = new InboundMessageHandler(terminalService, userService, messageService);
         RestApiService restApiService = new RestApiService(terminalService, BASE_URL);
-        WebSocketSender webSocketSender = new WebSocketSender(terminalService);
-        WebSocketService webSocketService = new WebSocketService(userService, terminalService, webSocketSender, BASE_URL, WEBSOCKET_ENDPOINT);
+        WebSocketService webSocketService = new WebSocketService(userService, terminalService, messageService, BASE_URL, WEBSOCKET_ENDPOINT);
         webSocketService.setWebSocketMessageHandler(new WebSocketMessageHandler(inboundMessageHandler));
         CommandHandler commandHandler = new CommandHandler(userService, restApiService, webSocketService, terminalService);
+        messageService.setWebSocketService(webSocketService);
 
         terminalService.printSystemMessage("'/help' Help for command. ex : /help");
 
@@ -48,8 +45,7 @@ public class ChatClientApplication {
                         break;
                     }
                 } else if (!input.isEmpty() && userService.isInChannel()) {
-                    terminalService.printMessage("<me>", input);
-                    webSocketService.sendMessage(new WriteMessage(userService.getChannelId(), input));
+                    webSocketService.sendMessage(new WriteMessage(System.currentTimeMillis(), userService.getChannelId(), input));
                 }
             } catch (UserInterruptException ex) {
                 terminalService.flush();

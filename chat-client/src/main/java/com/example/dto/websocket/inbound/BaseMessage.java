@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(value = JoinNotification.class, name = MessageType.NOTIFY_JOIN),
         @JsonSubTypes.Type(value = AcceptNotification.class, name = MessageType.NOTIFY_ACCEPT),
         @JsonSubTypes.Type(value = MessageNotification.class, name = MessageType.NOTIFY_MESSAGE),
+        @JsonSubTypes.Type(value = WriteMessageAck.class, name = MessageType.WRITE_MESSAGES_ACK),
+        @JsonSubTypes.Type(value = FetchMessageResponse.class, name = MessageType.FETCH_MESSAGES_RESPONSE),
         @JsonSubTypes.Type(value = ErrorResponse.class, name = MessageType.ERROR),
 
 })

@@ -1,25 +1,36 @@
 package com.example.handler;
 
+import com.example.dto.domain.MessageSeqId;
 import com.example.dto.websocket.inbound.*;
+import com.example.dto.websocket.outbound.FetchMessageRequest;
+import com.example.service.MessageService;
 import com.example.service.TerminalService;
 import com.example.service.UserService;
 import com.example.util.JsonUtil;
 
 public class InboundMessageHandler {
+    private final int LIMIT_MESSAGE_COUNT = 10;
+
 
     private final TerminalService terminalService;
     private final UserService userService;
+    private final MessageService messageService;
 
-    public InboundMessageHandler(TerminalService terminalService, UserService userService) {
+    public InboundMessageHandler(TerminalService terminalService, UserService userService, MessageService messageService) {
         this.terminalService = terminalService;
         this.userService = userService;
+        this.messageService = messageService;
     }
 
     public void handle(String payload) {
         JsonUtil.fromJson(payload, BaseMessage.class)
                 .ifPresent(message -> {
                     if (message instanceof MessageNotification messageNotification) {
-                        message(messageNotification);
+                        messageService.receiveMessage(messageNotification);
+                    } else if (message instanceof WriteMessageAck writeMessageAck) {
+                        messageService.receiveMessage(writeMessageAck);
+                    } else if (message instanceof FetchMessageResponse fetchMessageResponse) {
+                        messageService.receiveMessage(fetchMessageResponse);
                     } else if (message instanceof FetchUserInvitecodeResponse fetchUserInvitecodeResponse) {
                         fetchUserInviteCode(fetchUserInvitecodeResponse);
                     } else if (message instanceof InviteResponse inviteResponse) {
@@ -56,10 +67,6 @@ public class InboundMessageHandler {
                         error(errorResponse);
                     }
                 });
-    }
-
-    private void message(MessageNotification messageNotification) {
-        terminalService.printMessage(messageNotification.getUsername(), messageNotification.getContent());
     }
 
     private void fetchUserInviteCode(FetchUserInvitecodeResponse fetchUserInvitecodeResponse) {
@@ -118,6 +125,11 @@ public class InboundMessageHandler {
 
     private void enter(EnterResponse enterResponse) {
         userService.moveToChannel(enterResponse.getChannelId());
+        if (!enterResponse.getLastReadMessageSeqId().equals(enterResponse.getLastChannelMessageSeqId())) {
+            MessageSeqId startMessageSeqId = new MessageSeqId(Math.max(enterResponse.getLastChannelMessageSeqId().id() - LIMIT_MESSAGE_COUNT, enterResponse.getLastReadMessageSeqId().id() + 1));
+            messageService.sendMessage(new FetchMessageRequest(enterResponse.getChannelId(), startMessageSeqId, enterResponse.getLastChannelMessageSeqId()));
+        }
+
         terminalService.printSystemMessage("Enter channel %s : %s".formatted(enterResponse.getChannelId(), enterResponse.getTitle()));
     }
 

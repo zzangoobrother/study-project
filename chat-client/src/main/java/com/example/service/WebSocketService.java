@@ -4,7 +4,6 @@ import com.example.dto.websocket.outbound.BaseRequest;
 import com.example.dto.websocket.outbound.KeepAlive;
 import com.example.dto.websocket.outbound.WriteMessage;
 import com.example.handler.WebSocketMessageHandler;
-import com.example.handler.WebSocketSender;
 import com.example.handler.WebSocketSessionHandler;
 import com.example.util.JsonUtil;
 import jakarta.websocket.ClientEndpointConfig;
@@ -23,16 +22,16 @@ public class WebSocketService {
 
     private final UserService userService;
     private final TerminalService terminalService;
-    private final WebSocketSender webSocketSender;
+    private final MessageService messageService;
     private final String webSocketUrl;
     private WebSocketMessageHandler webSocketMessageHandler;
     private Session session;
     private ScheduledExecutorService scheduledExecutorService = null;
 
-    public WebSocketService(UserService userService, TerminalService terminalService, WebSocketSender webSocketSender, String url, String endpoint) {
+    public WebSocketService(UserService userService, TerminalService terminalService, MessageService messageService, String url, String endpoint) {
         this.userService = userService;
         this.terminalService = terminalService;
-        this.webSocketSender = webSocketSender;
+        this.messageService = messageService;
         this.webSocketUrl = "ws://" + url + endpoint;
     }
 
@@ -81,7 +80,7 @@ public class WebSocketService {
     public void sendMessage(BaseRequest baseRequest) {
         if (session != null && session.isOpen()) {
             if (baseRequest instanceof WriteMessage messageRequest) {
-                webSocketSender.sendMessage(session, messageRequest);
+                messageService.sendMessage(session, messageRequest);
                 return;
             }
 
