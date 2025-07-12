@@ -5,7 +5,7 @@ import com.example.dto.domain.InviteCode
 import com.example.dto.domain.UserId
 import com.example.dto.projection.InviterUserIdProjection
 import com.example.dto.projection.UserConnectionStatusProjection
-import com.example.entity.User
+import com.example.dto.domain.User
 import com.example.entity.UserConnectionEntity
 import com.example.entity.UserEntity
 import com.example.repository.UserConnectionRepository

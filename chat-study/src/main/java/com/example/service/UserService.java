@@ -7,7 +7,7 @@ import com.example.dto.domain.UserId;
 import com.example.dto.projection.CountProjection;
 import com.example.dto.projection.UserIdUsernameProjection;
 import com.example.dto.projection.UsernameProjection;
-import com.example.entity.User;
+import com.example.dto.domain.User;
 import com.example.repository.UserRepository;
 import com.example.util.JsonUtil;
 import org.springframework.data.util.Pair;

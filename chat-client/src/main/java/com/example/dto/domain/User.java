@@ -1,6 +1,4 @@
-package com.example.entity;
-
-import com.example.dto.domain.UserId;
+package com.example.dto.domain;
 
 import java.util.Objects;
 

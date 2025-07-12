@@ -5,7 +5,7 @@ import com.example.constants.UserConnectionStatus;
 import com.example.dto.domain.InviteCode;
 import com.example.dto.domain.UserId;
 import com.example.dto.projection.UserIdUsernameInviterUserIdProjection;
-import com.example.entity.User;
+import com.example.dto.domain.User;
 import com.example.entity.UserConnectionEntity;
 import com.example.repository.UserConnectionRepository;
 import com.example.util.JsonUtil;
