@@ -3,11 +3,11 @@ package com.example.service;
 import com.example.constants.KeyPrefix;
 import com.example.constants.ResultType;
 import com.example.dto.domain.InviteCode;
+import com.example.dto.domain.User;
 import com.example.dto.domain.UserId;
 import com.example.dto.projection.CountProjection;
 import com.example.dto.projection.UserIdUsernameProjection;
 import com.example.dto.projection.UsernameProjection;
-import com.example.dto.domain.User;
 import com.example.repository.UserRepository;
 import com.example.util.JsonUtil;
 import org.springframework.data.util.Pair;
@@ -81,7 +81,7 @@ public class UserService {
                     .collect(Collectors.toMap(entry -> cacheService.buildKey(KeyPrefix.USERNAME, entry.getKey().id().toString()), Map.Entry::getValue)), TTL);
         }
 
-        return Pair.of(resultMap, resultMap.isEmpty() ? ResultType.NOT_FOUND : ResultType.SUCCESS);
+        return Pair.of(resultMap, ResultType.SUCCESS);
     }
 
     @Transactional(readOnly = true)

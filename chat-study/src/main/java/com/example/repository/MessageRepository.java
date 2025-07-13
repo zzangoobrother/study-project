@@ -1,6 +1,7 @@
 package com.example.repository;
 
 import com.example.dto.projection.MessageInfoProjection;
+import com.example.entity.ChannelSequenceId;
 import com.example.entity.MessageEntity;
 import jakarta.annotation.Nonnull;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface MessageRepository extends JpaRepository<MessageEntity, Long> {
+public interface MessageRepository extends JpaRepository<MessageEntity, ChannelSequenceId> {
 
     @Query("select max(m.messageSequence) from MessageEntity m where m.channelId = :channelId")
     Optional<Long> findLastMessageSequenceByChannelId(@Param("channelId") Long channelId);

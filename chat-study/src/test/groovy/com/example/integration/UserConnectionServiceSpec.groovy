@@ -56,7 +56,7 @@ class UserConnectionServiceSpec extends Specification {
         }
         inviteCodes.each {userConnectionService.invite(userIdA, it)}
 
-        List<Optional<UserId>> result = synchronizedList(new ArrayList<Optional<UserId>>())
+        def result = synchronizedList(new ArrayList<Optional<UserId>>())
 
         when:
         def threads = (10..19).collect {
