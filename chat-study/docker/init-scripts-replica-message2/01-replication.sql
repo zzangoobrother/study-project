@@ -1,5 +1,5 @@
 CHANGE REPLICATION SOURCE TO
-  SOURCE_HOST = 'mysql-source',
+  SOURCE_HOST = 'mysql-source-message2',
   SOURCE_USER = 'replica_user',
   SOURCE_PASSWORD = 'replica_password',
   SOURCE_AUTO_POSITION = 1;

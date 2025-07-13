@@ -1,6 +1,7 @@
 package com.example.integration
 
 import com.example.ChatStudyApplication
+import com.example.database.ShardContext
 import com.example.dto.domain.ChannelId
 import com.example.dto.domain.UserId
 import com.example.dto.websocket.inbound.WriteMessage
@@ -94,7 +95,9 @@ class WebSocketHandlerTest extends Specification{
 
     def deleteMessage(List<String> results) {
         def seqIds = results.collectMany {text -> (text =~ /"messageSeqId":(\d+)/).collect{ it[1] }}
-        seqIds.forEach { messageRepository.deleteById(new ChannelSequenceId(1, it as Long)) }
+        try (ShardContext.ShardContextScope ignored = new ShardContext.ShardContextScope(1)) {
+            seqIds.forEach { messageRepository.deleteById(new ChannelSequenceId(1, it as Long)) }
+        }
     }
 
     def register(String username, String password) {

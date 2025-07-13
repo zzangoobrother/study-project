@@ -8,7 +8,6 @@ import com.example.dto.projection.ChannelTitleProjection;
 import com.example.entity.ChannelEntity;
 import com.example.entity.UserChannelEntity;
 import com.example.repository.ChannelRepository;
-import com.example.repository.MessageRepository;
 import com.example.repository.UserChannelRepository;
 import com.example.util.JsonUtil;
 import jakarta.persistence.EntityNotFoundException;
@@ -32,18 +31,18 @@ public class ChannelService {
     private final SessionService sessionService;
     private final UserConnectionService userConnectionService;
     private final CacheService cacheService;
+    private final MessageShardService messageShardService;
     private final ChannelRepository channelRepository;
     private final UserChannelRepository userChannelRepository;
-    private final MessageRepository messageRepository;
     private final JsonUtil jsonUtil;
 
-    public ChannelService(SessionService sessionService, UserConnectionService userConnectionService, CacheService cacheService, ChannelRepository channelRepository, UserChannelRepository userChannelRepository, MessageRepository messageRepository, JsonUtil jsonUtil) {
+    public ChannelService(SessionService sessionService, UserConnectionService userConnectionService, CacheService cacheService, MessageShardService messageShardService, ChannelRepository channelRepository, UserChannelRepository userChannelRepository, JsonUtil jsonUtil) {
         this.sessionService = sessionService;
         this.userConnectionService = userConnectionService;
         this.cacheService = cacheService;
+        this.messageShardService = messageShardService;
         this.channelRepository = channelRepository;
         this.userChannelRepository = userChannelRepository;
-        this.messageRepository = messageRepository;
         this.jsonUtil = jsonUtil;
     }
 
@@ -229,7 +228,7 @@ public class ChannelService {
             return Pair.of(Optional.empty(), ResultType.NOT_FOUND);
         }
 
-        MessageSeqId lastChannelMessageSeqId = messageRepository.findLastMessageSequenceByChannelId(channelId.id()).map(MessageSeqId::new).orElse(new MessageSeqId(0L));
+        MessageSeqId lastChannelMessageSeqId = messageShardService.findLastMessageSequenceByChannelId(channelId);
 
         if (sessionService.setActiveChannel(userId, channelId)) {
             return Pair.of(Optional.of(new ChannelEntry(title.get(), lastReadMsgSeq.get(), lastChannelMessageSeqId)), ResultType.SUCCESS);

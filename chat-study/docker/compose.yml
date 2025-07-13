@@ -8,7 +8,7 @@ services:
       timeout: 5s
       retries: 3
     environment:
-      MYSQL_ROOT_PASSWORD: root1234
+      MYSQL_ROOT_PASSWORD: root_password
       MYSQL_DATABASE: chatsystem
       MYSQL_USER: user
       MYSQL_PASSWORD: 1234
@@ -27,7 +27,7 @@ services:
     image: mysql:8.0.40
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root1234
+      MYSQL_ROOT_PASSWORD: root_password
     ports:
       - "13307:3306"
     volumes:
@@ -42,6 +42,96 @@ services:
       --enforce-gtid-consistency=ON
       --gtid-mode=ON
       --read-only=1
+
+  mysql-source-message1:
+    image: mysql:8.0.40
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-udev_user", "-pdev_password" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: chatsystem
+      MYSQL_USER: user
+      MYSQL_PASSWORD: 1234
+    ports:
+      - "13308:3306"
+    volumes:
+      - ./data/mysql-source-message1:/var/lib/mysql
+      - ./init-scripts-source:/docker-entrypoint-initdb.d
+    command: >
+      --server-id=3
+      --log_bin=/var/lib/mysql/mysql-bin.log
+      --binlog-format=ROW
+      --enforce-gtid-consistency=ON
+      --gtid-mode=ON
+
+  mysql-replica-message1:
+    image: mysql:8.0.40
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "13309:3306"
+    volumes:
+      - ./data/mysql-replica-message1:/var/lib/mysql
+      - ./init-scripts-replica-message1:/docker-entrypoint-initdb.d
+    depends_on:
+      mysql-source-message1:
+        condition: service_healthy
+    command: >
+      --server-id=4
+      --relay_log=/var/lib/mysql/mysql-relay-bin.log
+      --read_only=1
+      --enforce-gtid-consistency=ON
+      --gtid-mode=ON
+
+  mysql-source-message2:
+    image: mysql:8.0.40
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-udev_user", "-pdev_password" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: chatsystem
+      MYSQL_USER: user
+      MYSQL_PASSWORD: 1234
+    ports:
+      - "13310:3306"
+    volumes:
+      - ./data/mysql-source-message2:/var/lib/mysql
+      - ./init-scripts-source:/docker-entrypoint-initdb.d
+    command: >
+      --server-id=5
+      --log_bin=/var/lib/mysql/mysql-bin.log
+      --binlog-format=ROW
+      --enforce-gtid-consistency=ON
+      --gtid-mode=ON
+
+  mysql-replica-message2:
+    image: mysql:8.0.40
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "13311:3306"
+    volumes:
+      - ./data/mysql-replica-message2:/var/lib/mysql
+      - ./init-scripts-replica-message2:/docker-entrypoint-initdb.d
+    depends_on:
+      mysql-source-message2:
+        condition: service_healthy
+    command: >
+      --server-id=6
+      --relay_log=/var/lib/mysql/mysql-relay-bin.log
+      --read_only=1
+      --enforce-gtid-consistency=ON
+      --gtid-mode=ON
 
   redis:
     image: redis:7.4.1

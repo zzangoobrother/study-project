@@ -10,7 +10,6 @@ import com.example.dto.kafka.outbound.MessageNotificationRecord;
 import com.example.dto.projection.MessageInfoProjection;
 import com.example.dto.websocket.outbound.BaseMessage;
 import com.example.dto.websocket.outbound.WriteMessageAck;
-import com.example.entity.MessageEntity;
 import com.example.repository.MessageRepository;
 import com.example.repository.UserChannelRepository;
 import com.example.session.WebSocketSessionManager;
@@ -37,19 +36,19 @@ public class MessageService {
     private final UserService userService;
     private final ChannelService channelService;
     private final PushService pushService;
+    private final MessageShardService messageShardService;
     private final WebSocketSessionManager webSocketSessionManager;
     private final JsonUtil jsonUtil;
-    private final MessageRepository messageRepository;
     private final UserChannelRepository userChannelRepository;
     private final ExecutorService senderThreadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
-    public MessageService(UserService userService, ChannelService channelService, PushService pushService, WebSocketSessionManager webSocketSessionManager, JsonUtil jsonUtil, MessageRepository messageRepository, UserChannelRepository userChannelRepository) {
+    public MessageService(UserService userService, ChannelService channelService, PushService pushService, MessageShardService messageShardService, WebSocketSessionManager webSocketSessionManager, JsonUtil jsonUtil, MessageRepository messageRepository, UserChannelRepository userChannelRepository) {
         this.userService = userService;
         this.channelService = channelService;
         this.pushService = pushService;
+        this.messageShardService = messageShardService;
         this.webSocketSessionManager = webSocketSessionManager;
         this.jsonUtil = jsonUtil;
-        this.messageRepository = messageRepository;
         this.userChannelRepository = userChannelRepository;
 
         pushService.registerPushMessageType(MessageType.NOTIFY_MESSAGE, MessageNotificationRecord.class);
@@ -57,8 +56,7 @@ public class MessageService {
 
     @Transactional(readOnly = true)
     public Pair<List<Message>, ResultType> getMessages(ChannelId channelId, MessageSeqId startMessageSeqId, MessageSeqId endMessageSeqId) {
-        List<MessageInfoProjection> messageInfos = messageRepository.findByChannelIdAndMessageSequenceBetween(
-                channelId.id(), startMessageSeqId.id(), endMessageSeqId.id());
+        List<MessageInfoProjection> messageInfos = messageShardService.findByChannelIdAndMessageSequenceBetween(channelId, startMessageSeqId, endMessageSeqId);
         Set<UserId> userIds = messageInfos.stream()
                 .map(proj -> new UserId(proj.getUserId()))
                 .collect(Collectors.toUnmodifiableSet());
@@ -92,7 +90,7 @@ public class MessageService {
         String payload = json.get();
 
         try {
-            messageRepository.save(new MessageEntity(channelId.id(), messageSeqId.id(), senderUserId.id(), content));
+            messageShardService.save(channelId, messageSeqId, senderUserId, content);
         } catch (Exception ex) {
             log.error("Send message failed. cause : {}", ex.getMessage());
             return;
