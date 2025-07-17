@@ -1,29 +1,28 @@
 package com.example.service;
 
 import com.example.constants.MessageType;
+import com.example.dto.domain.ChannelId;
 import com.example.dto.domain.UserId;
-import com.example.dto.kafka.outbound.*;
-import com.example.dto.websocket.outbound.BaseMessage;
-import com.example.session.WebSocketSessionManager;
+import com.example.dto.kafka.*;
+import com.example.kafka.KafkaProducer;
 import com.example.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.socket.WebSocketSession;
-
-import java.util.Optional;
 
 @Service
 public class ClientNotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(ClientNotificationService.class);
 
-    private final WebSocketSessionManager webSocketSessionManager;
+    private final SessionService sessionService;
+    private final KafkaProducer kafkaProducer;
     private final PushService pushService;
     private final JsonUtil jsonUtil;
 
-    public ClientNotificationService(WebSocketSessionManager webSocketSessionManager, PushService pushService, JsonUtil jsonUtil) {
-        this.webSocketSessionManager = webSocketSessionManager;
+    public ClientNotificationService(SessionService sessionService, KafkaProducer kafkaProducer, PushService pushService, JsonUtil jsonUtil) {
+        this.sessionService = sessionService;
+        this.kafkaProducer = kafkaProducer;
         this.pushService = pushService;
         this.jsonUtil = jsonUtil;
 
@@ -38,31 +37,18 @@ public class ClientNotificationService {
         pushService.registerPushMessageType(MessageType.QUIT_RESPONSE, QuitResponseRecord.class);
     }
 
-    public void sendMessage(UserId userId, BaseMessage message) {
-        sendPayload(webSocketSessionManager.getSession(userId), userId, message);
+    public void sendMessageUsingPartitionKey(ChannelId channelId, UserId userId, RecordInterface recordInterface) {
+        sessionService.getListenTopic(userId)
+                .ifPresentOrElse(topic -> kafkaProducer.sendMessageUsingPartitionKey(topic, channelId, userId, recordInterface), () -> pushService.pushMessage(recordInterface));
     }
 
-    public void sendMessage(WebSocketSession session, UserId userId, BaseMessage message) {
-        sendPayload(session, userId, message);
+    public void sendMessage(UserId userId, RecordInterface recordInterface) {
+        sessionService.getListenTopic(userId)
+                .ifPresentOrElse(topic -> kafkaProducer.sendResponse(topic, recordInterface), () -> pushService.pushMessage(recordInterface));
     }
 
-    private void sendPayload(WebSocketSession session, UserId userId, BaseMessage message) {
-        Optional<String> json = jsonUtil.toJson(message);
-        if (json.isEmpty()) {
-            log.error("Send message failed. messageType : {}", message.getType());
-            return;
-        }
-
-        String payload = json.get();
-
-        try {
-            if (session != null) {
-                webSocketSessionManager.sendMessage(session, payload);
-            } else {
-                pushService.pushMessage(userId, message.getType(), payload);
-            }
-        } catch (Exception ex) {
-            pushService.pushMessage(userId, message.getType(), payload);
-        }
+    public void sendError(ErrorResponseRecord errorResponseRecord) {
+        sessionService.getListenTopic(errorResponseRecord.userId())
+                .ifPresentOrElse(topic -> kafkaProducer.sendResponse(topic, errorResponseRecord), () -> log.warn("Send error failed. Type: {}, Error : {}, User : {} is offline", errorResponseRecord.messageType(), errorResponseRecord.message(), errorResponseRecord.userId()));
     }
 }

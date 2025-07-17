@@ -1,6 +1,3 @@
-server:
-  port: 8090
-
 spring:
   datasource:
     source:
@@ -110,8 +107,24 @@ spring:
         request.timeout.ms: 3000
         retry.backoff.ms: 100
 
+    consumer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        allow.auth.create.topics: false
+        enable.auto.commit: false
+        partition.assignment.strategy: org.apache.kafka.clients.consumer.CooperativeStickyAssignor
+
 message-system:
   kafka:
+    topics:
+      push: push-notification
     listeners:
-      push:
-        topic: push-notification
+      message:
+        topic: message-relay
+        group-id: relay-group
+        concurrency: 3
+      request:
+        topic: message-request
+        group-id: request-group
+        concurrency: 3

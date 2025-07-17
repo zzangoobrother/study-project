@@ -19,44 +19,34 @@ public class KafkaProducer {
 
     private final JsonUtil jsonUtil;
     private final KafkaTemplate<String, String> kafkaTemplate;
-    private final String messageTopic;
-    private final String requestTopic;
     private final String pushTopic;
 
     public KafkaProducer(JsonUtil jsonUtil, KafkaTemplate<String, String> kafkaTemplate,
-                         @Value("${message-system.kafka.topics.message}") String messageTopic,
-                         @Value("${message-system.kafka.topics.request}") String requestTopic,
-                         @Value("${message-system.kafka.topics.push}") String pushTopic) {
+                         @Value("${message-system.kafka.listeners.push.topic}") String pushTopic) {
         this.jsonUtil = jsonUtil;
         this.kafkaTemplate = kafkaTemplate;
-        this.messageTopic = messageTopic;
-        this.requestTopic = requestTopic;
         this.pushTopic = pushTopic;
     }
 
-    public void sendMessageUsingPartitionKey(ChannelId channelId, UserId userId, RecordInterface recordInterface, Runnable errorCallback) {
+    public void sendMessageUsingPartitionKey(String topic, ChannelId channelId, UserId userId, RecordInterface recordInterface) {
         String partitionKey = "%d-%d".formatted(channelId.id(), userId.id());
-        jsonUtil.toJson(recordInterface).ifPresent(record -> kafkaTemplate.send(messageTopic, record).whenComplete(logResult(messageTopic, record, partitionKey, errorCallback)));
+        jsonUtil.toJson(recordInterface).ifPresent(record -> kafkaTemplate.send(topic, record).whenComplete(logResult(topic, record, partitionKey)));
     }
 
-    public void sendRequest(RecordInterface recordInterface, Runnable errorCallback) {
-        jsonUtil.toJson(recordInterface).ifPresent(record -> kafkaTemplate.send(requestTopic, record).whenComplete(logResult(requestTopic, record, null, errorCallback)));
+    public void sendResponse(String topic, RecordInterface recordInterface) {
+        jsonUtil.toJson(recordInterface).ifPresent(record -> kafkaTemplate.send(topic, record).whenComplete(logResult(topic, record, null)));
     }
 
     public void sendPushNotification(RecordInterface recordInterface) {
-        jsonUtil.toJson(recordInterface).ifPresent(record -> kafkaTemplate.send(pushTopic, record).whenComplete(logResult(pushTopic, record, null, null)));
+        jsonUtil.toJson(recordInterface).ifPresent(record -> kafkaTemplate.send(pushTopic, record).whenComplete(logResult(pushTopic, record, null)));
     }
 
-    private BiConsumer<SendResult<String, String>, Throwable> logResult(String topic, String record, String partitionKey, Runnable errorCallback) {
+    private BiConsumer<SendResult<String, String>, Throwable> logResult(String topic, String record, String partitionKey) {
         return (sendResult, throwable) -> {
             if (throwable == null) {
                 log.info("Record produced : {} with key : {} to topic : {}", sendResult.getProducerRecord().value(), partitionKey, sendResult.getProducerRecord().topic());
             } else {
                 log.info("Record produced failed : {} with key : {} to topic : {}, cause : {}", record, partitionKey, topic, throwable.getMessage());
-
-                if (errorCallback != null) {
-                    errorCallback.run();
-                }
             }
         };
     }

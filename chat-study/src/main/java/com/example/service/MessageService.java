@@ -6,7 +6,7 @@ import com.example.dto.domain.ChannelId;
 import com.example.dto.domain.Message;
 import com.example.dto.domain.MessageSeqId;
 import com.example.dto.domain.UserId;
-import com.example.dto.kafka.outbound.MessageNotificationRecord;
+import com.example.dto.kafka.MessageNotificationRecord;
 import com.example.dto.projection.MessageInfoProjection;
 import com.example.dto.websocket.outbound.BaseMessage;
 import com.example.dto.websocket.outbound.WriteMessageAck;

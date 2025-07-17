@@ -1,7 +1,8 @@
 package com.example.service;
 
 import com.example.dto.domain.UserId;
-import com.example.dto.kafka.outbound.RecordInterface;
+import com.example.dto.kafka.RecordInterface;
+import com.example.kafka.KafkaProducer;
 import com.example.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,28 +18,22 @@ public class PushService {
 
     private final Map<String, Class<? extends RecordInterface>> pushMessageTypes = new HashMap<>();
 
-    private final KafkaProducerService kafkaProducerService;
-    private final JsonUtil jsonUtil;
+    private final KafkaProducer kafkaProducer;
 
-    public PushService(KafkaProducerService kafkaProducerService, JsonUtil jsonUtil) {
-        this.kafkaProducerService = kafkaProducerService;
-        this.jsonUtil = jsonUtil;
+    public PushService(KafkaProducer kafkaProducer) {
+        this.kafkaProducer = kafkaProducer;
     }
 
     public void registerPushMessageType(String messageType, Class<? extends RecordInterface> clazz) {
         pushMessageTypes.put(messageType, clazz);
     }
 
-    public void pushMessage(UserId userId, String messageType, String message) {
-        Class<? extends RecordInterface> recordInterface = pushMessageTypes.get(messageType);
-        if (recordInterface != null) {
-            jsonUtil.addValue(message, "userId", userId.id().toString())
-                    .flatMap(json -> jsonUtil.fromJson(json, recordInterface))
-                    .ifPresent(kafkaProducerService::sendPushNotification);
+    public void pushMessage(RecordInterface recordInterface) {
+        String messageType = recordInterface.type();
+        if (pushMessageTypes.containsKey(messageType)) {
+            kafkaProducer.sendPushNotification(recordInterface);
         } else {
             log.error("Invalid message type : {}", messageType);
         }
-
-        log.info("Push message : {} to user : {}", message, userId);
     }
 }
