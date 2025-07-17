@@ -1,13 +1,11 @@
 package com.example.handler.kafka;
 
-import com.example.dto.websocket.inbound.BaseRequest;
-import com.example.handler.websocket.BaseRequestHandler;
+import com.example.dto.kafka.RecordInterface;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.WebSocketSession;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -20,18 +18,18 @@ public class RecordDispatcher {
 
     private static final Logger log = LoggerFactory.getLogger(RecordDispatcher.class);
 
-    private final Map<Class<? extends BaseRequest>, BaseRequestHandler<? extends BaseRequest>> handlerMap = new HashMap<>();
+    private final Map<Class<? extends RecordInterface>, BaseRecordHandler<? extends RecordInterface>> handlerMap = new HashMap<>();
     private final ListableBeanFactory listableBeanFactory;
 
     public RecordDispatcher(ListableBeanFactory listableBeanFactory) {
         this.listableBeanFactory = listableBeanFactory;
     }
 
-    public <T extends BaseRequest> void dispatchRequest(WebSocketSession webSocketSession, T request) {
-        BaseRequestHandler<T> handler = (BaseRequestHandler<T>)handlerMap.get(request.getClass());
+    public <T extends RecordInterface> void dispatchRequest(T request) {
+        BaseRecordHandler<T> handler = (BaseRecordHandler<T>)handlerMap.get(request.getClass());
 
         if (handler != null) {
-            handler.handleRequest(webSocketSession, request);
+            handler.handleRecord(request);
             return;
         }
 
@@ -40,19 +38,19 @@ public class RecordDispatcher {
 
     @PostConstruct
     private void prepareRequestHandlerMapping() {
-        Map<String, BaseRequestHandler> beanHandlers = listableBeanFactory.getBeansOfType(BaseRequestHandler.class);
-        for (BaseRequestHandler handler : beanHandlers.values()) {
-            Class<? extends BaseRequest> requestClass = extractRequestClass(handler);
+        Map<String, BaseRecordHandler> beanHandlers = listableBeanFactory.getBeansOfType(BaseRecordHandler.class);
+        for (BaseRecordHandler handler : beanHandlers.values()) {
+            Class<? extends RecordInterface> requestClass = extractRequestClass(handler);
             if (requestClass != null) {
                 handlerMap.put(requestClass, handler);
             }
         }
     }
 
-    private Class<? extends BaseRequest> extractRequestClass(BaseRequestHandler handler) {
+    private Class<? extends RecordInterface> extractRequestClass(BaseRecordHandler handler) {
         for (Type type : handler.getClass().getGenericInterfaces()) {
-            if (type instanceof ParameterizedType parameterizedType && parameterizedType.getRawType().equals(BaseRequestHandler.class)) {
-                return (Class<? extends BaseRequest>) parameterizedType.getActualTypeArguments()[0];
+            if (type instanceof ParameterizedType parameterizedType && parameterizedType.getRawType().equals(BaseRecordHandler.class)) {
+                return (Class<? extends RecordInterface>) parameterizedType.getActualTypeArguments()[0];
             }
         }
 

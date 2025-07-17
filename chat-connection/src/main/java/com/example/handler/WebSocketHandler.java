@@ -4,6 +4,7 @@ import com.example.constants.IdKey;
 import com.example.dto.domain.UserId;
 import com.example.dto.websocket.inbound.BaseRequest;
 import com.example.handler.websocket.RequestDispatcher;
+import com.example.service.SessionService;
 import com.example.session.WebSocketSessionManager;
 import com.example.util.JsonUtil;
 import jakarta.annotation.Nonnull;
@@ -20,11 +21,14 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 public class WebSocketHandler extends TextWebSocketHandler {
 
     private static final Logger log = LoggerFactory.getLogger(WebSocketHandler.class);
+
+    private final SessionService sessionService;
     private final JsonUtil jsonUtil;
     private final WebSocketSessionManager webSocketSessionManager;
     private final RequestDispatcher requestDispatcher;
 
-    public WebSocketHandler(JsonUtil jsonUtil, WebSocketSessionManager webSocketSessionManager, RequestDispatcher requestDispatcher) {
+    public WebSocketHandler(SessionService sessionService, JsonUtil jsonUtil, WebSocketSessionManager webSocketSessionManager, RequestDispatcher requestDispatcher) {
+        this.sessionService = sessionService;
         this.jsonUtil = jsonUtil;
         this.webSocketSessionManager = webSocketSessionManager;
         this.requestDispatcher = requestDispatcher;
@@ -37,6 +41,7 @@ public class WebSocketHandler extends TextWebSocketHandler {
         ConcurrentWebSocketSessionDecorator concurrentWebSocketSessionDecorator = new ConcurrentWebSocketSessionDecorator(session, 5000, 100 * 1024);
         UserId userId = (UserId) session.getAttributes().get(IdKey.USER_ID.getValue());
         webSocketSessionManager.putSession(userId, concurrentWebSocketSessionDecorator);
+        sessionService.setOnline(userId, true);
     }
 
     @Override
@@ -44,6 +49,8 @@ public class WebSocketHandler extends TextWebSocketHandler {
         log.info("TransportError : [{}] from {}", exception.getMessage(), session.getId());
         UserId userId = (UserId) session.getAttributes().get(IdKey.USER_ID.getValue());
         webSocketSessionManager.closeSession(userId);
+        sessionService.setOnline(userId, false);
+        sessionService.removeActiveChannel(userId);
     }
 
     @Override
@@ -51,6 +58,8 @@ public class WebSocketHandler extends TextWebSocketHandler {
         log.info("ConnectionEstablished : [{}] from {}", status, session.getId());
         UserId userId = (UserId) session.getAttributes().get(IdKey.USER_ID.getValue());
         webSocketSessionManager.closeSession(userId);
+        sessionService.setOnline(userId, false);
+        sessionService.removeActiveChannel(userId);
     }
 
     @Override

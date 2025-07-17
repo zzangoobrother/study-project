@@ -1,7 +1,6 @@
 package com.example.session;
 
 import com.example.dto.domain.UserId;
-import com.example.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -9,7 +8,6 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -18,15 +16,6 @@ public class WebSocketSessionManager {
 
     private static final Logger log = LoggerFactory.getLogger(WebSocketSessionManager.class);
     private final Map<UserId, WebSocketSession> sessions = new ConcurrentHashMap<>();
-    private final JsonUtil jsonUtil;
-
-    public WebSocketSessionManager(JsonUtil jsonUtil) {
-        this.jsonUtil = jsonUtil;
-    }
-
-    public List<WebSocketSession> getSessions(UserId participantId) {
-        return sessions.values().stream().toList();
-    }
 
     public WebSocketSession getSession(UserId userId) {
         return sessions.get(userId);

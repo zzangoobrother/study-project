@@ -1,5 +1,6 @@
 package com.example.auth;
 
+import com.fasterxml.jackson.annotation.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
