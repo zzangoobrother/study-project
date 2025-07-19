@@ -22,6 +22,7 @@ public class WebSocketHandlerConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(webSocketHandler, "/ws/v1/message")
+                .setAllowedOriginPatterns("*")
                 .addInterceptors(webSocketHttpSessionHandshakeInterceptor);
     }
 }

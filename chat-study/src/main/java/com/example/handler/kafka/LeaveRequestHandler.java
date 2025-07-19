@@ -5,8 +5,6 @@ import com.example.dto.domain.UserId;
 import com.example.dto.kafka.ErrorResponseRecord;
 import com.example.dto.kafka.LeaveRequestRecord;
 import com.example.dto.kafka.LeaveResponseRecord;
-import com.example.dto.websocket.outbound.ErrorResponse;
-import com.example.dto.websocket.outbound.LeaveResponse;
 import com.example.service.ChannelService;
 import com.example.service.ClientNotificationService;
 import org.springframework.stereotype.Component;

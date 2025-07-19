@@ -27,7 +27,7 @@ public class ListenTopicConsumer {
 
     @KafkaListener(topics = "#{__listener.getListenTopic()}", groupId = "#{__listener.getConsumerGroupId()}", concurrency = "${message-system.kafka.listeners.listen.concurrency}")
     public void listenTopicConsumerGroup(ConsumerRecord<String, String> consumerRecord, Acknowledgment acknowledgment) {
-        log.info("Received listenTopicConsumerGroup, record : {}, from topic : {}, on key : {}", consumerRecord.value(), consumerRecord.topic(), consumerRecord.key(), consumerRecord.partition(), consumerRecord.offset());
+        log.info("Received record : {}, from topic : {}, on key : {}, partition: {}, offset: {}", consumerRecord.value(), consumerRecord.topic(), consumerRecord.key(), consumerRecord.partition(), consumerRecord.offset());
         jsonUtil.fromJson(consumerRecord.value(), RecordInterface.class)
                 .ifPresentOrElse(recordDispatcher::dispatchRequest, () -> log.error("Record dispatch failed. record : {}", consumerRecord.value()));
         acknowledgment.acknowledge();

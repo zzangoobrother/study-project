@@ -4,7 +4,7 @@ import com.example.constants.MessageType;
 import com.example.dto.domain.UserId;
 
 public record LeaveResponseRecord (
-        UserId userId,
+        UserId userId
 ) implements RecordInterface {
 
     @Override

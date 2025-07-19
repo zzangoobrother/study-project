@@ -12,7 +12,7 @@ public class ReadMessageAck extends BaseRequest {
     private final MessageSeqId messageSeqId;
 
     @JsonCreator
-    public ReadMessageAck(@JsonProperty("channelId") ChannelId channelId, @JsonProperty("content") MessageSeqId messageSeqId) {
+    public ReadMessageAck(@JsonProperty("channelId") ChannelId channelId, @JsonProperty("messageSeqId") MessageSeqId messageSeqId) {
         super(MessageType.READ_MESSAGES_ACK);
         this.channelId = channelId;
         this.messageSeqId = messageSeqId;

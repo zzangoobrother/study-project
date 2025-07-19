@@ -22,7 +22,7 @@ public class KafkaProducer {
     private final String pushTopic;
 
     public KafkaProducer(JsonUtil jsonUtil, KafkaTemplate<String, String> kafkaTemplate,
-                         @Value("${message-system.kafka.listeners.push.topic}") String pushTopic) {
+                         @Value("${message-system.kafka.topics.push}") String pushTopic) {
         this.jsonUtil = jsonUtil;
         this.kafkaTemplate = kafkaTemplate;
         this.pushTopic = pushTopic;
@@ -30,7 +30,7 @@ public class KafkaProducer {
 
     public void sendMessageUsingPartitionKey(String topic, ChannelId channelId, UserId userId, RecordInterface recordInterface) {
         String partitionKey = "%d-%d".formatted(channelId.id(), userId.id());
-        jsonUtil.toJson(recordInterface).ifPresent(record -> kafkaTemplate.send(topic, record).whenComplete(logResult(topic, record, partitionKey)));
+        jsonUtil.toJson(recordInterface).ifPresent(record -> kafkaTemplate.send(topic, partitionKey, record).whenComplete(logResult(topic, record, partitionKey)));
     }
 
     public void sendResponse(String topic, RecordInterface recordInterface) {

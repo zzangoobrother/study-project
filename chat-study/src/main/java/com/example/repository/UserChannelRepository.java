@@ -29,7 +29,7 @@ public interface UserChannelRepository extends JpaRepository<UserChannelEntity, 
     Optional<LastReadMsgSeqProjection> findLastReadMsgSeqByUserIdAndChannelId(@Nonnull Long userId, @Nonnull Long channelId);
 
     @Modifying
-    @Query("UPDATE UserChannelEntity uc set uc.lastReadMsgSeq = :lastReadMsgSeq WHERE uc.userId = :userId and uc.channelId = :channelId")
+    @Query("UPDATE UserChannelEntity uc set uc.lastReadMsgSeq = :lastReadMsgSeq WHERE uc.userId = :userId and uc.channelId = :channelId and uc.lastReadMsgSeq < :lastReadMsgSeq")
     int updateLastReadMsgSeqByUserIdAndChannelId(@Param("userId") Long userId, @Param("channelId") Long channelId, @Param("lastReadMsgSeq") Long lastReadMsgSeq);
 
     void deleteByUserIdAndChannelId(@Nonnull Long userId, @Nonnull Long channelId);

@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 @Service
 public class ChannelService {
 
-    private static final Logger log = LoggerFactory.getLogger(UserConnectionService.class);
+    private static final Logger log = LoggerFactory.getLogger(ChannelService.class);
     private static final int LIMIT_HEAD_COUNT = 100;
     private final long TTL = 600;
 
@@ -90,7 +90,7 @@ public class ChannelService {
         if (cachedParticipantIds.isPresent()) {
             return jsonUtil.fromJsonToList(cachedParticipantIds.get(), String.class).stream()
                     .map(userId -> new UserId(Long.valueOf(userId)))
-                    .toList();
+                    .collect(Collectors.toList());
         }
 
         List<UserId> fromDb = userChannelRepository.findUserIdByChannelId(channelId.id()).stream()
@@ -109,7 +109,7 @@ public class ChannelService {
     }
 
     public List<UserId> getOnlineParticipantIds(ChannelId channelId, List<UserId> userIds) {
-        return sessionService.getOnlineParticipantUSerIds(channelId, userIds);
+        return sessionService.getOnlineParticipantUserIds(channelId, userIds);
     }
 
     @Transactional(readOnly = true)

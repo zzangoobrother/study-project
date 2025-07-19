@@ -36,7 +36,7 @@ public class KafkaProducer {
 
     public void sendMessageUsingPartitionKey(ChannelId channelId, UserId userId, RecordInterface recordInterface, Runnable errorCallback) {
         String partitionKey = "%d-%d".formatted(channelId.id(), userId.id());
-        jsonUtil.toJson(recordInterface).ifPresent(record -> kafkaTemplate.send(messageTopic, record).whenComplete(logResult(messageTopic, record, partitionKey, errorCallback)));
+        jsonUtil.toJson(recordInterface).ifPresent(record -> kafkaTemplate.send(messageTopic, partitionKey, record).whenComplete(logResult(messageTopic, record, partitionKey, errorCallback)));
     }
 
     public void sendRequest(RecordInterface recordInterface, Runnable errorCallback) {

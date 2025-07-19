@@ -7,48 +7,43 @@ import com.example.dto.domain.Message;
 import com.example.dto.domain.MessageSeqId;
 import com.example.dto.domain.UserId;
 import com.example.dto.kafka.MessageNotificationRecord;
+import com.example.dto.kafka.WriteMessageAckRecord;
+import com.example.dto.kafka.WriteMessageRecord;
 import com.example.dto.projection.MessageInfoProjection;
-import com.example.dto.websocket.outbound.BaseMessage;
-import com.example.dto.websocket.outbound.WriteMessageAck;
-import com.example.repository.MessageRepository;
+import com.example.kafka.KafkaProducer;
 import com.example.repository.UserChannelRepository;
-import com.example.session.WebSocketSessionManager;
-import com.example.util.JsonUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.socket.WebSocketSession;
 
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class MessageService {
 
     private static final Logger log = LoggerFactory.getLogger(MessageService.class);
-    private static final int THREAD_POOL_SIZE = 10;
 
     private final UserService userService;
     private final ChannelService channelService;
     private final PushService pushService;
     private final MessageShardService messageShardService;
-    private final WebSocketSessionManager webSocketSessionManager;
-    private final JsonUtil jsonUtil;
+    private final SessionService sessionService;
+    private final KafkaProducer kafkaProducer;
     private final UserChannelRepository userChannelRepository;
-    private final ExecutorService senderThreadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
-    public MessageService(UserService userService, ChannelService channelService, PushService pushService, MessageShardService messageShardService, WebSocketSessionManager webSocketSessionManager, JsonUtil jsonUtil, MessageRepository messageRepository, UserChannelRepository userChannelRepository) {
+    public MessageService(UserService userService, ChannelService channelService, PushService pushService, MessageShardService messageShardService, KafkaProducer kafkaProducer, SessionService sessionService, UserChannelRepository userChannelRepository) {
         this.userService = userService;
         this.channelService = channelService;
         this.pushService = pushService;
         this.messageShardService = messageShardService;
-        this.webSocketSessionManager = webSocketSessionManager;
-        this.jsonUtil = jsonUtil;
+        this.sessionService = sessionService;
+        this.kafkaProducer = kafkaProducer;
         this.userChannelRepository = userChannelRepository;
 
         pushService.registerPushMessageType(MessageType.NOTIFY_MESSAGE, MessageNotificationRecord.class);
@@ -81,16 +76,14 @@ public class MessageService {
     }
 
     @Transactional
-    public void sendMessage(UserId senderUserId, String content, ChannelId channelId, MessageSeqId messageSeqId, Long serial, BaseMessage message) {
-        Optional<String> json = jsonUtil.toJson(message);
-        if (json.isEmpty()) {
-            log.error("Send message failed. messageType : {}", message.getType());
-            return;
-        }
-        String payload = json.get();
+    public void sendMessage(WriteMessageRecord record) {
+        ChannelId channelId = record.channelId();
+        UserId senderUserId = record.userId();
+        MessageSeqId messageSeqId = record.messageSeqId();
+        String senderUsername = userService.getUsername(senderUserId).orElse("unknown");
 
         try {
-            messageShardService.save(channelId, messageSeqId, senderUserId, content);
+            messageShardService.save(channelId, messageSeqId, senderUserId, record.content());
         } catch (Exception ex) {
             log.error("Send message failed. cause : {}", ex.getMessage());
             return;
@@ -99,41 +92,21 @@ public class MessageService {
         List<UserId> allParticipantIds = channelService.getParticipantIds(channelId);
         List<UserId> onlineParticipantIds = channelService.getOnlineParticipantIds(channelId, allParticipantIds);
 
-        for (int idx = 0; idx < allParticipantIds.size(); idx++) {
-            UserId participantId = allParticipantIds.get(idx);
-            if (senderUserId.equals(participantId)) {
+        Map<String, List<UserId>> listenTopics = sessionService.getListenTopics(onlineParticipantIds);
+        allParticipantIds.removeAll(onlineParticipantIds);
+
+        listenTopics.forEach((listenTopic, participantIds) -> {
+            if (participantIds.contains(senderUserId)) {
                 updateLastReadMsgSeq(senderUserId, channelId, messageSeqId);
-                jsonUtil.toJson(new WriteMessageAck(serial, messageSeqId))
-                        .ifPresent(writeMessageAck -> CompletableFuture.runAsync(
-                                () -> {
-                                    try {
-                                        WebSocketSession senderSession = webSocketSessionManager.getSession(senderUserId);
-                                        if (senderSession != null) {
-                                            webSocketSessionManager.sendMessage(senderSession, writeMessageAck);
-                                        }
-                                    } catch (Exception ex) {
-                                        log.warn("Send writeMessageAck failed. userId : {}, cause : {}", senderUserId.id(), ex.getMessage());
-                                    }
-                                }, senderThreadPool
-                        ));
-                continue;
-            }
-            if (onlineParticipantIds.get(idx) != null) {
-                CompletableFuture.runAsync(() -> {
-                    try {
-                        WebSocketSession session = webSocketSessionManager.getSession(participantId);
-                        if (session != null) {
-                            webSocketSessionManager.sendMessage(session, payload);
-                        } else {
-                            pushService.pushMessage(participantId, MessageType.NOTIFY_MESSAGE, payload);
-                        }
-                    } catch (Exception ex) {
-                        pushService.pushMessage(participantId, MessageType.NOTIFY_MESSAGE, payload);
-                    }
-                }, senderThreadPool);
+                kafkaProducer.sendMessageUsingPartitionKey(listenTopic, channelId, senderUserId, new WriteMessageAckRecord(senderUserId, record.serial(), messageSeqId));
+                participantIds.remove(senderUserId);
             } else {
-                pushService.pushMessage(participantId, MessageType.NOTIFY_MESSAGE, payload);
+                kafkaProducer.sendMessageUsingPartitionKey(listenTopic, channelId, senderUserId, new MessageNotificationRecord(senderUserId, channelId, messageSeqId, senderUsername, record.content(), participantIds));
             }
+        });
+
+        if (!allParticipantIds.isEmpty()) {
+            pushService.pushMessage(new MessageNotificationRecord(senderUserId, channelId, messageSeqId, senderUsername, record.content(), allParticipantIds));
         }
     }
 

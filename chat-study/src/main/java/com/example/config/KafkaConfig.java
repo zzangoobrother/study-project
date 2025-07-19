@@ -30,7 +30,7 @@ public class KafkaConfig {
         Map<String, Object> configs = new HashMap<>();
         configs.put("bootstrap-servers", bootstrapServers);
         configs.put(AdminClientConfig.RETRIES_CONFIG, 5);
-        configs.put(AdminClientConfig.RECONNECT_BACKOFF_MS_CONFIG, 1000);
+        configs.put(AdminClientConfig.RETRY_BACKOFF_MS_CONFIG, 1000);
         return new KafkaAdmin(configs);
     }
 

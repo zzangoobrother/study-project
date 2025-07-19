@@ -1,6 +1,6 @@
 package com.example.dto
 
-import com.example.dto.websocket.inbound.*
+import com.example.dto.kafka.*
 import com.example.util.JsonUtil
 import com.fasterxml.jackson.databind.ObjectMapper
 import spock.lang.Specification
@@ -14,21 +14,20 @@ class RequestTypeMappingSpec extends Specification {
         String jsonBody = payload
 
         when:
-        def request = jsonUtil.fromJson(jsonBody, BaseRequest).get()
+        RecordInterface record = jsonUtil.fromJson(jsonBody, RecordInterface).get()
 
         then:
-        request.getClass() == expectedClass
-        validate(request)
+        record.getClass() == expectedClass
+        validate(record)
 
         where:
         payload                                                                             | expectedClass                 | validate
-        '{"type" : "FETCH_USER_INVITECODE_REQUEST"}'                                        | FetchUserInvitecodeRequest    | {req -> (req as FetchUserInvitecodeRequest).type == 'FETCH_USER_INVITECODE_REQUEST'}
-        '{"type" : "FETCH_CONNECTIONS_REQUEST", "status" : "ACCEPTED"}'                     | FetchConnectionsRequest       | {req -> (req as FetchConnectionsRequest).status.name() == 'ACCEPTED'}
-        '{"type" : "INVITE_REQUEST", "userInviteCode" : "TestInviteCode123"}'               | InviteRequest                 | {req -> (req as InviteRequest).userInviteCode.code() == "TestInviteCode123"}
-        '{"type" : "ACCEPT_REQUEST", "username" : "testuser"}'                              | AcceptRequest                 | { req -> (req as AcceptRequest).username == "testuser"}
-        '{"type" : "REJECT_REQUEST", "username" : "testuser"}'                              | RejectRequest                 | { req -> (req as RejectRequest).username == "testuser"}
-        '{"type" : "DISCONNECT_REQUEST", "username" : "testuser"}'                          | DisconnectRequest             | { req -> (req as DisconnectRequest).username == "testuser"}
-        '{"type" : "WRITE_MESSAGE", "content" : "test message"}'   | WriteMessage | { req -> (req as WriteMessage).getContent() == "test message"}
-        '{"type" : "KEEP_ALIVE"}'                                                           | KeepAlive | { req -> (req as KeepAlive).getType() == "KEEP_ALIVE"}
+        '{"type" : "FETCH_USER_INVITECODE_REQUEST"}'                                        | FetchUserInvitecodeRequestRecord    | {req -> (req as FetchUserInvitecodeRequestRecord).type() == 'FETCH_USER_INVITECODE_REQUEST'}
+        '{"type" : "FETCH_CONNECTIONS_REQUEST", "status" : "ACCEPTED"}'                     | FetchConnectionsRequestRecord       | {req -> (req as FetchConnectionsRequestRecord).status().name() == 'ACCEPTED'}
+        '{"type" : "INVITE_REQUEST", "userInviteCode" : "TestInviteCode123"}'               | InviteRequestRecord                 | {req -> (req as InviteRequestRecord).userInviteCode().code() == "TestInviteCode123"}
+        '{"type" : "ACCEPT_REQUEST", "username" : "testuser"}'                              | AcceptRequestRecord                 | { req -> (req as AcceptRequestRecord).username() == "testuser"}
+        '{"type" : "REJECT_REQUEST", "username" : "testuser"}'                              | RejectRequestRecord                 | { req -> (req as RejectRequestRecord).username() == "testuser"}
+        '{"type" : "DISCONNECT_REQUEST", "username" : "testuser"}'                          | DisconnectRequestRecord             | { req -> (req as DisconnectRequestRecord).username() == "testuser"}
+        '{"type" : "WRITE_MESSAGE", "content" : "test message"}'                            | WriteMessageRecord                  | { req -> (req as WriteMessageRecord).content() == "test message"}
     }
 }

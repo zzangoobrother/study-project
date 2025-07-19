@@ -40,18 +40,20 @@ public class SessionService {
         return locationToUsers;
     }
 
-    public List<UserId> getOnlineParticipantUSerIds(ChannelId channelId, List<UserId> userIds) {
+    public List<UserId> getOnlineParticipantUserIds(ChannelId channelId, List<UserId> userIds) {
         List<String> channelIdKeys = userIds.stream().map(this::buildChannelIdKey).toList();
         List<String> channelIds = cacheService.get(channelIdKeys);
         if (channelIds != null) {
-            List<UserId> onlineParticipantUSerIds = new ArrayList<>(channelIds.size());
-            String chId = channelId.toString();
+            List<UserId> onlineParticipantUserIds = new ArrayList<>(userIds.size());
+            String chId = channelId.id().toString();
             for (int idx = 0; idx < userIds.size(); idx++) {
                 String value = channelIds.get(idx);
-                onlineParticipantUSerIds.add(value != null && value.equals(chId) ? userIds.get(idx) : null);
+                if (value != null && value.equals(chId)) {
+                    onlineParticipantUserIds.add(userIds.get(idx));
+                }
             }
 
-            return onlineParticipantUSerIds;
+            return onlineParticipantUserIds;
         }
 
         return Collections.emptyList();
