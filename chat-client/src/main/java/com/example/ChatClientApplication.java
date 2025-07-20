@@ -8,11 +8,16 @@ import com.example.service.*;
 import org.jline.reader.UserInterruptException;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 public class ChatClientApplication {
 
     public static void main(String[] args) {
-        final String BASE_URL = "localhost:80";
+        final List<String> SERVICE_DISCOVERY_URLS = new ArrayList<>(Arrays.asList("localhost:18500", "localhost:18501", "localhost:18502"));
+        final String SERVICE_DISCOVERY_ENDPOINT = "/v1/catalog/service/nginx";
         final String WEBSOCKET_ENDPOINT = "/ws/v1/message";
 
         TerminalService terminalService;
@@ -23,11 +28,14 @@ public class ChatClientApplication {
             return;
         }
 
+        Collections.shuffle(SERVICE_DISCOVERY_URLS);
+        terminalService.printSystemMessage(SERVICE_DISCOVERY_URLS.toString());
+
         UserService userService = new UserService();
         MessageService messageService = new MessageService(userService, terminalService);
         InboundMessageHandler inboundMessageHandler = new InboundMessageHandler(terminalService, userService, messageService);
-        RestApiService restApiService = new RestApiService(terminalService, BASE_URL);
-        WebSocketService webSocketService = new WebSocketService(userService, terminalService, messageService, BASE_URL, WEBSOCKET_ENDPOINT);
+        RestApiService restApiService = new RestApiService(terminalService, SERVICE_DISCOVERY_URLS, SERVICE_DISCOVERY_ENDPOINT);
+        WebSocketService webSocketService = new WebSocketService(userService, terminalService, messageService, restApiService.getServerEndpoints(), WEBSOCKET_ENDPOINT);
         webSocketService.setWebSocketMessageHandler(new WebSocketMessageHandler(inboundMessageHandler));
         CommandHandler commandHandler = new CommandHandler(userService, restApiService, webSocketService, terminalService);
         messageService.setWebSocketService(webSocketService);

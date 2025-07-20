@@ -1,5 +1,5 @@
 server:
-  port: 8090
+  port: ${server.port}
   id: ${server.id}
 
 spring:
