@@ -1,6 +1,7 @@
 package com.example.application.provided;
 
-import com.example.application.MemberService;
+import com.example.application.MemberModifyService;
+import com.example.application.MemberQueryService;
 import com.example.application.required.EmailSender;
 import com.example.application.required.MemberRepository;
 import com.example.domain.Email;
@@ -23,7 +24,7 @@ class MemberRegisterManualTest {
 
     @Test
     void registerTestStub() {
-        MemberRegister register = new MemberService(new MemberRepositoryStub(), new EmailSenderStub(), MemberFixture.createPasswordEncoder());
+        MemberRegister register = new MemberModifyService(new MemberQueryService(new MemberRepositoryStub()), new MemberRepositoryStub(), new EmailSenderStub(), MemberFixture.createPasswordEncoder());
 
         Member member = register.register(MemberFixture.createMemberRegisterRequest());
         assertThat(member.getId()).isNotNull();
@@ -33,7 +34,7 @@ class MemberRegisterManualTest {
     @Test
     void registerTestMock() {
         EmailSenderMock emailSenderMock = new EmailSenderMock();
-        MemberRegister register = new MemberService(new MemberRepositoryStub(), emailSenderMock, MemberFixture.createPasswordEncoder());
+        MemberRegister register = new MemberModifyService(new MemberQueryService(new MemberRepositoryStub()), new MemberRepositoryStub(), emailSenderMock, MemberFixture.createPasswordEncoder());
 
         Member member = register.register(MemberFixture.createMemberRegisterRequest());
         assertThat(member.getId()).isNotNull();
@@ -47,7 +48,7 @@ class MemberRegisterManualTest {
     void registerTestMockito() {
         EmailSender emailSenderMock = Mockito.mock(EmailSender.class);
 
-        MemberRegister register = new MemberService(new MemberRepositoryStub(), emailSenderMock, MemberFixture.createPasswordEncoder());
+        MemberRegister register = new MemberModifyService(new MemberQueryService(new MemberRepositoryStub()), new MemberRepositoryStub(), emailSenderMock, MemberFixture.createPasswordEncoder());
 
         Member member = register.register(MemberFixture.createMemberRegisterRequest());
         assertThat(member.getId()).isNotNull();
@@ -65,6 +66,11 @@ class MemberRegisterManualTest {
 
         @Override
         public Optional<Member> findByEmail(Email email) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<Member> findById(Long memberId) {
             return Optional.empty();
         }
     }

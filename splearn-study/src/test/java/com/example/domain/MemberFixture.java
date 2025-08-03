@@ -3,7 +3,7 @@ package com.example.domain;
 public class MemberFixture {
 
     public static MemberRegisterRequest createMemberRegisterRequest(String email) {
-        return new MemberRegisterRequest(email, "choi", "secret");
+        return new MemberRegisterRequest(email, "choiseon", "longsecret");
     }
 
     public static MemberRegisterRequest createMemberRegisterRequest() {
