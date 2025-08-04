@@ -20,3 +20,7 @@ dependencies {
 }
 
 tasks.register("prepareKotlinBuildScriptModel") {}
+
+spotbugs {
+    excludeFilter.set(file("${projectDir}/spotbugs-exclude-filter.xml"))
+}

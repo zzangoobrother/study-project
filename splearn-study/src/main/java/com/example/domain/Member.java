@@ -11,7 +11,7 @@ import static java.util.Objects.requireNonNull;
 import static org.springframework.util.Assert.state;
 
 @Getter
-@ToString
+@ToString(callSuper = true)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 public class Member extends AbstractEntity {
