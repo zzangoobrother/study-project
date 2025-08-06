@@ -1,8 +1,8 @@
 package com.example;
 
-import com.example.application.required.EmailSender;
-import com.example.domain.MemberFixture;
-import com.example.domain.PasswordEncoder;
+import com.example.application.member.required.EmailSender;
+import com.example.domain.member.MemberFixture;
+import com.example.domain.member.PasswordEncoder;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 

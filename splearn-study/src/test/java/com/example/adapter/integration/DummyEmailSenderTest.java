@@ -1,6 +1,6 @@
 package com.example.adapter.integration;
 
-import com.example.domain.Email;
+import com.example.domain.shared.Email;
 import org.junit.jupiter.api.Test;
 import org.junitpioneer.jupiter.StdIo;
 import org.junitpioneer.jupiter.StdOut;

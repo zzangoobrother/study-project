@@ -1,8 +1,8 @@
-package com.example.application.provided;
+package com.example.application.member.provided;
 
 
-import com.example.domain.Member;
-import com.example.domain.MemberRegisterRequest;
+import com.example.domain.member.Member;
+import com.example.domain.member.MemberRegisterRequest;
 import jakarta.validation.Valid;
 
 public interface MemberRegister {

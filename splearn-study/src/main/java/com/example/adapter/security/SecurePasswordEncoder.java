@@ -1,6 +1,6 @@
 package com.example.adapter.security;
 
-import com.example.domain.PasswordEncoder;
+import com.example.domain.member.PasswordEncoder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 

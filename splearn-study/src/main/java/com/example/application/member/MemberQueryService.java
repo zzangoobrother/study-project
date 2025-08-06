@@ -1,8 +1,8 @@
-package com.example.application;
+package com.example.application.member;
 
-import com.example.application.provided.MemberFinder;
-import com.example.application.required.MemberRepository;
-import com.example.domain.Member;
+import com.example.application.member.provided.MemberFinder;
+import com.example.application.member.required.MemberRepository;
+import com.example.domain.member.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

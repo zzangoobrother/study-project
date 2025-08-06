@@ -1,7 +1,7 @@
-package com.example.application.required;
+package com.example.application.member.required;
 
-import com.example.domain.Email;
-import com.example.domain.Member;
+import com.example.domain.shared.Email;
+import com.example.domain.member.Member;
 import org.springframework.data.repository.Repository;
 
 import java.util.Optional;

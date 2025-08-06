@@ -1,4 +1,4 @@
-package com.example.domain;
+package com.example.domain.member;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;

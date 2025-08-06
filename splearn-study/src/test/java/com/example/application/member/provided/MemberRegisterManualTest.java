@@ -1,13 +1,13 @@
-package com.example.application.provided;
+package com.example.application.member.provided;
 
-import com.example.application.MemberModifyService;
-import com.example.application.MemberQueryService;
-import com.example.application.required.EmailSender;
-import com.example.application.required.MemberRepository;
-import com.example.domain.Email;
-import com.example.domain.Member;
-import com.example.domain.MemberFixture;
-import com.example.domain.MemberStatus;
+import com.example.application.member.MemberModifyService;
+import com.example.application.member.MemberQueryService;
+import com.example.application.member.required.EmailSender;
+import com.example.application.member.required.MemberRepository;
+import com.example.domain.shared.Email;
+import com.example.domain.member.Member;
+import com.example.domain.member.MemberFixture;
+import com.example.domain.member.MemberStatus;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;

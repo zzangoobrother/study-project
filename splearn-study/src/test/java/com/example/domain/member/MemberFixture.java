@@ -1,4 +1,7 @@
-package com.example.domain;
+package com.example.domain.member;
+
+import com.example.domain.member.MemberRegisterRequest;
+import com.example.domain.member.PasswordEncoder;
 
 public class MemberFixture {
 

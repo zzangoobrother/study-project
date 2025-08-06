@@ -1,7 +1,7 @@
 package com.example.adapter.integration;
 
-import com.example.application.required.EmailSender;
-import com.example.domain.Email;
+import com.example.application.member.required.EmailSender;
+import com.example.domain.shared.Email;
 import org.springframework.context.annotation.Fallback;
 import org.springframework.stereotype.Component;
 
