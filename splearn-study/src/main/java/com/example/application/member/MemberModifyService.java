@@ -4,10 +4,7 @@ import com.example.application.member.provided.MemberFinder;
 import com.example.application.member.provided.MemberRegister;
 import com.example.application.member.required.EmailSender;
 import com.example.application.member.required.MemberRepository;
-import com.example.domain.member.DuplicateEmailException;
-import com.example.domain.member.Member;
-import com.example.domain.member.MemberRegisterRequest;
-import com.example.domain.member.PasswordEncoder;
+import com.example.domain.member.*;
 import com.example.domain.shared.Email;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -56,6 +53,24 @@ public class MemberModifyService implements MemberRegister {
         Member member = memberFinder.find(memberId);
 
         member.activate();
+
+        return memberRepository.save(member);
+    }
+
+    @Override
+    public Member deactivate(Long memberId) {
+        Member member = memberFinder.find(memberId);
+
+        member.deactivated();
+
+        return memberRepository.save(member);
+    }
+
+    @Override
+    public Member updateInfo(Long memberId, MemberInfoUpdateRequest memberInfoUpdateRequest) {
+        Member member = memberFinder.find(memberId);
+
+        member.updateInfo(memberInfoUpdateRequest);
 
         return memberRepository.save(member);
     }

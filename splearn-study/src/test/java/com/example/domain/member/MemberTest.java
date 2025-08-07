@@ -126,7 +126,7 @@ class MemberTest {
         member.updateInfo(request);
 
         assertThat(member.getNickname()).isEqualTo(request.nickname());
-        assertThat(member.getDetail().getProfile()).isEqualTo(request.profileAddress());
+        assertThat(member.getDetail().getProfile().address()).isEqualTo(request.profileAddress());
         assertThat(member.getDetail().getIntroduction()).isEqualTo(request.introduction());
     }
 }
