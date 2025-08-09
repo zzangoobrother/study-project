@@ -96,4 +96,44 @@ record MemberRegisterTest(
 
         assertThat(member.getDetail().getProfile().address()).isEqualTo("choisk");
     }
+
+    @Test
+    void updateInfoFail() {
+        Member member = registerMember();
+        memberRegister.activate(member.getId());
+        memberRegister.updateInfo(member.getId(), new MemberInfoUpdateRequest("choisksksk", "choisk", "자기소개"));
+
+        Member member2 = registerMember("choisk2@gmail.com");
+        memberRegister.activate(member2.getId());
+
+        entityManager.flush();
+        entityManager.close();
+
+        // member2는 기존의 member와 같은 프로필 주소를 사용할 수 없다.
+        assertThatThrownBy(() -> {
+            memberRegister.updateInfo(member2.getId(), new MemberInfoUpdateRequest("Peter", "choisk", "자기소개"));
+        }).isInstanceOf(DuplicateProfileException.class);
+
+        // 다른 프로필 주소로는 변경 가능
+        memberRegister.updateInfo(member2.getId(), new MemberInfoUpdateRequest("Peter", "choiskssssss", "자기소개"));
+
+        // 기존 프로필 주소를 바꾸는 것도 가능
+        memberRegister.updateInfo(member.getId(), new MemberInfoUpdateRequest("choisksksk", "choiskfefefe", "자기소개"));
+
+        // 프로필 주소를 제거하는 것도 가능
+        memberRegister.updateInfo(member.getId(), new MemberInfoUpdateRequest("choisksksk", "", "자기소개"));
+
+        // 프로필 주소 중복은 허용하지 않음
+        assertThatThrownBy(() -> {
+            memberRegister.updateInfo(member.getId(), new MemberInfoUpdateRequest("Peter", "choiskssssss", "자기소개"));
+        }).isInstanceOf(DuplicateProfileException.class);
+    }
+
+    private Member registerMember(String email) {
+        Member member = memberRegister.register(MemberFixture.createMemberRegisterRequest(email));
+
+        entityManager.flush();
+        entityManager.close();
+        return member;
+    }
 }

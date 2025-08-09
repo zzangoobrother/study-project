@@ -4,6 +4,7 @@ import com.example.application.member.MemberModifyService;
 import com.example.application.member.MemberQueryService;
 import com.example.application.member.required.EmailSender;
 import com.example.application.member.required.MemberRepository;
+import com.example.domain.member.Profile;
 import com.example.domain.shared.Email;
 import com.example.domain.member.Member;
 import com.example.domain.member.MemberFixture;
@@ -73,6 +74,13 @@ class MemberRegisterManualTest {
         public Optional<Member> findById(Long memberId) {
             return Optional.empty();
         }
+
+        @Override
+        public Optional<Member> findByProfile(Profile profile) {
+            return Optional.empty();
+        }
+
+
     }
 
     static class EmailSenderStub implements EmailSender {
