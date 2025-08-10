@@ -1,6 +1,5 @@
 package com.example.domain.shared;
 
-import com.example.domain.shared.Email;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

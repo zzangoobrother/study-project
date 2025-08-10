@@ -1,8 +1,6 @@
 package com.example.domain.member;
 
 import com.example.domain.AbstractEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import lombok.AccessLevel;
 import lombok.Getter;
