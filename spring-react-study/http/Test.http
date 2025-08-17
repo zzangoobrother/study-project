@@ -1,2 +1,9 @@
 GET http://localhost:8080/api/private/hello
 Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJza3NrIiwiZXhwIjoxNzU1NDQzMjUyfQ.THAlK_KWuGYRxYQ8aWREH1gxHzFS5ca1xoR4c8plEXE
+
+###
+
+GET http://localhost:8080/api/admin/dashboard
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJza3NrIiwiZXhwIjoxNzU1NDQ0MjM4fQ.QnvpySuBHKc8nZEJ8hrK41Cs5UgqPTUGfuvSaupVd_0

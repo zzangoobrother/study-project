@@ -26,4 +26,4 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJza3NrIiwiZXhwIjoxNzU2MDM1O
 
 POST http://localhost:8080/api/auth/logout
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJza3NrIiwiZXhwIjoxNzU1NDMyMzA5fQ.UXEpA6brWOeZOGihhiLe0UwEeD24OmiZvMzS4K9VpBI
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJza3NrIiwiZXhwIjoxNzU1NDQ2MTMwfQ.Q6FJZe12-UAKKSed6XWaa-MnRF47gNAaOGdcSzX8Tn0
