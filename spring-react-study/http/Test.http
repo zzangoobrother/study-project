@@ -1,0 +1,2 @@
+GET http://localhost:8080/api/private/hello
+Content-Type: application/json
