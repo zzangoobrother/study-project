@@ -29,10 +29,11 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    public String generateAccessToken(String username) {
+    public String generateAccessToken(String username, String role) {
         long expiration_30m = 1000L * 30 * 60;
         return Jwts.builder()
                 .setSubject(username)
+                .claim("role", role)
                 .setExpiration(new Date(System.currentTimeMillis() + expiration_30m))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();

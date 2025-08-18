@@ -65,7 +65,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("서버에 저장된 리프레시 토큰과 다릅니다.");
         }
 
-        String newAccessToken = jwtTokenProvider.generateAccessToken(username);
+        String newAccessToken = jwtTokenProvider.generateAccessToken(username, user.getRole());
 
         return ResponseEntity.ok(new LoginResponseDTO(newAccessToken, null));
     }
