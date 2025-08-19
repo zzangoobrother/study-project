@@ -27,4 +27,10 @@ public class User {
         this.role = role;
         this.refreshToken = refreshToken;
     }
+
+    public User(String username, String password, String role) {
+        this.username = username;
+        this.password = password;
+        this.role = role;
+    }
 }

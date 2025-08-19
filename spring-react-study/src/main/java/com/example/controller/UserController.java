@@ -5,6 +5,7 @@ import com.example.dto.LoginResponseDTO;
 import com.example.dto.UserRequestDTO;
 import com.example.entity.User;
 import com.example.repository.UserRepository;
+import com.example.service.KakaoOAuthService;
 import com.example.service.UserService;
 import com.example.util.JwtTokenProvider;
 import jakarta.servlet.http.Cookie;
@@ -15,12 +16,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 @RestController
 public class UserController {
 
     private final UserService userService;
+    private final KakaoOAuthService kakaoOAuthService;
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -86,5 +90,12 @@ public class UserController {
         response.addCookie(refreshCookie);
 
         return ResponseEntity.ok("로그아웃 성공");
+    }
+
+    @PostMapping("/kakao")
+    public ResponseEntity<?> kakaoLogin(@RequestBody Map<String, String> body, HttpServletResponse response) {
+        String code = body.get("code");
+        LoginResponseDTO loginResponseDTO = kakaoOAuthService.kakaoLogin(code, response);
+        return ResponseEntity.ok(loginResponseDTO);
     }
 }

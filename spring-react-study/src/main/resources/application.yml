@@ -14,3 +14,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create
+
+kakao:
+  client-id: test
+  redirect-uri: http://localhost:5173/oauth2/redirect/kakao
