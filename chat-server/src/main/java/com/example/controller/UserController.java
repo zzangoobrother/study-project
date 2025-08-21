@@ -2,6 +2,7 @@ package com.example.controller;
 
 import com.example.dto.UserRegisterRequest;
 import com.example.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,5 +20,13 @@ public class UserController {
     public String register(@RequestBody UserRegisterRequest request) {
         userService.register(request.username(), request.password());
         return "회원가입 성공";
+    }
+
+    @PostMapping("/unregister")
+    public String unregister(HttpServletRequest request) {
+        userService.unregister();
+        request.getSession().invalidate();
+
+        return "회원 탈퇴 성공";
     }
 }
