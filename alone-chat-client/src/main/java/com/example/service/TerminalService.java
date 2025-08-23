@@ -49,4 +49,9 @@ public class TerminalService {
     public void printSystemMessage(String content) {
         lineReader.printAbove("=> " + content);
     }
+
+    public void clearTerminal() {
+        terminal.puts(InfoCmp.Capability.clear_screen);
+        terminal.flush();
+    }
 }
