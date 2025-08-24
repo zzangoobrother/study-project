@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.support.HttpSessionHandshakeInterceptor;
 
-import com.example.global.Constants.Constants;
+import com.example.global.constants.Constants;
 
 import jakarta.servlet.http.HttpSession;
 

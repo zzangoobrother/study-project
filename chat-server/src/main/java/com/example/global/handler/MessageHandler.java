@@ -4,7 +4,7 @@ import com.example.domain.Message;
 import com.example.dto.websocket.inbound.BaseRequest;
 import com.example.dto.websocket.inbound.KeepAliveRequest;
 import com.example.dto.websocket.inbound.MessageRequest;
-import com.example.global.Constants.Constants;
+import com.example.global.constants.Constants;
 import com.example.global.session.WebSocketSessionManager;
 import com.example.repository.MessageRepository;
 import com.example.service.SessionService;

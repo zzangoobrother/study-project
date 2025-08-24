@@ -47,7 +47,7 @@ public class RestApiLoginAuthFilter extends AbstractAuthenticationProcessingFilt
 
     @Override
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
-        Authentication authResult) throws IOException, ServletException {
+        Authentication authResult) throws IOException {
         SecurityContext securityContext = SecurityContextHolder.getContext();
         ((UserPrincipal) authResult.getPrincipal()).erasePassword();
         securityContext.setAuthentication(authResult);

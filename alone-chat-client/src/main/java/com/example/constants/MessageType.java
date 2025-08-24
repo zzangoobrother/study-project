@@ -1,4 +1,4 @@
-package com.example.global.Constants;
+package com.example.constants;
 
 public enum MessageType {
 	MESSAGE,
