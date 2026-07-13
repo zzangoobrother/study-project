@@ -1,0 +1,17 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: temporal-order-worker
+  # Temporal 접속 설정 (로컬 dev 서버 기본값: localhost:7233)
+  temporal:
+    connection:
+      target: localhost:7233
+    namespace: default
+    workers:
+      - task-queue: HELLO_TASK_QUEUE
+        workflow-classes:
+          - com.example.hello.HelloWorkflowImpl
+        activity-beans:
+          - helloActivityImpl

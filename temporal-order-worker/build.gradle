@@ -1,0 +1,6 @@
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'io.temporal:temporal-spring-boot-starter:1.35.0'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
