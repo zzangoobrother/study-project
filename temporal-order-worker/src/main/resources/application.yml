@@ -15,3 +15,10 @@ spring:
           - com.example.hello.HelloWorkflowImpl
         activity-beans:
           - helloActivityImpl
+      - task-queue: ORDER_TASK_QUEUE
+        workflow-classes:
+          - com.example.order.OrderWorkflowImpl
+        activity-beans:
+          - paymentActivityImpl
+          - inventoryActivityImpl
+          - shippingActivityImpl
