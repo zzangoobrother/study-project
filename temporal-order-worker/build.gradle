@@ -3,4 +3,6 @@ dependencies {
     implementation 'io.temporal:temporal-spring-boot-starter:1.35.0'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    // Temporal 워크플로 테스트: 실제 서버 없이 인메모리로 워크플로/Activity 검증
+    testImplementation 'io.temporal:temporal-testing:1.35.0'
 }
