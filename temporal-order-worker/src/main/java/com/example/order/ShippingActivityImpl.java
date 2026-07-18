@@ -32,10 +32,11 @@ public class ShippingActivityImpl implements ShippingActivity {
                             "address", request.address() == null ? "" : request.address()))
                     .retrieve()
                     .body(ShipmentResult.class);
-        } catch (HttpClientErrorException.Conflict e) {
-            // 배송 불가(비즈니스 실패) → 재시도 불가 실패로 변환하여 보상 유도
+        } catch (HttpClientErrorException e) {
+            // 4xx 전체를 재시도 불가 실패로 변환하여 보상 유도. 409(배송 불가)가 대표 케이스.
             throw ApplicationFailure.newNonRetryableFailure(
-                    "배송 불가: orderId=" + request.orderId(), "SHIPPING_REJECTED");
+                    "배송 불가: orderId=" + request.orderId() + ", status=" + e.getStatusCode(),
+                    "SHIPPING_REJECTED");
         }
     }
 }

@@ -1,8 +1,10 @@
 package com.example.order;
 
+import io.temporal.failure.ApplicationFailure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 import java.util.Map;
@@ -22,11 +24,18 @@ public class PaymentActivityImpl implements PaymentActivity {
     @Override
     public PaymentResult pay(OrderRequest request) {
         log.info("결제 Activity 실행: orderId={}, amount={}", request.orderId(), request.amount());
-        return restClient.post()
-                .uri("/payments")
-                .body(Map.of("orderId", request.orderId(), "amount", request.amount()))
-                .retrieve()
-                .body(PaymentResult.class);
+        try {
+            return restClient.post()
+                    .uri("/payments")
+                    .body(Map.of("orderId", request.orderId(), "amount", request.amount()))
+                    .retrieve()
+                    .body(PaymentResult.class);
+        } catch (HttpClientErrorException e) {
+            // 4xx = 결제 거절 등 영구 오류 → 재시도 무의미하므로 non-retryable로 변환(재시도 없이 즉시 실패)
+            throw ApplicationFailure.newNonRetryableFailure(
+                    "결제 실패: orderId=" + request.orderId() + ", status=" + e.getStatusCode(),
+                    "PAYMENT_REJECTED");
+        }
     }
 
     @Override

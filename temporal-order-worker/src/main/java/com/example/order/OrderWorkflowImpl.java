@@ -14,6 +14,10 @@ public class OrderWorkflowImpl implements OrderWorkflow {
             PaymentActivity.class,
             ActivityOptions.newBuilder()
                     .setStartToCloseTimeout(Duration.ofSeconds(10))
+                    // 재시도 상한을 두지 않으면 기본값 0(무한 재시도)이라 실패가 영원히 반복된다.
+                    .setRetryOptions(RetryOptions.newBuilder()
+                            .setMaximumAttempts(3)
+                            .build())
                     .build());
 
     private final InventoryActivity inventoryActivity = Workflow.newActivityStub(
@@ -32,6 +36,10 @@ public class OrderWorkflowImpl implements OrderWorkflow {
             ShippingActivity.class,
             ActivityOptions.newBuilder()
                     .setStartToCloseTimeout(Duration.ofSeconds(5))
+                    // 배송도 재시도 상한을 명시(무한 재시도 방지). 4xx는 Activity가 non-retryable로 변환한다.
+                    .setRetryOptions(RetryOptions.newBuilder()
+                            .setMaximumAttempts(3)
+                            .build())
                     .build());
 
     @Override

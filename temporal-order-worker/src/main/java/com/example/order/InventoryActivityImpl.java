@@ -34,9 +34,11 @@ public class InventoryActivityImpl implements InventoryActivity {
                             "quantity", request.quantity()))
                     .retrieve()
                     .body(InventoryResult.class);
-        } catch (HttpClientErrorException.Conflict e) {
+        } catch (HttpClientErrorException e) {
+            // 4xx 전체를 non-retryable로 변환. 409(품절)가 대표 케이스지만 그 외 4xx도 영구 오류로 취급한다.
             throw ApplicationFailure.newNonRetryableFailure(
-                    "품절로 재고 예약 실패: orderId=" + request.orderId(), "OUT_OF_STOCK");
+                    "재고 예약 실패: orderId=" + request.orderId() + ", status=" + e.getStatusCode(),
+                    "OUT_OF_STOCK");
         }
     }
 
