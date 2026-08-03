@@ -22,6 +22,7 @@ import java.time.LocalDate
 class UserServiceIntegrationTest @Autowired constructor(
     private val userService: UserService,
     private val databaseCleanUp: DatabaseCleanUp,
+    private val passwordEncoder: PasswordEncoder,
 ) {
     @MockitoSpyBean
     private lateinit var userRepository: UserRepository
@@ -66,6 +67,8 @@ class UserServiceIntegrationTest @Autowired constructor(
                 { assertThat(user.birthDate).isEqualTo(LocalDate.of(1990, 1, 1)) },
                 { assertThat(user.email).isEqualTo("loopers@loopers.com") },
                 { assertThat(user.password).isNotEqualTo("Loopers1!") },
+                { assertThat(passwordEncoder.matches("Loopers1!", user.password)).isTrue() },
+                { assertThat(passwordEncoder.matches("Loopers2@", user.password)).isFalse() },
             )
         }
 

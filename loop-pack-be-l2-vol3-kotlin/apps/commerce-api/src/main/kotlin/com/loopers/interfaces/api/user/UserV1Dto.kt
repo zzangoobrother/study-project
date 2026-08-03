@@ -25,6 +25,10 @@ class UserV1Dto {
                 email = email,
             )
         }
+
+        // data class 가 자동 생성하는 toString() 은 평문 비밀번호를 그대로 노출하므로 직접 재정의한다.
+        override fun toString(): String =
+            "SignUpRequest(loginId=$loginId, password=****, name=$name, birthDate=$birthDate, email=$email)"
     }
 
     data class UserResponse(

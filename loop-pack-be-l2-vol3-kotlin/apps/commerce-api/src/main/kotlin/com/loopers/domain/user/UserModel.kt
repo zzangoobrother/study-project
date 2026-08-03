@@ -44,7 +44,7 @@ class UserModel private constructor(
     var birthDate: LocalDate = birthDate
         protected set
 
-    @Column(name = "email", nullable = false)
+    @Column(name = "email", nullable = false, length = 254)
     var email: String = email
         protected set
 
@@ -53,6 +53,9 @@ class UserModel private constructor(
         private val NAME_REGEX = "^[가-힣a-zA-Z]{1,20}$".toRegex()
         private val EMAIL_REGEX = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
         private val BIRTH_DATE_REGEX = "^\\d{4}-\\d{2}-\\d{2}$".toRegex()
+
+        /** RFC 5321 이 정의하는 이메일 주소 최대 길이. */
+        private const val EMAIL_MAX_LENGTH = 254
 
         /**
          * 8~16자 / 영문·숫자·ASCII 특수문자만 허용 / 세 종류를 각각 1자 이상 포함.
@@ -82,6 +85,9 @@ class UserModel private constructor(
             }
             if (!EMAIL_REGEX.matches(email)) {
                 throw CoreException(ErrorType.BAD_REQUEST, "이메일은 xx@yy.zz 형식이어야 합니다.")
+            }
+            if (email.length > EMAIL_MAX_LENGTH) {
+                throw CoreException(ErrorType.BAD_REQUEST, "이메일은 254자를 넘을 수 없습니다.")
             }
 
             val parsedBirthDate = parseBirthDate(birthDate)

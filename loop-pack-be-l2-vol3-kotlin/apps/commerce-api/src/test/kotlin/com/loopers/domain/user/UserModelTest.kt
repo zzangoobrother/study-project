@@ -92,6 +92,19 @@ class UserModelTest {
             assertThat(result.errorType).isEqualTo(ErrorType.BAD_REQUEST)
         }
 
+        @DisplayName("이메일 형식은 유효하지만 254자를 초과하면, BAD_REQUEST 예외가 발생한다.")
+        @Test
+        fun throwsBadRequestException_whenEmailExceedsMaxLength() {
+            // arrange
+            val overLengthEmail = "a".repeat(250) + "@b.com"
+
+            // act
+            val result = assertThrows<CoreException> { createUser(email = overLengthEmail) }
+
+            // assert
+            assertThat(result.errorType).isEqualTo(ErrorType.BAD_REQUEST)
+        }
+
         @DisplayName("생년월일이 'yyyy-MM-dd' 형식이 아니거나 실재하지 않는 날짜면, BAD_REQUEST 예외가 발생한다.")
         @ParameterizedTest
         @ValueSource(strings = ["", "1990/01/01", "19900101", "1990-1-1", "1990-13-01", "1990-02-30"])
