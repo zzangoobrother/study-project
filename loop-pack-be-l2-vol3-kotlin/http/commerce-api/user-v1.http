@@ -1,0 +1,35 @@
+### 회원 가입
+POST {{commerce-api}}/api/v1/users
+Content-Type: application/json
+
+{
+  "loginId": "loopers01",
+  "password": "Loopers1!",
+  "name": "홍길동",
+  "birthDate": "1990-01-01",
+  "email": "loopers@loopers.com"
+}
+
+### 회원 가입 - 로그인 ID 중복 (409 Conflict)
+POST {{commerce-api}}/api/v1/users
+Content-Type: application/json
+
+{
+  "loginId": "loopers01",
+  "password": "Loopers2@",
+  "name": "김철수",
+  "birthDate": "1995-05-05",
+  "email": "another@loopers.com"
+}
+
+### 회원 가입 - 비밀번호에 생년월일 포함 (400 Bad Request)
+POST {{commerce-api}}/api/v1/users
+Content-Type: application/json
+
+{
+  "loginId": "loopers02",
+  "password": "Abc19900101!",
+  "name": "홍길동",
+  "birthDate": "1990-01-01",
+  "email": "loopers2@loopers.com"
+}
