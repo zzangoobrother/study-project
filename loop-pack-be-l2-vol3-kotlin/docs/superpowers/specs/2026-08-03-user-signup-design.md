@@ -162,15 +162,16 @@ class UserModel private constructor(
   `DatabaseCleanUp` 이 `@Table` 애노테이션의 `name` 을 널 체크 없이 읽으므로,
   누락 시 모든 통합/E2E 테스트가 컨텍스트 초기화 단계에서 NPE 로 실패한다.
 - **테이블명은 `users`.** `user` 는 일부 DB 에서 예약어 취급되어 회피한다.
+- **이메일은 정규식과 별개로 254자(RFC 5321 최대 길이) 이내인지 검사한다.**
+  `EMAIL_REGEX` 는 길이를 제한하지 않으므로, 형식은 유효하지만 컬럼 폭(`length = 254`)을 넘는 값이
+  그대로 `INSERT` 로 넘어가면 `DataIntegrityViolationException` 이 500 으로 새어 나간다.
+  `create()` 에서 형식 검증 직후 `email.length > EMAIL_MAX_LENGTH` 로 확인해 400 으로 표면화하며,
+  컬럼 폭과 도메인 상한(`EMAIL_MAX_LENGTH`)은 반드시 254 로 일치시킨다.
+  정규식에 길이 수량자를 추가하지 않는 이유는 가독성 때문이다.
 - **검증은 `init` 이 아닌 `create` 에 둔다.**
   `kotlin-jpa` noarg 플러그인은 `invokeInitializers` 기본값이 false 라 `init` 을 실행하지 않는다.
   즉 `init` 검증은 Hibernate 복원 경로에서 건너뛰어진다.
   검증 시점을 팩토리로 못 박아 "생성 시 1회 검증" 을 명확히 한다.
-- **이메일 길이 검사는 정규식이 아닌 별도 조건문으로 분리한다.**
-  `EMAIL_REGEX` 는 길이를 제한하지 않으므로, 형식은 유효하지만 컬럼 길이(254)를 넘는 값이 그대로
-  `INSERT` 로 넘어가면 `DataIntegrityViolationException` 이 500 으로 새어 나간다.
-  `create()` 에서 형식 검증 직후 `email.length > EMAIL_MAX_LENGTH` 를 확인해 400 으로 표면화하고,
-  컬럼도 `length = 254` 로 맞춘다. 정규식에 길이 수량자를 추가하지 않는 이유는 가독성 때문이다.
 
 ### 5.2 `UserCommand`
 
