@@ -87,11 +87,14 @@ apps/commerce-api/src/main/kotlin/com/loopers/
 apps/commerce-api/src/test/kotlin/com/loopers/
 ├── domain/user/
 │   ├── UserModelTest.kt                    단위
+│   ├── UserCommandTest.kt                  단위 (toString 비밀번호 마스킹)
 │   └── UserServiceIntegrationTest.kt       통합
 ├── infrastructure/user/
 │   └── Sha256PasswordEncoderTest.kt        단위
 └── interfaces/api/
-    └── UserV1ApiE2ETest.kt                 E2E
+    ├── UserV1ApiE2ETest.kt                 E2E
+    └── user/
+        └── UserV1DtoTest.kt                단위 (toString 비밀번호 마스킹)
 ```
 
 ## 5. 도메인 설계
@@ -127,7 +130,7 @@ class UserModel private constructor(
     var birthDate: LocalDate = birthDate
         protected set
 
-    @Column(name = "email", nullable = false)
+    @Column(name = "email", nullable = false, length = 254)   // 254 = RFC 5321 최대 길이
     var email: String = email
         protected set
 
@@ -163,6 +166,11 @@ class UserModel private constructor(
   `kotlin-jpa` noarg 플러그인은 `invokeInitializers` 기본값이 false 라 `init` 을 실행하지 않는다.
   즉 `init` 검증은 Hibernate 복원 경로에서 건너뛰어진다.
   검증 시점을 팩토리로 못 박아 "생성 시 1회 검증" 을 명확히 한다.
+- **이메일 길이 검사는 정규식이 아닌 별도 조건문으로 분리한다.**
+  `EMAIL_REGEX` 는 길이를 제한하지 않으므로, 형식은 유효하지만 컬럼 길이(254)를 넘는 값이 그대로
+  `INSERT` 로 넘어가면 `DataIntegrityViolationException` 이 500 으로 새어 나간다.
+  `create()` 에서 형식 검증 직후 `email.length > EMAIL_MAX_LENGTH` 를 확인해 400 으로 표면화하고,
+  컬럼도 `length = 254` 로 맞춘다. 정규식에 길이 수량자를 추가하지 않는 이유는 가독성 때문이다.
 
 ### 5.2 `UserCommand`
 
@@ -174,12 +182,19 @@ class UserCommand {
         val name: String,
         val birthDate: String,
         val email: String,
-    )
+    ) {
+        override fun toString(): String   // 비밀번호를 마스킹해 반환한다
+    }
 }
 ```
 
 `domain` 에 두어 `UserService` 시그니처가 상위 계층에 의존하지 않게 한다.
 `UserV1Dto.SignUpRequest.toCommand()` 가 변환을 담당한다.
+
+`data class` 가 자동 생성하는 `toString()` 은 비밀번호를 평문 그대로 노출한다.
+`DEBUG` 로그 레벨(로컬/테스트/개발 프로파일에서 `com.loopers` 패키지에 적용됨)에서 커맨드나 요청 객체가
+로그로 찍히면 그대로 유출되므로, `toString()` 을 직접 재정의해 비밀번호를 마스킹한다.
+같은 이유로 `UserV1Dto.SignUpRequest` 도 동일하게 `toString()` 을 재정의한다.
 
 ### 5.3 `PasswordEncoder`
 
@@ -364,6 +379,7 @@ unique 제약이 어차피 소프트 삭제 행을 포함해 걸리므로, 조�
 - 로그인 ID 가 `영문 및 숫자 10자 이내` 형식에 맞지 않으면 생성에 실패한다
 - 이름이 `한글 또는 영문 20자 이내` 형식에 맞지 않으면 생성에 실패한다
 - 이메일이 `xx@yy.zz` 형식에 맞지 않으면 생성에 실패한다
+- 이메일 형식은 유효하지만 254자(RFC 5321 최대 길이)를 초과하면 생성에 실패한다
 - 생년월일이 `yyyy-MM-dd` 형식에 맞지 않으면 생성에 실패한다
 - 생년월일이 실재하지 않는 날짜(`1990-13-01`)면 생성에 실패한다
 - 생년월일이 미래면 생성에 실패한다
@@ -379,21 +395,31 @@ unique 제약이 어차피 소프트 삭제 행을 포함해 걸리므로, 조�
 
 모든 실패 케이스는 `CoreException` 의 `errorType` 이 `BAD_REQUEST` 임을 확인한다.
 
-### 10.2 단위 테스트 — `Sha256PasswordEncoderTest`
+### 10.2 단위 테스트 — `UserCommandTest` / `UserV1DtoTest`
+
+스프링 컨텍스트 없이 실행한다. `toString()` 이 비밀번호를 노출하지 않는지만 검증하는
+순수 단위 테스트다.
+
+- `UserCommand.SignUp.toString()` 은 비밀번호 값을 포함하지 않고, 다른 필드는 그대로 포함한다
+- `UserV1Dto.SignUpRequest.toString()` 은 비밀번호 값을 포함하지 않고, 다른 필드는 그대로 포함한다
+
+### 10.3 단위 테스트 — `Sha256PasswordEncoderTest`
 
 - 같은 평문을 두 번 인코딩하면 서로 다른 결과가 나온다 (salt 검증)
 - `matches(원본 평문, 인코딩 결과)` 는 true 를 반환한다
 - `matches(다른 평문, 인코딩 결과)` 는 false 를 반환한다
 
-### 10.3 통합 테스트 — `UserServiceIntegrationTest`
+### 10.4 통합 테스트 — `UserServiceIntegrationTest`
 
 `@SpringBootTest` + `DatabaseCleanUp` 사용. `@MockitoSpyBean` 으로 `UserRepository` 를 감싼다.
 (Spring Boot 3.4.4 이므로 deprecated 된 `@SpyBean` 대신 `@MockitoSpyBean` 을 쓴다.)
 
 - 회원 가입 시 `UserRepository.save` 가 호출된다 (spy 검증)
+- 실제 `PasswordEncoder` 빈으로, 저장된 비밀번호가 원본 평문으로는 인증에 성공하고
+  다른 평문으로는 실패함을 확인한다 (다른 계층을 조합했을 때만 드러나는 회귀를 잡기 위함)
 - 이미 가입된 로그인 ID 로 회원가입을 시도하면 `CONFLICT` 예외가 발생한다
 
-### 10.4 E2E 테스트 — `UserV1ApiE2ETest`
+### 10.5 E2E 테스트 — `UserV1ApiE2ETest`
 
 `@SpringBootTest(webEnvironment = RANDOM_PORT)` + `TestRestTemplate` 사용.
 
