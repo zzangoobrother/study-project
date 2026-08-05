@@ -1049,7 +1049,6 @@ class UserModelTest {
                 { assertThat(user.birthDate).isEqualTo(BirthDate(LocalDate.of(1990, 1, 1))) },
                 { assertThat(user.email).isEqualTo(Email("loopers@loopers.com")) },
                 { assertThat(user.password).isEqualTo(EncodedPassword("encoded:Loopers1!")) },
-                { assertThat(user.password.value).doesNotContain("Loopers1!") },
             )
         }
     }
@@ -1095,8 +1094,23 @@ class UserModelTest {
 }
 ```
 
-> (최종 리뷰 지적에 따라 `isNotEqualTo` 단언을 강한 형태(`doesNotContain`)로 정정했다.
-> 실제 `UserModelTest.kt` 에는 약한 형태가 커밋돼 있으며, 다음에 이 파일을 열 때 함께 정리한다.)
+> **정정 이력.** 이 코드 블록에는 원래 아래 단언이 한 줄 더 있었다.
+>
+> ```kotlin
+> { assertThat(user.password).isNotEqualTo(EncodedPassword("Loopers1!")) },
+> ```
+>
+> 최종 리뷰가 "바로 위 `isEqualTo` 가 통과하는 한 논리적으로 실패할 수 없는 잉여 단언" 으로 지적해 **삭제했다.**
+> `isEqualTo(EncodedPassword("encoded:Loopers1!"))` 만으로 `create()` 가 인코더에 위임했다는 사실이 증명된다.
+>
+> 한때 이 자리를 `assertThat(user.password.value).doesNotContain("Loopers1!")` 로 대체하려 했으나 **틀린 수정이었다.**
+> 이 테스트의 `FakePasswordEncoder` 는 `EncodedPassword("encoded:${rawPassword.value}")` 를 반환하므로
+> 저장값이 리터럴로 평문을 포함한다. 그 단언은 항상 실패한다.
+> `doesNotContain` 이 유효한 곳은 **실제 SHA-256 해시**를 검증하는 `UserServiceIntegrationTest` 와
+> `Sha256PasswordEncoderTest` 이며, 가짜 인코더를 쓰는 여기서는 성립하지 않는다.
+> "평문이 저장되지 않는다" 는 보장은 실제 인코더를 쓰는 통합 테스트의 몫이다.
+>
+> 실제 `UserModelTest.kt` 에는 아직 삭제 전 형태가 커밋돼 있다. 다음에 이 파일을 열 때 함께 정리한다.
 
 - [ ] **Step 2: `Sha256PasswordEncoderTest` 를 값 객체 시그니처로 다시 쓴다**
 

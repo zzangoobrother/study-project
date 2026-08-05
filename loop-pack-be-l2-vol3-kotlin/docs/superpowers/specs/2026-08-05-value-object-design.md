@@ -413,7 +413,7 @@ did not match parameter type [com.loopers.domain.user.LoginId (n/a)]
 아래 3건은 이번 최종 리뷰가 짚은 지적이다. 다음에 `user` 테스트 파일을 열 때 함께 처리한다.
 
 - **`BirthDateTest` 의 자정 경계 취약성**: "미래면 예외" 테스트 2건이 arrange 의 `LocalDate.now().plusDays(1)` 과 `init` 의 `LocalDate.now()` 사이에 자정이 걸리면 실패할 수 있다. `plusDays(1)` → `plusYears(1)` 로 바꾸면 실패 창이 나노초에서 1년으로 넓어진다. 의존성 추가 없이 한 글자 수정이다. (반대 방향인 "오늘이면 통과" 테스트는 자정을 넘어도 안전하다.)
-- **`UserModelTest` 의 잉여 단언 1줄 삭제**: `createsUser_whenAllValueObjectsAreValid` 의 `isNotEqualTo` 단언은 `isEqualTo` 가 통과하는 한 논리적으로 실패할 수 없어 아무것도 검증하지 않는다. 계획서(`2026-08-05-value-object.md` Task 4 Step 1)는 강한 형태로 정정했으나, 실제 `UserModelTest.kt` 는 아직 약한 형태다.
+- **`UserModelTest` 의 잉여 단언 1줄 삭제**: `createsUser_whenAllValueObjectsAreValid` 의 `isNotEqualTo` 단언은 `isEqualTo` 가 통과하는 한 논리적으로 실패할 수 없어 아무것도 검증하지 않는다. **대체하지 말고 삭제한다** — `isEqualTo(EncodedPassword("encoded:Loopers1!"))` 만으로 인코더 위임이 증명된다. 이 테스트는 `FakePasswordEncoder`(평문에 `"encoded:"` 접두사만 붙인다)를 쓰므로 저장값이 리터럴로 평문을 포함한다. 따라서 `doesNotContain("Loopers1!")` 같은 단언은 여기서 **항상 실패**한다. 그 형태가 유효한 곳은 실제 SHA-256 해시를 검증하는 `UserServiceIntegrationTest` 와 `Sha256PasswordEncoderTest` 뿐이며, "평문이 저장되지 않는다" 는 보장은 그쪽의 몫이다. 계획서(`2026-08-05-value-object.md` Task 4 Step 1)는 삭제 형태로 정정했고, 실제 `UserModelTest.kt` 는 아직 삭제 전 상태다.
 - **`UserModelPersistenceTest` 의 WHERE 절 없는 JPQL**: `SELECT u FROM UserModel u` + `.singleResult` 라 `users` 에 쓰면서 정리하지 않는 테스트가 하나 늘면 `NonUniqueResultException` 으로 엉뚱한 테스트가 조용히 깨진다. 현재 스위트에는 실패 경로가 없다(관련 테스트 3개 모두 `truncateAllTables()` 또는 `@Transactional` 롤백으로 정리된다). `.resultList.single()` 또는 `WHERE u.loginId.value = '!!!'` 로 방어하면 된다.
 
 **`MASKED = "****"` 상수 중복** (`RawPassword.kt`, `EncodedPassword.kt`): 규칙 8(사용처가 하나인 추상화를 미리 만들지 않는다) 정신상 지금 공용화하는 것은 오히려 규약 위반이며, 세 번째 민감값 값 객체가 생기면 승격을 검토한다.
