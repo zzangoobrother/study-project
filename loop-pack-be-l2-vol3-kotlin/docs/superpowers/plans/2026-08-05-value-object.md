@@ -676,8 +676,8 @@ class RawPasswordTest {
             // act
             val rawPassword = RawPassword(value)
 
-            // assert
-            assertThat(rawPassword.contains(value)).isTrue()
+            // assert — value 는 internal 이지만 test 소스셋에서는 보인다.
+            assertThat(rawPassword.value).isEqualTo(value)
         }
 
         @DisplayName("8~16자 범위를 벗어나면, BAD_REQUEST 예외가 발생한다.")
