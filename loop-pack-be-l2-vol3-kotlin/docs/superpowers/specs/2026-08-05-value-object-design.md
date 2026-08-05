@@ -189,7 +189,7 @@ throw CoreException(ErrorType.CONFLICT, "[loginId = ${command.loginId}] 이미 �
 | `Email` | `String` | `xx@yy.zz` 형식 + 254자 이하 | `email` | `@Embeddable data class` |
 | `BirthDate` | `LocalDate` | `yyyy-MM-dd` 파싱 + 실재하는 날짜 + 미래 불가 | `birth_date` | `@Embeddable data class` |
 | `RawPassword` | `String` | 8~16자 + 영문·숫자·특수문자 각 1자 이상 | **저장하지 않음** | 일반 `class` |
-| `EncodedPassword` | `String` | 공백 아님 | `password` | `@Embeddable data class` |
+| `EncodedPassword` | `String` | **없음** | `password` | `@Embeddable data class` |
 
 ### `BirthDate` — 진입점이 둘이다
 
@@ -222,7 +222,13 @@ throw CoreException(ErrorType.CONFLICT, "[loginId = ${command.loginId}] 이미 �
 인코딩 방식(`Base64(salt):Base64(hash)`)에 대한 지식은 갖지 않는다.
 그 형식은 `Sha256PasswordEncoder` 의 구현 세부사항이며,
 도메인 VO 가 알면 인코더 교체가 불가능해진다.
-검증은 공백 여부까지만 한다.
+
+**검증은 넣지 않는다.** 공백 여부조차 검사하지 않는다. 이유는 두 가지다.
+
+1. `Sha256PasswordEncoderTest` 는 `matches(rawPassword, "")` 가 예외 대신 `false` 를 반환하는지 검증한다.
+   손상된 저장값에 대한 견고성 테스트이므로, `EncodedPassword("")` 가 예외를 던지면 이 테스트를 작성할 수 없다.
+2. 규칙 9 에 따라 DB 조회 경로는 `init` 검증을 우회한다.
+   손상된 값은 애초에 VO 검증을 통과해 들어오는 것이 아니므로, 이 검증은 아무것도 막아주지 못한다.
 
 **규칙 6 과의 관계** — `EncodedPassword` 도 자격 증명 산출물이므로 `toString()` 은 마스킹한다(규칙 10 의 예외).
 다만 `data class` 는 유지한다. 규칙 6 이 막으려는 것은 **평문**이 `copy()` / `componentN()` 으로 새어나가는 표면이고,
@@ -324,8 +330,24 @@ companion object {
 | `UserCommandTest` | 38줄, 마스킹 검증 | **유지.** arrange 만 VO 로 감싸고 **단언은 그대로 통과한다** — 규칙 10 의 검증 지점이다. 수동 오버라이드 없이 마스킹되므로 가치가 오히려 커진다 |
 | `Sha256PasswordEncoderTest` | 85줄 | arrange 를 VO 시그니처로 수정한다 |
 | `UserV1DtoTest` | 38줄 | 유지. DTO 는 원시 타입 그대로다 |
-| `UserServiceIntegrationTest` | 106줄 | arrange 의 원시 타입을 VO 로 감싼다 |
+| `UserServiceIntegrationTest` | 106줄 | arrange 의 원시 타입을 VO 로 감싼다. `doesNotSave_whenCommandIsInvalid` 는 **삭제**한다 — 아래 참고 |
 | `UserV1ApiE2ETest` | 168줄 | **무변경.** 통과가 곧 무해함의 증거다 |
+
+### `doesNotSave_whenCommandIsInvalid` 를 삭제하는 이유
+
+이 테스트는 *"형식에 맞지 않는 커맨드를 주면 저장을 시도하지 않는다"* 를 검증한다.
+전환 후에는 **형식에 맞지 않는 `UserCommand.SignUp` 을 만들 수 없다.**
+`signUpCommand(email = "invalid-email")` 이 arrange 단계에서 실패하므로
+`userService.signUp(command)` 를 호출하는 act 단계에 도달하지 못한다.
+
+시나리오가 도달 불가능해진 것이지 보장이 사라진 것이 아니다.
+같은 보장은 두 곳이 이어받는다.
+
+- `EmailTest` — 잘못된 이메일로 VO 생성이 실패한다
+- `UserV1ApiE2ETest.returnsBadRequest_whenEmailIsInvalid` — 잘못된 이메일 요청이 400 을 받는다 (무변경 통과)
+
+VO 도입으로 **런타임 검사가 타입 검사로 승격**되면 그것을 검증하던 테스트가 사라지는 것이 정상이다.
+억지로 남기면 VO 생성자 테스트의 중복이 된다.
 
 VO 단위 테스트는 각 VO 마다 다음을 덮는다.
 
