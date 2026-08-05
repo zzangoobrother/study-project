@@ -1488,8 +1488,8 @@ git commit -m "refactor : UserModel 필드와 PasswordEncoder 계약을 값 객�
 **Files:**
 - Modify: `apps/commerce-api/src/main/kotlin/com/loopers/domain/user/UserCommand.kt` (전체 교체)
 - Modify: `apps/commerce-api/src/main/kotlin/com/loopers/domain/user/UserRepository.kt:10`
-- Modify: `apps/commerce-api/src/main/kotlin/com/loopers/infrastructure/user/UserJpaRepository.kt:7`
-- Modify: `apps/commerce-api/src/main/kotlin/com/loopers/infrastructure/user/UserRepositoryImpl.kt:15-17`
+- Modify: `apps/commerce-api/src/main/kotlin/com/loopers/infrastructure/user/UserRepositoryImpl.kt` (Task 4 가 넣은 임시 래핑 제거)
+- **무변경:** `apps/commerce-api/src/main/kotlin/com/loopers/infrastructure/user/UserJpaRepository.kt` — Task 4 에서 이미 전환됨
 - Modify: `apps/commerce-api/src/main/kotlin/com/loopers/domain/user/UserService.kt` (전체 교체)
 - Modify: `apps/commerce-api/src/main/kotlin/com/loopers/interfaces/api/user/UserV1Dto.kt:19-27` (`toCommand`)
 - Test: `apps/commerce-api/src/test/kotlin/com/loopers/domain/user/UserCommandTest.kt:17-23` (arrange)
@@ -1593,9 +1593,19 @@ class UserCommand {
     fun existsByLoginId(loginId: LoginId): Boolean
 ```
 
-- [ ] **Step 6: `UserJpaRepository` 와 `UserRepositoryImpl` 을 맞춘다**
+- [ ] **Step 6: `UserRepositoryImpl` 의 임시 래핑을 제거한다**
 
-`apps/commerce-api/src/main/kotlin/com/loopers/infrastructure/user/UserJpaRepository.kt` 전체:
+> **Task 4 실행 중 확정된 사항.** `UserJpaRepository.existsByLoginId(loginId: LoginId)` 는
+> **Task 4 에서 이미 변경 완료됐다.** 원래 계획은 이 전환을 Task 5 에 두었으나,
+> `UserModel.loginId` 필드 타입이 Task 4 에서 바뀌는 순간 파생 쿼리 바인딩이 먼저 깨져
+> (`InvalidDataAccessApiUsageException: Argument [loopers01] of type [java.lang.String]
+> did not match parameter type [com.loopers.domain.user.LoginId]`) Task 4 로 앞당겨졌다.
+>
+> 그리고 §11 의 미확인 항목에 답이 나왔다 — **Spring Data 는 `@Embeddable` 인스턴스를
+> 파생 쿼리 파라미터로 받아준다.** 1순위 형태가 1차 시도에서 동작했고,
+> 대안(`existsByLoginIdValue(value: String)`)은 불필요하다.
+
+`apps/commerce-api/src/main/kotlin/com/loopers/infrastructure/user/UserJpaRepository.kt` 는 **이미 아래 상태다. 수정하지 않는다.**
 
 ```kotlin
 package com.loopers.infrastructure.user
@@ -1609,7 +1619,7 @@ interface UserJpaRepository : JpaRepository<UserModel, Long> {
 }
 ```
 
-`apps/commerce-api/src/main/kotlin/com/loopers/infrastructure/user/UserRepositoryImpl.kt` 의 15~17행:
+`apps/commerce-api/src/main/kotlin/com/loopers/infrastructure/user/UserRepositoryImpl.kt` 는 현재 Task 4 가 넣은 **임시 래핑** 상태다. Step 5 에서 도메인 인터페이스가 `LoginId` 를 받도록 바뀌었으므로 래핑이 불필요해진다. `existsByLoginId` 를 아래로 교체하고, 임시 래핑을 설명하던 주석도 함께 제거한다.
 
 ```kotlin
     override fun existsByLoginId(loginId: LoginId): Boolean {
@@ -1617,26 +1627,7 @@ interface UserJpaRepository : JpaRepository<UserModel, Long> {
     }
 ```
 
-import 한 줄을 추가한다:
-
-```kotlin
-import com.loopers.domain.user.LoginId
-```
-
-> **Step 11 에서 이 부분이 실패하면** — Spring Data 가 임베디드 인스턴스 파라미터로 쿼리를 만들지 못한 것이다.
-> 그때만 아래 대안으로 바꾼다. **도메인 인터페이스 `UserRepository.existsByLoginId(loginId: LoginId)` 는 그대로 둔다.**
->
-> `UserJpaRepository`:
-> ```kotlin
-> fun existsByLoginIdValue(value: String): Boolean
-> ```
-> `UserRepositoryImpl`:
-> ```kotlin
->     override fun existsByLoginId(loginId: LoginId): Boolean {
->         return userJpaRepository.existsByLoginIdValue(loginId.value)
->     }
-> ```
-> 이 경우 원시 타입 노출은 `infrastructure` 안에 갇히므로 설계 의도는 유지된다.
+`import com.loopers.domain.user.LoginId` 는 Task 4 에서 이미 추가돼 있다. 그대로 둔다.
 
 - [ ] **Step 7: `UserService` 의 임시 래핑을 제거한다**
 
@@ -1723,8 +1714,6 @@ Expected: PASS. 특히 아래를 확인한다.
 - `UserCommandTest` 가 **단언 수정 없이** 통과한다 → 규칙 10 이 제대로 적용됐다는 증거다.
 - `UserServiceIntegrationTest` 가 2개 케이스로 줄어든 채 통과한다.
 
-`existsByLoginId` 관련 실패가 나면 Step 6 의 대안으로 바꾸고 다시 실행한다.
-
 - [ ] **Step 10: ktlint 를 통과하는지 확인한다**
 
 Run: `./gradlew :apps:commerce-api:ktlintCheck`
@@ -1745,7 +1734,6 @@ Expected: `UserV1Dto.kt` 의 `SignUpRequest` 한 곳만 출력된다.
 git add apps/commerce-api/src/main/kotlin/com/loopers/domain/user/UserCommand.kt \
         apps/commerce-api/src/main/kotlin/com/loopers/domain/user/UserRepository.kt \
         apps/commerce-api/src/main/kotlin/com/loopers/domain/user/UserService.kt \
-        apps/commerce-api/src/main/kotlin/com/loopers/infrastructure/user/UserJpaRepository.kt \
         apps/commerce-api/src/main/kotlin/com/loopers/infrastructure/user/UserRepositoryImpl.kt \
         apps/commerce-api/src/main/kotlin/com/loopers/interfaces/api/user/UserV1Dto.kt \
         apps/commerce-api/src/test/kotlin/com/loopers/domain/user/UserCommandTest.kt \
@@ -1875,4 +1863,4 @@ git commit -m "test : 값 객체의 조회 시 검증 우회 동작을 고정하
 - [ ] `UserModel` 에 정규식 상수가 하나도 남아 있지 않다 (`FORBIDDEN_BIRTH_DATE_FORMATS` 만 잔류)
 - [ ] `UserCommand.SignUp` 에 수동 `toString()` 오버라이드가 없다
 - [ ] `UserModelPersistenceTest` 가 통과한다 (규칙 9 확인)
-- [ ] `docs/superpowers/specs/2026-08-05-value-object-design.md` §11 의 미확인 항목이 어느 쪽으로 결정됐는지 문서에 반영한다
+- [x] `docs/superpowers/specs/2026-08-05-value-object-design.md` §11 의 미확인 항목 반영 완료 — Task 4 에서 1순위(`existsByLoginId(loginId: LoginId)`)가 동작함을 확인했고, 엔티티와 파생 쿼리를 같은 단계에서 전환해야 한다는 교훈을 함께 기록했다

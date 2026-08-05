@@ -366,16 +366,34 @@ VO 단위 테스트는 각 VO 마다 다음을 덮는다.
 
 2단계는 시그니처가 연쇄되어 중간 상태에서 컴파일이 성립하지 않으므로 **한 커밋으로 묶는다.**
 
-## 11. 미확인 항목
+## 11. 확인된 항목 — Spring Data 와 `@Embedded` 파라미터
 
-`UserJpaRepository.existsByLoginId` 를 `@Embedded` 타입으로 전환할 때
-Spring Data 가 임베디드 인스턴스를 파라미터로 받는 쿼리를 생성해줄지 **구현 시 통합 테스트로 확인한다.**
+작성 시점에는 `UserJpaRepository.existsByLoginId` 를 `@Embedded` 타입으로 전환할 때
+Spring Data 가 임베디드 인스턴스를 파라미터로 받는 쿼리를 생성해줄지 미확인이었다.
 
-- 1순위: `fun existsByLoginId(loginId: LoginId): Boolean`
-- 실패 시 대안: `fun existsByLoginIdValue(value: String): Boolean` — `UserRepositoryImpl` 이 `loginId.value` 를 꺼내 넘긴다
+**구현 결과 1순위가 동작한다.**
 
-어느 쪽이든 **도메인 인터페이스 `UserRepository.existsByLoginId(loginId: LoginId)` 는 유지**한다.
-대안을 택하더라도 원시 타입 노출은 `infrastructure` 내부에 갇힌다.
+```kotlin
+fun existsByLoginId(loginId: LoginId): Boolean
+```
+
+대안으로 준비했던 `fun existsByLoginIdValue(value: String): Boolean` 은 필요 없었다.
+도메인 인터페이스와 JPA 인터페이스가 같은 타입을 쓰므로 `UserRepositoryImpl` 은 그대로 위임한다.
+
+### 부수적으로 드러난 사실 — 엔티티와 리포지토리는 같은 단계에서 전환해야 한다
+
+`UserModel.loginId` 의 타입이 `String` 에서 `LoginId` 로 바뀌는 순간,
+그 필드를 참조하는 **파생 쿼리의 바인딩 타입도 함께 바뀐다.**
+리포지토리를 나중에 전환하도록 계획하면 그 사이 구간에서 런타임 예외가 발생한다.
+
+```
+InvalidDataAccessApiUsageException: Argument [loopers01] of type [java.lang.String]
+did not match parameter type [com.loopers.domain.user.LoginId (n/a)]
+```
+
+컴파일은 통과한다. `existsByLoginId(String)` 은 여전히 유효한 시그니처이기 때문이다.
+**실패는 통합 테스트에서만 드러난다.** 앞으로 값 객체를 엔티티 필드에 도입할 때는
+해당 필드를 참조하는 파생 쿼리를 같은 단계에서 함께 바꾼다.
 
 ## 12. 후속 과제
 
