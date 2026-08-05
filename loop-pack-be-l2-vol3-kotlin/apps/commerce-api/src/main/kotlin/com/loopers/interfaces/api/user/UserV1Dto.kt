@@ -42,10 +42,10 @@ class UserV1Dto {
             fun from(info: UserInfo): UserResponse {
                 return UserResponse(
                     id = info.id,
-                    loginId = info.loginId,
-                    name = info.name,
-                    birthDate = info.birthDate.toString(),
-                    email = info.email,
+                    loginId = info.loginId.value,
+                    name = info.name.value,
+                    birthDate = info.birthDate.value.toString(),
+                    email = info.email.value,
                 )
             }
         }

@@ -26,11 +26,11 @@ class UserService(
         }
 
         val user = UserModel.create(
-            loginId = command.loginId,
-            rawPassword = command.password,
-            name = command.name,
-            birthDate = command.birthDate,
-            email = command.email,
+            loginId = LoginId(command.loginId),
+            rawPassword = RawPassword(command.password),
+            name = UserName(command.name),
+            birthDate = BirthDate.from(command.birthDate),
+            email = Email(command.email),
             passwordEncoder = passwordEncoder,
         )
         return userRepository.save(user)

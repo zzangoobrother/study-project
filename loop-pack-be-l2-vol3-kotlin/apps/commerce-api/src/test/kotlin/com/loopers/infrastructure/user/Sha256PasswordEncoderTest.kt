@@ -1,5 +1,7 @@
 package com.loopers.infrastructure.user
 
+import com.loopers.domain.user.EncodedPassword
+import com.loopers.domain.user.RawPassword
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -16,7 +18,7 @@ class Sha256PasswordEncoderTest {
         @Test
         fun returnsDifferentResults_whenSameRawPasswordIsEncodedTwice() {
             // arrange
-            val rawPassword = "Loopers1!"
+            val rawPassword = RawPassword("Loopers1!")
 
             // act
             val first = passwordEncoder.encode(rawPassword)
@@ -25,8 +27,8 @@ class Sha256PasswordEncoderTest {
             // assert
             assertAll(
                 { assertThat(first).isNotEqualTo(second) },
-                { assertThat(first).doesNotContain(rawPassword) },
-                { assertThat(second).doesNotContain(rawPassword) },
+                { assertThat(first.value).doesNotContain("Loopers1!") },
+                { assertThat(second.value).doesNotContain("Loopers1!") },
             )
         }
 
@@ -34,10 +36,10 @@ class Sha256PasswordEncoderTest {
         @Test
         fun returnsSaltAndHashJoinedByColon_whenPasswordIsEncoded() {
             // act
-            val encoded = passwordEncoder.encode("Loopers1!")
+            val encoded = passwordEncoder.encode(RawPassword("Loopers1!"))
 
             // assert
-            assertThat(encoded.split(":")).hasSize(2)
+            assertThat(encoded.value.split(":")).hasSize(2)
         }
     }
 
@@ -48,7 +50,7 @@ class Sha256PasswordEncoderTest {
         @Test
         fun returnsTrue_whenRawPasswordIsCorrect() {
             // arrange
-            val rawPassword = "Loopers1!"
+            val rawPassword = RawPassword("Loopers1!")
             val encoded = passwordEncoder.encode(rawPassword)
 
             // act
@@ -62,10 +64,10 @@ class Sha256PasswordEncoderTest {
         @Test
         fun returnsFalse_whenRawPasswordIsWrong() {
             // arrange
-            val encoded = passwordEncoder.encode("Loopers1!")
+            val encoded = passwordEncoder.encode(RawPassword("Loopers1!"))
 
             // act
-            val result = passwordEncoder.matches("Loopers2@", encoded)
+            val result = passwordEncoder.matches(RawPassword("Loopers2@"), encoded)
 
             // assert
             assertThat(result).isFalse()
@@ -74,11 +76,14 @@ class Sha256PasswordEncoderTest {
         @DisplayName("형식이 깨진 인코딩 값을 주면, 예외 대신 false 를 반환한다.")
         @Test
         fun returnsFalse_whenEncodedPasswordIsMalformed() {
+            // arrange
+            val rawPassword = RawPassword("Loopers1!")
+
             // act & assert
             assertAll(
-                { assertThat(passwordEncoder.matches("Loopers1!", "broken-value")).isFalse() },
-                { assertThat(passwordEncoder.matches("Loopers1!", "")).isFalse() },
-                { assertThat(passwordEncoder.matches("Loopers1!", "!!!:???")).isFalse() },
+                { assertThat(passwordEncoder.matches(rawPassword, EncodedPassword("broken-value"))).isFalse() },
+                { assertThat(passwordEncoder.matches(rawPassword, EncodedPassword(""))).isFalse() },
+                { assertThat(passwordEncoder.matches(rawPassword, EncodedPassword("!!!:???"))).isFalse() },
             )
         }
     }

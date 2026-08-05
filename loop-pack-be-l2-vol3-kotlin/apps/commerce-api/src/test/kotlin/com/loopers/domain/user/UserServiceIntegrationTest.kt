@@ -62,13 +62,13 @@ class UserServiceIntegrationTest @Autowired constructor(
             verify(userRepository).save(any())
             assertAll(
                 { assertThat(user.id).isPositive() },
-                { assertThat(user.loginId).isEqualTo("loopers01") },
-                { assertThat(user.name).isEqualTo("홍길동") },
-                { assertThat(user.birthDate).isEqualTo(LocalDate.of(1990, 1, 1)) },
-                { assertThat(user.email).isEqualTo("loopers@loopers.com") },
-                { assertThat(user.password).isNotEqualTo("Loopers1!") },
-                { assertThat(passwordEncoder.matches("Loopers1!", user.password)).isTrue() },
-                { assertThat(passwordEncoder.matches("Loopers2@", user.password)).isFalse() },
+                { assertThat(user.loginId).isEqualTo(LoginId("loopers01")) },
+                { assertThat(user.name).isEqualTo(UserName("홍길동")) },
+                { assertThat(user.birthDate).isEqualTo(BirthDate(LocalDate.of(1990, 1, 1))) },
+                { assertThat(user.email).isEqualTo(Email("loopers@loopers.com")) },
+                { assertThat(user.password.value).doesNotContain("Loopers1!") },
+                { assertThat(passwordEncoder.matches(RawPassword("Loopers1!"), user.password)).isTrue() },
+                { assertThat(passwordEncoder.matches(RawPassword("Loopers2@"), user.password)).isFalse() },
             )
         }
 

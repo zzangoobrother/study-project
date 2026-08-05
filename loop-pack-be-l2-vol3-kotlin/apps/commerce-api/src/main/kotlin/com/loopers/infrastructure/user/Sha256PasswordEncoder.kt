@@ -1,6 +1,8 @@
 package com.loopers.infrastructure.user
 
+import com.loopers.domain.user.EncodedPassword
 import com.loopers.domain.user.PasswordEncoder
+import com.loopers.domain.user.RawPassword
 import org.springframework.stereotype.Component
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -18,14 +20,14 @@ import java.util.Base64
  */
 @Component
 class Sha256PasswordEncoder : PasswordEncoder {
-    override fun encode(rawPassword: String): String {
+    override fun encode(rawPassword: RawPassword): EncodedPassword {
         val salt = ByteArray(SALT_LENGTH).also { SECURE_RANDOM.nextBytes(it) }
-        val hash = hash(salt, rawPassword)
-        return "${ENCODER.encodeToString(salt)}$DELIMITER${ENCODER.encodeToString(hash)}"
+        val hash = hash(salt, rawPassword.value)
+        return EncodedPassword("${ENCODER.encodeToString(salt)}$DELIMITER${ENCODER.encodeToString(hash)}")
     }
 
-    override fun matches(rawPassword: String, encodedPassword: String): Boolean {
-        val parts = encodedPassword.split(DELIMITER)
+    override fun matches(rawPassword: RawPassword, encodedPassword: EncodedPassword): Boolean {
+        val parts = encodedPassword.value.split(DELIMITER)
         if (parts.size != 2) return false
 
         val decoded = runCatching { DECODER.decode(parts[0]) to DECODER.decode(parts[1]) }
@@ -33,7 +35,7 @@ class Sha256PasswordEncoder : PasswordEncoder {
         val (salt, expectedHash) = decoded
 
         // 타이밍 공격 표면을 줄이기 위해 상수 시간 비교를 사용한다.
-        return MessageDigest.isEqual(hash(salt, rawPassword), expectedHash)
+        return MessageDigest.isEqual(hash(salt, rawPassword.value), expectedHash)
     }
 
     private fun hash(salt: ByteArray, rawPassword: String): ByteArray =

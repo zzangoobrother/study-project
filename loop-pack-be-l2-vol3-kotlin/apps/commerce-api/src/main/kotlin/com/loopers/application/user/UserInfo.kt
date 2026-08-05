@@ -1,7 +1,10 @@
 package com.loopers.application.user
 
+import com.loopers.domain.user.BirthDate
+import com.loopers.domain.user.Email
+import com.loopers.domain.user.LoginId
 import com.loopers.domain.user.UserModel
-import java.time.LocalDate
+import com.loopers.domain.user.UserName
 
 /**
  * 계층 밖으로 전달되는 유저 정보.
@@ -9,10 +12,10 @@ import java.time.LocalDate
  */
 data class UserInfo(
     val id: Long,
-    val loginId: String,
-    val name: String,
-    val birthDate: LocalDate,
-    val email: String,
+    val loginId: LoginId,
+    val name: UserName,
+    val birthDate: BirthDate,
+    val email: Email,
 ) {
     companion object {
         fun from(model: UserModel): UserInfo {
