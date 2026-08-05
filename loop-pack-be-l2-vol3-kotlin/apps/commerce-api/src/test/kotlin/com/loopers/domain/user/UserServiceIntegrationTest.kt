@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
-import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -34,11 +33,11 @@ class UserServiceIntegrationTest @Autowired constructor(
         birthDate: String = "1990-01-01",
         email: String = "loopers@loopers.com",
     ) = UserCommand.SignUp(
-        loginId = loginId,
-        password = password,
-        name = name,
-        birthDate = birthDate,
-        email = email,
+        loginId = LoginId(loginId),
+        password = RawPassword(password),
+        name = UserName(name),
+        birthDate = BirthDate.from(birthDate),
+        email = Email(email),
     )
 
     @AfterEach
@@ -85,22 +84,6 @@ class UserServiceIntegrationTest @Autowired constructor(
 
             // assert
             assertThat(result.errorType).isEqualTo(ErrorType.CONFLICT)
-        }
-
-        @DisplayName("형식에 맞지 않는 정보를 주면, 저장을 시도하지 않고 BAD_REQUEST 예외가 발생한다.")
-        @Test
-        fun doesNotSave_whenCommandIsInvalid() {
-            // arrange
-            val command = signUpCommand(email = "invalid-email")
-
-            // act
-            val result = assertThrows<CoreException> { userService.signUp(command) }
-
-            // assert
-            assertAll(
-                { assertThat(result.errorType).isEqualTo(ErrorType.BAD_REQUEST) },
-                { verify(userRepository, never()).save(any()) },
-            )
         }
     }
 }

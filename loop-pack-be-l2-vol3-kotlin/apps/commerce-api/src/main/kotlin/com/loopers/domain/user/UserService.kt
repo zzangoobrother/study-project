@@ -13,6 +13,7 @@ class UserService(
     /**
      * 신규 회원을 등록한다.
      *
+     * 커맨드가 값 객체만 담으므로 이 시점에 포맷 검증은 이미 끝나 있다.
      * 중복 검사와 실제 저장 사이에는 경쟁 상태가 존재하며,
      * 최종 방어선은 login_id 컬럼의 unique 제약이다.
      */
@@ -26,11 +27,11 @@ class UserService(
         }
 
         val user = UserModel.create(
-            loginId = LoginId(command.loginId),
-            rawPassword = RawPassword(command.password),
-            name = UserName(command.name),
-            birthDate = BirthDate.from(command.birthDate),
-            email = Email(command.email),
+            loginId = command.loginId,
+            rawPassword = command.password,
+            name = command.name,
+            birthDate = command.birthDate,
+            email = command.email,
             passwordEncoder = passwordEncoder,
         )
         return userRepository.save(user)

@@ -1,7 +1,12 @@
 package com.loopers.interfaces.api.user
 
 import com.loopers.application.user.UserInfo
+import com.loopers.domain.user.BirthDate
+import com.loopers.domain.user.Email
+import com.loopers.domain.user.LoginId
+import com.loopers.domain.user.RawPassword
 import com.loopers.domain.user.UserCommand
+import com.loopers.domain.user.UserName
 
 class UserV1Dto {
     /**
@@ -18,11 +23,11 @@ class UserV1Dto {
     ) {
         fun toCommand(): UserCommand.SignUp {
             return UserCommand.SignUp(
-                loginId = loginId,
-                password = password,
-                name = name,
-                birthDate = birthDate,
-                email = email,
+                loginId = LoginId(loginId),
+                password = RawPassword(password),
+                name = UserName(name),
+                birthDate = BirthDate.from(birthDate),
+                email = Email(email),
             )
         }
 

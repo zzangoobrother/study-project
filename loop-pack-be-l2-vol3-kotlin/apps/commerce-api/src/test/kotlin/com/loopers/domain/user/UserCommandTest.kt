@@ -15,11 +15,11 @@ class UserCommandTest {
         fun masksPassword_whenConvertedToString() {
             // arrange
             val command = UserCommand.SignUp(
-                loginId = "loopers01",
-                password = "Loopers1!",
-                name = "홍길동",
-                birthDate = "1990-01-01",
-                email = "loopers@loopers.com",
+                loginId = LoginId("loopers01"),
+                password = RawPassword("Loopers1!"),
+                name = UserName("홍길동"),
+                birthDate = BirthDate.from("1990-01-01"),
+                email = Email("loopers@loopers.com"),
             )
 
             // act
