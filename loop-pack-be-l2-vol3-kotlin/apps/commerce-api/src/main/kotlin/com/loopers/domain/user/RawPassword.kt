@@ -8,7 +8,9 @@ import com.loopers.support.error.ErrorType
  *
  * 저장 대상이 아니므로 @Embeddable 을 붙이지 않는다.
  * data class 를 쓰지 않는 이유는 copy() 와 componentN() 이 평문 유출 표면을 넓히기 때문이다.
- * 평문 전체는 [value] 로만 접근할 수 있으며, 같은 모듈의 PasswordEncoder 구현체만 읽는다.
+ * [value] 는 internal 이라 같은 Gradle 모듈(apps:commerce-api) 안에서는 어디서든 읽을 수 있다.
+ * 실제로 읽는 곳은 Sha256PasswordEncoder 하나로 유지한다 — 이는 타입이 아닌 규율이다.
+ * 타입이 보장하는 것은 UserModel 이 EncodedPassword 만 받는다는 것, 즉 평문이 저장되지 않는다는 것이다.
  */
 class RawPassword(internal val value: String) {
     init {

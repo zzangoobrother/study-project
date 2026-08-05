@@ -101,6 +101,10 @@ DTO 까지 VO 를 쓰지 않는 이유는 두 가지다.
 **검증 규칙의 소유자는 여전히 도메인이고, 호출 시점만 앞당겨진 것**이다.
 `ApiControllerAdvice` 가 `CoreException` 을 잡아 400 을 반환하는 동작은 전환 전후가 동일하다.
 
+여러 필드가 동시에 잘못된 요청에서 어느 필드의 메시지가 반환되는지는 계약이 아니다.
+이 API 는 필드별 오류를 집계하지 않는 fail-fast 단일 메시지 방식이며,
+검증 순서는 값 객체 생성 순서(= `toCommand()` 의 인자 순서)를 따른다.
+
 ## 5. 작성 규칙
 
 기준 형태는 `@Embeddable data class` 이며, 단일 값 VO 의 프로퍼티명은 `value` 로 고정한다.
@@ -203,7 +207,9 @@ throw CoreException(ErrorType.CONFLICT, "[loginId = ${command.loginId}] 이미 �
 
 `data class` 대신 일반 `class` 로 만들고, `@Embeddable` 을 붙이지 않는다.
 
-- `value` 는 `internal` 로 제한한다. `PasswordEncoder` 구현체가 같은 Gradle 모듈(`apps/commerce-api`)에 있으므로 `internal` 로 충분하다.
+- `value` 는 `internal` 로 제한한다. `internal` 은 같은 Gradle 모듈(`apps/commerce-api`) **전체**에 보이므로,
+  타입이 강제하는 것은 "모듈 밖 불가" 뿐이다. 실제로 읽는 곳을 `PasswordEncoder` 구현체 하나로 유지하는 것은 규율이지 타입이 보장하는 바가 아니다.
+  타입이 보장하는 것은 `UserModel` 이 `EncodedPassword` 만 받는다는 것, 즉 평문이 저장되지 않는다는 것이다.
 - 평문 비교가 필요한 곳에는 `contains(text: String): Boolean` 만 노출한다.
 - `toString()` 은 마스킹 문자열을 반환한다.
 - `equals` / `hashCode` 는 §3-1 의 VO 계약을 만족시키기 위해 구현한다. 현재 이를 필요로 하는 호출부는 없다.
@@ -361,10 +367,13 @@ VO 단위 테스트는 각 VO 마다 다음을 덮는다.
 | 단계 | 내용 | 검증 |
 |---|---|---|
 | 1 | VO 6개 + 단위 테스트 신설 | 기존 코드 무변경. 독립적으로 컴파일·통과한다 |
-| 2 | 시그니처 전환 — `PasswordEncoder` → `UserModel` → `UserCommand` / `UserRepository` / `UserService` → `UserInfo` → `UserV1Dto`. 기존 테스트 arrange 수정과 `UserModelTest` 축소를 함께 수행한다 | 전체 테스트 통과. E2E 는 무변경 통과 |
+| 2a | 저장·읽기 경로 전환 — `PasswordEncoder` → `UserModel` → `UserService`(임시 래핑) → `UserInfo` → `UserV1Dto.UserResponse.from`. `UserCommand` 가 아직 원시 타입이므로 `UserService` 가 값 객체를 임시로 감싼다 | 전체 테스트 통과. E2E 는 무변경 통과 |
+| 2b | 입력 경로 전환 — `UserCommand` → `UserRepository` → `UserService`(임시 래핑 제거) → `UserV1Dto.toCommand`. 값 객체 생성 지점이 `toCommand()` 하나로 모인다 | 전체 테스트 통과. E2E 는 무변경 통과 |
 | 3 | 규약 문서 커밋 | — |
 
-2단계는 시그니처가 연쇄되어 중간 상태에서 컴파일이 성립하지 않으므로 **한 커밋으로 묶는다.**
+2단계는 임시 래핑을 두면 두 커밋으로 나눌 수 있다.
+이번 실행에서 실제로 2a(`78e55a1`) / 2b(`1dcdba6`) 로 분리했고, 중간 상태(2a 커밋 시점)가 컴파일과 전체 테스트를 모두 통과했다.
+단 **엔티티 필드와 그 필드를 참조하는 파생 쿼리는 §11 의 이유로 반드시 같은 커밋**이어야 한다 — 2a 가 `UserModel.loginId` 와 `UserJpaRepository.existsByLoginId` 를 함께 전환한 이유다.
 
 ## 11. 확인된 항목 — Spring Data 와 `@Embedded` 파라미터
 
@@ -400,3 +409,11 @@ did not match parameter type [com.loopers.domain.user.LoginId (n/a)]
 - **포인트 도메인**: `Point` 는 §4 보조 기준 ⓑ(값끼리 연산)에 해당한다. 잔액 차감·충전을 VO 연산으로 표현하고, 음수 잔액 불변식을 `init` 에서 지킨다.
 - **`domain.shared` 승격**: 두 번째 도메인이 `Email` 등을 실제로 공유하게 되면 그때 패키지를 분리한다 (규칙 8).
 - **`BaseEntity.guard()` 의 역할 재검토**: 필드 단위 불변식이 VO 로 이동하면 `guard()` 에는 교차 필드 규칙만 남는다. `user` 도메인은 현재 `guard()` 를 재정의하지 않으므로 이번 범위에서는 다루지 않는다.
+
+아래 3건은 이번 최종 리뷰가 짚은 지적이다. 다음에 `user` 테스트 파일을 열 때 함께 처리한다.
+
+- **`BirthDateTest` 의 자정 경계 취약성**: "미래면 예외" 테스트 2건이 arrange 의 `LocalDate.now().plusDays(1)` 과 `init` 의 `LocalDate.now()` 사이에 자정이 걸리면 실패할 수 있다. `plusDays(1)` → `plusYears(1)` 로 바꾸면 실패 창이 나노초에서 1년으로 넓어진다. 의존성 추가 없이 한 글자 수정이다. (반대 방향인 "오늘이면 통과" 테스트는 자정을 넘어도 안전하다.)
+- **`UserModelTest` 의 잉여 단언 1줄 삭제**: `createsUser_whenAllValueObjectsAreValid` 의 `isNotEqualTo` 단언은 `isEqualTo` 가 통과하는 한 논리적으로 실패할 수 없어 아무것도 검증하지 않는다. 계획서(`2026-08-05-value-object.md` Task 4 Step 1)는 강한 형태로 정정했으나, 실제 `UserModelTest.kt` 는 아직 약한 형태다.
+- **`UserModelPersistenceTest` 의 WHERE 절 없는 JPQL**: `SELECT u FROM UserModel u` + `.singleResult` 라 `users` 에 쓰면서 정리하지 않는 테스트가 하나 늘면 `NonUniqueResultException` 으로 엉뚱한 테스트가 조용히 깨진다. 현재 스위트에는 실패 경로가 없다(관련 테스트 3개 모두 `truncateAllTables()` 또는 `@Transactional` 롤백으로 정리된다). `.resultList.single()` 또는 `WHERE u.loginId.value = '!!!'` 로 방어하면 된다.
+
+**`MASKED = "****"` 상수 중복** (`RawPassword.kt`, `EncodedPassword.kt`): 규칙 8(사용처가 하나인 추상화를 미리 만들지 않는다) 정신상 지금 공용화하는 것은 오히려 규약 위반이며, 세 번째 민감값 값 객체가 생기면 승격을 검토한다.

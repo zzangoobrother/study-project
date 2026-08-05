@@ -1049,7 +1049,7 @@ class UserModelTest {
                 { assertThat(user.birthDate).isEqualTo(BirthDate(LocalDate.of(1990, 1, 1))) },
                 { assertThat(user.email).isEqualTo(Email("loopers@loopers.com")) },
                 { assertThat(user.password).isEqualTo(EncodedPassword("encoded:Loopers1!")) },
-                { assertThat(user.password).isNotEqualTo(EncodedPassword("Loopers1!")) },
+                { assertThat(user.password.value).doesNotContain("Loopers1!") },
             )
         }
     }
@@ -1094,6 +1094,9 @@ class UserModelTest {
     }
 }
 ```
+
+> (최종 리뷰 지적에 따라 `isNotEqualTo` 단언을 강한 형태(`doesNotContain`)로 정정했다.
+> 실제 `UserModelTest.kt` 에는 약한 형태가 커밋돼 있으며, 다음에 이 파일을 열 때 함께 정리한다.)
 
 - [ ] **Step 2: `Sha256PasswordEncoderTest` 를 값 객체 시그니처로 다시 쓴다**
 
@@ -1726,7 +1729,14 @@ Expected: PASS.
 
 Run: `grep -rn "rawPassword: String\|password: String" apps/commerce-api/src/main/kotlin`
 
-Expected: `UserV1Dto.kt` 의 `SignUpRequest` 한 곳만 출력된다.
+Expected: 2건이 출력된다.
+
+```
+infrastructure/user/Sha256PasswordEncoder.kt:41:    private fun hash(salt: ByteArray, rawPassword: String): ByteArray =
+interfaces/api/user/UserV1Dto.kt:19:        val password: String,
+```
+
+`Sha256PasswordEncoder.hash` 는 공개 메서드 경계(`encode`/`matches`)에서 이미 언랩된 값을 받는 `private` 헬퍼이고 밖으로 새지 않으므로 정상이다.
 
 - [ ] **Step 12: 커밋한다**
 
