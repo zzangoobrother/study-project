@@ -36,4 +36,15 @@ class UserService(
         )
         return userRepository.save(user)
     }
+
+    /**
+     * 로그인 ID 로 회원을 조회한다.
+     *
+     * 회원이 없을 때 예외를 던지지 않고 null 을 반환한다.
+     * 도메인 서비스는 "없다" 는 사실만 전달하고, 그것을 오류로 볼지는 유스케이스가 정한다.
+     */
+    @Transactional(readOnly = true)
+    fun getUser(loginId: LoginId): UserModel? {
+        return userRepository.findByLoginId(loginId)
+    }
 }

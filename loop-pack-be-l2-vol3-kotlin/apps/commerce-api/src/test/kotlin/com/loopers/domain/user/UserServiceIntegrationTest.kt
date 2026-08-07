@@ -86,4 +86,52 @@ class UserServiceIntegrationTest @Autowired constructor(
             assertThat(result.errorType).isEqualTo(ErrorType.CONFLICT)
         }
     }
+
+    @DisplayName("로그인 ID 로 회원을 조회할 때, ")
+    @Nested
+    inner class GetUser {
+        @DisplayName("해당 로그인 ID 의 회원이 존재하면, 회원 정보가 반환된다.")
+        @Test
+        fun returnsUser_whenLoginIdIsRegistered() {
+            // arrange
+            userService.signUp(signUpCommand())
+
+            // act
+            val user = userService.getUser(LoginId("loopers01"))
+
+            // assert
+            assertAll(
+                { assertThat(user).isNotNull() },
+                { assertThat(user?.loginId).isEqualTo(LoginId("loopers01")) },
+                { assertThat(user?.name).isEqualTo(UserName("홍길동")) },
+                { assertThat(user?.birthDate).isEqualTo(BirthDate(LocalDate.of(1990, 1, 1))) },
+                { assertThat(user?.email).isEqualTo(Email("loopers@loopers.com")) },
+            )
+        }
+
+        @DisplayName("해당 로그인 ID 의 회원이 존재하지 않으면, null 이 반환된다.")
+        @Test
+        fun returnsNull_whenLoginIdIsNotRegistered() {
+            // act
+            val user = userService.getUser(LoginId("nobody"))
+
+            // assert
+            assertThat(user).isNull()
+        }
+
+        @DisplayName("소프트 삭제된 회원이면, null 이 반환된다.")
+        @Test
+        fun returnsNull_whenUserIsSoftDeleted() {
+            // arrange
+            val saved = userService.signUp(signUpCommand())
+            saved.delete()
+            userRepository.save(saved)
+
+            // act
+            val user = userService.getUser(LoginId("loopers01"))
+
+            // assert
+            assertThat(user).isNull()
+        }
+    }
 }
