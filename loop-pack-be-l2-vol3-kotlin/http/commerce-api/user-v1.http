@@ -33,3 +33,18 @@ Content-Type: application/json
   "birthDate": "1990-01-01",
   "email": "loopers2@loopers.com"
 }
+
+### 내 정보 조회
+GET {{commerce-api}}/api/v1/users/me
+X-Loopers-LoginId: loopers01
+
+### 내 정보 조회 - 헤더 누락 (400 Bad Request)
+GET {{commerce-api}}/api/v1/users/me
+
+### 내 정보 조회 - 로그인 ID 형식 위반 (400 Bad Request)
+GET {{commerce-api}}/api/v1/users/me
+X-Loopers-LoginId: loopers-01
+
+### 내 정보 조회 - 가입되지 않은 ID (404 Not Found)
+GET {{commerce-api}}/api/v1/users/me
+X-Loopers-LoginId: nobody

@@ -278,5 +278,27 @@ class UserV1ApiE2ETest @Autowired constructor(
                 { assertThat(response.body?.meta?.result).isEqualTo(ApiResponse.Metadata.Result.FAIL) },
             )
         }
+
+        @DisplayName("X-Loopers-LoginId 헤더가 없으면, 400 BAD_REQUEST 를 반환한다.")
+        @Test
+        fun returnsBadRequest_whenHeaderIsMissing() {
+            // arrange
+            signUp()
+            val responseType = object : ParameterizedTypeReference<ApiResponse<UserV1Dto.MeResponse>>() {}
+
+            // act
+            val response = testRestTemplate.exchange(
+                ENDPOINT_ME,
+                HttpMethod.GET,
+                headerEntity(),
+                responseType,
+            )
+
+            // assert
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST) },
+                { assertThat(response.body?.meta?.result).isEqualTo(ApiResponse.Metadata.Result.FAIL) },
+            )
+        }
     }
 }
