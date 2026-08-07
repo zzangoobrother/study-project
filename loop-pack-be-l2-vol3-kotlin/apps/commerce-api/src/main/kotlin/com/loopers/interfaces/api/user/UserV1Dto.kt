@@ -55,4 +55,28 @@ class UserV1Dto {
             }
         }
     }
+
+    /**
+     * 내 정보 조회 응답.
+     *
+     * UserResponse 를 재사용하지 않는 이유는 두 가지다.
+     * 하나는 id 를 노출하지 않기 위해서고, 다른 하나는 이름 마스킹이 회원가입 응답까지 번지지 않게 하기 위해서다.
+     */
+    data class MeResponse(
+        val loginId: String,
+        val name: String,
+        val birthDate: String,
+        val email: String,
+    ) {
+        companion object {
+            fun from(info: UserInfo): MeResponse {
+                return MeResponse(
+                    loginId = info.loginId.value,
+                    name = info.name.masked(),
+                    birthDate = info.birthDate.value.toString(),
+                    email = info.email.value,
+                )
+            }
+        }
+    }
 }

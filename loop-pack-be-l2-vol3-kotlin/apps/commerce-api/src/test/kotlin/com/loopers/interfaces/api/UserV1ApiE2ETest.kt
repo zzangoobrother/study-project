@@ -1,5 +1,6 @@
 package com.loopers.interfaces.api
 
+import com.loopers.interfaces.api.user.UserV1Controller
 import com.loopers.interfaces.api.user.UserV1Dto
 import com.loopers.utils.DatabaseCleanUp
 import org.assertj.core.api.Assertions.assertThat
@@ -8,6 +9,8 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.client.TestRestTemplate
@@ -25,6 +28,7 @@ class UserV1ApiE2ETest @Autowired constructor(
 ) {
     companion object {
         private const val ENDPOINT_SIGN_UP = "/api/v1/users"
+        private const val ENDPOINT_ME = "/api/v1/users/me"
     }
 
     private fun signUpRequest(
@@ -44,6 +48,19 @@ class UserV1ApiE2ETest @Autowired constructor(
     private fun jsonEntity(request: UserV1Dto.SignUpRequest): HttpEntity<UserV1Dto.SignUpRequest> {
         val headers = HttpHeaders().apply { contentType = MediaType.APPLICATION_JSON }
         return HttpEntity(request, headers)
+    }
+
+    /** loginId 가 null 이면 X-Loopers-LoginId 헤더를 아예 넣지 않는다. */
+    private fun headerEntity(loginId: String? = null): HttpEntity<Void> {
+        val headers = HttpHeaders().apply {
+            loginId?.let { set(UserV1Controller.HEADER_LOGIN_ID, it) }
+        }
+        return HttpEntity(headers)
+    }
+
+    private fun signUp(request: UserV1Dto.SignUpRequest = signUpRequest()) {
+        val responseType = object : ParameterizedTypeReference<ApiResponse<UserV1Dto.UserResponse>>() {}
+        testRestTemplate.exchange(ENDPOINT_SIGN_UP, HttpMethod.POST, jsonEntity(request), responseType)
     }
 
     @AfterEach
@@ -161,6 +178,103 @@ class UserV1ApiE2ETest @Autowired constructor(
             // assert
             assertAll(
                 { assertThat(response.statusCode).isEqualTo(HttpStatus.CONFLICT) },
+                { assertThat(response.body?.meta?.result).isEqualTo(ApiResponse.Metadata.Result.FAIL) },
+            )
+        }
+    }
+
+    @DisplayName("GET /api/v1/users/me")
+    @Nested
+    inner class GetMyInfo {
+        @DisplayName("가입된 로그인 ID 로 조회하면, 이름의 마지막 글자가 마스킹된 정보를 반환한다.")
+        @Test
+        fun returnsMaskedUserInfo_whenLoginIdIsRegistered() {
+            // arrange
+            signUp()
+            val responseType = object : ParameterizedTypeReference<ApiResponse<UserV1Dto.MeResponse>>() {}
+
+            // act
+            val response = testRestTemplate.exchange(
+                ENDPOINT_ME,
+                HttpMethod.GET,
+                headerEntity("loopers01"),
+                responseType,
+            )
+
+            // assert
+            assertAll(
+                { assertThat(response.statusCode.is2xxSuccessful).isTrue() },
+                { assertThat(response.body?.data?.loginId).isEqualTo("loopers01") },
+                { assertThat(response.body?.data?.name).isEqualTo("홍길*") },
+                { assertThat(response.body?.data?.birthDate).isEqualTo("1990-01-01") },
+                { assertThat(response.body?.data?.email).isEqualTo("loopers@loopers.com") },
+            )
+        }
+
+        @DisplayName("조회에 성공해도, 응답 본문에 id·비밀번호·마스킹되지 않은 이름이 노출되지 않는다.")
+        @Test
+        fun doesNotExposeIdOrPasswordOrRawName_whenLookUpSucceeds() {
+            // arrange
+            signUp()
+
+            // act
+            val response = testRestTemplate.exchange(
+                ENDPOINT_ME,
+                HttpMethod.GET,
+                headerEntity("loopers01"),
+                String::class.java,
+            )
+
+            // assert
+            assertAll(
+                { assertThat(response.statusCode.is2xxSuccessful).isTrue() },
+                { assertThat(response.body).doesNotContain("\"id\"") },
+                { assertThat(response.body).doesNotContain("Loopers1!") },
+                { assertThat(response.body).doesNotContain("password") },
+                { assertThat(response.body).doesNotContain("홍길동") },
+            )
+        }
+
+        @DisplayName("형식에 맞지 않는 로그인 ID 로 조회하면, 400 BAD_REQUEST 를 반환한다.")
+        @ParameterizedTest
+        @ValueSource(strings = ["loopers-01", "loopers01234"])
+        fun returnsBadRequest_whenLoginIdIsInvalid(loginId: String) {
+            // arrange
+            signUp()
+            val responseType = object : ParameterizedTypeReference<ApiResponse<UserV1Dto.MeResponse>>() {}
+
+            // act
+            val response = testRestTemplate.exchange(
+                ENDPOINT_ME,
+                HttpMethod.GET,
+                headerEntity(loginId),
+                responseType,
+            )
+
+            // assert
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST) },
+                { assertThat(response.body?.meta?.result).isEqualTo(ApiResponse.Metadata.Result.FAIL) },
+            )
+        }
+
+        @DisplayName("가입되지 않은 로그인 ID 로 조회하면, 404 NOT_FOUND 를 반환한다.")
+        @Test
+        fun returnsNotFound_whenLoginIdIsNotRegistered() {
+            // arrange
+            val responseType = object : ParameterizedTypeReference<ApiResponse<UserV1Dto.MeResponse>>() {}
+
+            // act
+            val response = testRestTemplate.exchange(
+                ENDPOINT_ME,
+                HttpMethod.GET,
+                headerEntity("nobody"),
+                responseType,
+            )
+
+            // assert
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.NOT_FOUND) },
                 { assertThat(response.body?.meta?.result).isEqualTo(ApiResponse.Metadata.Result.FAIL) },
             )
         }
