@@ -237,10 +237,15 @@ data class MeResponse(
 @GetMapping("/me")
 override fun getMyInfo(
     @RequestHeader(HEADER_LOGIN_ID) loginId: String,
-): ApiResponse<UserV1Dto.MeResponse> =
-    userFacade.getMyInfo(LoginId(loginId))
+    response: HttpServletResponse,
+): ApiResponse<UserV1Dto.MeResponse> {
+    response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store")
+    response.setHeader(HttpHeaders.VARY, HEADER_LOGIN_ID)
+
+    return userFacade.getMyInfo(LoginId(loginId))
         .let { UserV1Dto.MeResponse.from(it) }
         .let { ApiResponse.success(it) }
+}
 
 companion object {
     const val HEADER_LOGIN_ID = "X-Loopers-LoginId"
@@ -252,6 +257,10 @@ companion object {
 위반 시 `CoreException(BAD_REQUEST)` 가 던져진다. 값 객체 도입의 직접적인 이득이다.
 
 헤더 이름 상수를 컨트롤러 `companion object` 에 두어, E2E 테스트가 문자열을 중복 정의하지 않도록 한다.
+
+`response: HttpServletResponse` 를 파라미터로 받는 이유는 `Cache-Control`/`Vary` 응답 헤더를 세팅하기
+위함이다(4장 참고). 반환 타입을 `ResponseEntity` 로 바꾸는 대신 `HttpServletResponse` 를 직접 받아
+기존 컨트롤러 스타일(`ApiResponse<T>` 를 그대로 반환)을 유지한다.
 
 ## 6. 소프트 삭제 취급 — 의도적 비대칭
 
