@@ -289,7 +289,10 @@ fun handleBadRequest(e: MissingRequestHeaderException): ResponseEntity<ApiRespon
 - 한글 이름의 마지막 글자가 `*` 로 가려진다 (`"홍길동"` → `"홍길*"`)
 - 영문 이름도 동일하게 마지막 글자가 가려진다 (`"HongGilDong"` → `"HongGilDon*"`)
 - 1글자 이름은 전체가 가려진다 (`"김"` → `"*"`)
-- 마스킹은 원본 `value` 를 바꾸지 않는다
+
+"마스킹이 원본 `value` 를 바꾸지 않는다" 는 테스트는 두지 않는다.
+`UserName` 은 `val value` 를 가진 `data class` 라 변경 자체가 컴파일되지 않으므로,
+타입 시스템이 이미 보장하는 것을 다시 단언하는 셈이 된다.
 
 ### 8.2 통합 테스트 — `UserServiceIntegrationTest` 에 `GetUser` Nested 추가
 
