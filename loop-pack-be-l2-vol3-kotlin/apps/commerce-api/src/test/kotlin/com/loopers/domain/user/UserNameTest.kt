@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
 
 class UserNameTest {
@@ -54,6 +55,41 @@ class UserNameTest {
                 { assertThat(first.hashCode()).isEqualTo(second.hashCode()) },
                 { assertThat(first.toString()).isEqualTo("홍길동") },
             )
+        }
+    }
+
+    @DisplayName("이름을 마스킹할 때, ")
+    @Nested
+    inner class Masking {
+        @DisplayName("마지막 글자가 마스킹 문자로 가려진다.")
+        @ParameterizedTest
+        @CsvSource(
+            "홍길동, 홍길*",
+            "HongGilDong, HongGilDon*",
+            "가나다라마바사아자차카타파하가나다라마바, 가나다라마바사아자차카타파하가나다라마*",
+        )
+        fun masksLastCharacter(value: String, expected: String) {
+            // arrange
+            val name = UserName(value)
+
+            // act
+            val result = name.masked()
+
+            // assert
+            assertThat(result).isEqualTo(expected)
+        }
+
+        @DisplayName("1글자 이름은 전체가 가려진다.")
+        @Test
+        fun masksEntireName_whenNameIsSingleCharacter() {
+            // arrange
+            val name = UserName("김")
+
+            // act
+            val result = name.masked()
+
+            // assert
+            assertThat(result).isEqualTo("*")
         }
     }
 }
