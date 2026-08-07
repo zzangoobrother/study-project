@@ -208,6 +208,8 @@ class UserV1ApiE2ETest @Autowired constructor(
                 { assertThat(response.body?.data?.name).isEqualTo("홍길*") },
                 { assertThat(response.body?.data?.birthDate).isEqualTo("1990-01-01") },
                 { assertThat(response.body?.data?.email).isEqualTo("loopers@loopers.com") },
+                { assertThat(response.headers.getFirst("Cache-Control")).isEqualTo("no-store") },
+                { assertThat(response.headers.getFirst("Vary")).isEqualTo("X-Loopers-LoginId") },
             )
         }
 

@@ -4,6 +4,7 @@ import com.loopers.interfaces.api.ApiResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.servlet.http.HttpServletResponse
 
 @Tag(name = "User V1 API", description = "Loopers 유저 API 입니다.")
 interface UserV1ApiSpec {
@@ -18,10 +19,12 @@ interface UserV1ApiSpec {
 
     @Operation(
         summary = "내 정보 조회",
-        description = "X-Loopers-LoginId 헤더의 로그인 ID 에 해당하는 회원 정보를 반환합니다. 이름은 마지막 글자가 마스킹됩니다.",
+        description = "X-Loopers-LoginId 헤더의 로그인 ID 에 해당하는 회원 정보를 반환합니다. 이름은 마지막 글자가 마스킹됩니다. " +
+            "(주의: 현재 인증을 수행하지 않습니다.)",
     )
     fun getMyInfo(
         @Schema(name = "로그인 ID", description = "조회할 회원의 로그인 ID. 영문과 숫자만 10자 이내로 허용합니다.")
         loginId: String,
+        response: HttpServletResponse,
     ): ApiResponse<UserV1Dto.MeResponse>
 }
