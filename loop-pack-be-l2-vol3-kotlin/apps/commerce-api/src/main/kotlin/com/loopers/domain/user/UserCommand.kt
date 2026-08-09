@@ -15,4 +15,10 @@ class UserCommand {
         val birthDate: BirthDate,
         val email: Email,
     )
+
+    data class ChangePassword(
+        val loginId: LoginId,
+        val currentPassword: RawPassword,
+        val newPassword: RawPassword,
+    )
 }

@@ -134,4 +134,118 @@ class UserServiceIntegrationTest @Autowired constructor(
             assertThat(user).isNull()
         }
     }
+
+    @DisplayName("비밀번호를 변경할 때, ")
+    @Nested
+    inner class ChangePassword {
+        private fun changePasswordCommand(
+            loginId: String = "loopers01",
+            currentPassword: String = "Loopers1!",
+            newPassword: String = "Loopers2@",
+        ) = UserCommand.ChangePassword(
+            loginId = LoginId(loginId),
+            currentPassword = RawPassword(currentPassword),
+            newPassword = RawPassword(newPassword),
+        )
+
+        @DisplayName("기존 비밀번호가 일치하면, 저장된 비밀번호가 새 값으로 교체된다.")
+        @Test
+        fun changesStoredPassword_whenCurrentPasswordMatches() {
+            // arrange
+            userService.signUp(signUpCommand())
+
+            // act
+            userService.changePassword(changePasswordCommand())
+
+            // assert
+            val user = userService.getUser(LoginId("loopers01"))
+            assertAll(
+                { assertThat(user).isNotNull() },
+                { assertThat(passwordEncoder.matches(RawPassword("Loopers2@"), user!!.password)).isTrue() },
+                { assertThat(passwordEncoder.matches(RawPassword("Loopers1!"), user!!.password)).isFalse() },
+                { assertThat(user!!.password.value).doesNotContain("Loopers2@") },
+            )
+        }
+
+        @DisplayName("가입되지 않은 로그인 ID 면, UNAUTHORIZED 예외가 발생한다.")
+        @Test
+        fun throwsUnauthorizedException_whenLoginIdIsNotRegistered() {
+            // act
+            val result = assertThrows<CoreException> {
+                userService.changePassword(changePasswordCommand(loginId = "nobody"))
+            }
+
+            // assert
+            assertThat(result.errorType).isEqualTo(ErrorType.UNAUTHORIZED)
+        }
+
+        @DisplayName("소프트 삭제된 회원이면, UNAUTHORIZED 예외가 발생한다.")
+        @Test
+        fun throwsUnauthorizedException_whenUserIsSoftDeleted() {
+            // arrange
+            val saved = userService.signUp(signUpCommand())
+            saved.delete()
+            userRepository.save(saved)
+
+            // act
+            val result = assertThrows<CoreException> {
+                userService.changePassword(changePasswordCommand())
+            }
+
+            // assert
+            assertThat(result.errorType).isEqualTo(ErrorType.UNAUTHORIZED)
+        }
+
+        @DisplayName("기존 비밀번호가 일치하지 않으면, UNAUTHORIZED 예외가 발생하고 저장된 비밀번호가 바뀌지 않는다.")
+        @Test
+        fun throwsUnauthorizedException_whenCurrentPasswordDoesNotMatch() {
+            // arrange
+            userService.signUp(signUpCommand())
+
+            // act
+            val result = assertThrows<CoreException> {
+                userService.changePassword(changePasswordCommand(currentPassword = "Wrong123!"))
+            }
+
+            // assert
+            val user = userService.getUser(LoginId("loopers01"))
+            assertAll(
+                { assertThat(result.errorType).isEqualTo(ErrorType.UNAUTHORIZED) },
+                { assertThat(passwordEncoder.matches(RawPassword("Loopers1!"), user!!.password)).isTrue() },
+            )
+        }
+
+        @DisplayName("새 비밀번호가 기존 비밀번호와 같으면, salt 가 매번 달라도 BAD_REQUEST 예외가 발생한다.")
+        @Test
+        fun throwsBadRequestException_whenNewPasswordIsSameAsCurrent() {
+            // arrange
+            userService.signUp(signUpCommand())
+
+            // act
+            val result = assertThrows<CoreException> {
+                userService.changePassword(changePasswordCommand(newPassword = "Loopers1!"))
+            }
+
+            // assert
+            assertThat(result.errorType).isEqualTo(ErrorType.BAD_REQUEST)
+        }
+
+        @DisplayName("가입되지 않은 로그인 ID 와 기존 비밀번호 불일치의 예외 메시지가 동일하다.")
+        @Test
+        fun returnsIdenticalMessage_forUnknownLoginIdAndWrongPassword() {
+            // arrange
+            userService.signUp(signUpCommand())
+
+            // act
+            val unknownLoginId = assertThrows<CoreException> {
+                userService.changePassword(changePasswordCommand(loginId = "nobody"))
+            }
+            val wrongPassword = assertThrows<CoreException> {
+                userService.changePassword(changePasswordCommand(currentPassword = "Wrong123!"))
+            }
+
+            // assert
+            assertThat(unknownLoginId.customMessage).isEqualTo(wrongPassword.customMessage)
+        }
+    }
 }
