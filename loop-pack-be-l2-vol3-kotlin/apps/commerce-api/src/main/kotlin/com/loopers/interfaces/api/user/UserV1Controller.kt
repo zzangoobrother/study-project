@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletResponse
 import org.springframework.http.HttpHeaders
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
@@ -46,6 +47,22 @@ class UserV1Controller(
         return userFacade.getMyInfo(LoginId(loginId))
             .let { UserV1Dto.MeResponse.from(it) }
             .let { ApiResponse.success(it) }
+    }
+
+    /**
+     * 이 API 는 currentPassword 로 자격 증명을 검증한다.
+     * 미가입·소프트 삭제·비밀번호 불일치를 모두 같은 401 응답으로 응답해 로그인 ID 의 존재 여부를 감춘다.
+     *
+     * Cache-Control 을 세팅하지 않는 이유는, 캐시가 PUT 응답을 저장하지 않고 오히려 해당 URI 의
+     * 캐시 항목을 무효화하기 때문이다. GET /me 와 달리 방어할 대상이 없다.
+     */
+    @PutMapping("/me/password")
+    override fun changePassword(
+        @RequestHeader(HEADER_LOGIN_ID) loginId: String,
+        @RequestBody request: UserV1Dto.ChangePasswordRequest,
+    ): ApiResponse<Any> {
+        userFacade.changePassword(request.toCommand(LoginId(loginId)))
+        return ApiResponse.success()
     }
 
     companion object {

@@ -79,4 +79,26 @@ class UserV1Dto {
             }
         }
     }
+
+    /**
+     * 비밀번호 수정 요청.
+     *
+     * loginId 를 본문이 아닌 인자로 받는다. 식별 정보는 X-Loopers-LoginId 헤더에서 오고,
+     * 이 DTO 는 요청 본문만 표현한다.
+     */
+    data class ChangePasswordRequest(
+        val currentPassword: String,
+        val newPassword: String,
+    ) {
+        fun toCommand(loginId: LoginId): UserCommand.ChangePassword {
+            return UserCommand.ChangePassword(
+                loginId = loginId,
+                currentPassword = RawPassword(currentPassword),
+                newPassword = RawPassword(newPassword),
+            )
+        }
+
+        // data class 가 자동 생성하는 toString() 은 평문 비밀번호 두 개를 그대로 노출하므로 직접 재정의한다.
+        override fun toString(): String = "ChangePasswordRequest(currentPassword=****, newPassword=****)"
+    }
 }

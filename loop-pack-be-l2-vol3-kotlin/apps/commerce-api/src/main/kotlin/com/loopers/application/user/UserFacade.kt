@@ -30,4 +30,14 @@ class UserFacade(
                 customMessage = "[loginId = $loginId] 등록되지 않은 회원입니다.",
             )
     }
+
+    /**
+     * 비밀번호를 교체한다.
+     *
+     * 판정이 전부 도메인에 있어 단순 위임이지만 계층을 건너뛰지 않는다.
+     * 컨트롤러가 도메인 서비스를 직접 참조하기 시작하면 유스케이스 정책이 생길 자리가 사라진다.
+     */
+    fun changePassword(command: UserCommand.ChangePassword) {
+        userService.changePassword(command)
+    }
 }

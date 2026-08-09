@@ -48,3 +48,62 @@ X-Loopers-LoginId: loopers-01
 ### 내 정보 조회 - 가입되지 않은 ID (404 Not Found)
 GET {{commerce-api}}/api/v1/users/me
 X-Loopers-LoginId: nobody
+
+### 비밀번호 수정
+PUT {{commerce-api}}/api/v1/users/me/password
+X-Loopers-LoginId: loopers01
+Content-Type: application/json
+
+{
+  "currentPassword": "Loopers1!",
+  "newPassword": "Loopers2@"
+}
+
+### 비밀번호 수정 - 기존 비밀번호 불일치 (401 Unauthorized)
+PUT {{commerce-api}}/api/v1/users/me/password
+X-Loopers-LoginId: loopers01
+Content-Type: application/json
+
+{
+  "currentPassword": "Wrong123!",
+  "newPassword": "Loopers3#"
+}
+
+### 비밀번호 수정 - 가입되지 않은 ID (401 Unauthorized, 위와 동일한 응답)
+PUT {{commerce-api}}/api/v1/users/me/password
+X-Loopers-LoginId: nobody
+Content-Type: application/json
+
+{
+  "currentPassword": "Loopers1!",
+  "newPassword": "Loopers3#"
+}
+
+### 비밀번호 수정 - 새 비밀번호가 기존과 동일 (400 Bad Request)
+PUT {{commerce-api}}/api/v1/users/me/password
+X-Loopers-LoginId: loopers01
+Content-Type: application/json
+
+{
+  "currentPassword": "Loopers1!",
+  "newPassword": "Loopers1!"
+}
+
+### 비밀번호 수정 - 새 비밀번호에 생년월일 포함 (400 Bad Request)
+PUT {{commerce-api}}/api/v1/users/me/password
+X-Loopers-LoginId: loopers01
+Content-Type: application/json
+
+{
+  "currentPassword": "Loopers1!",
+  "newPassword": "Abc19900101!"
+}
+
+### 비밀번호 수정 - 헤더 누락 (400 Bad Request)
+PUT {{commerce-api}}/api/v1/users/me/password
+Content-Type: application/json
+
+{
+  "currentPassword": "Loopers1!",
+  "newPassword": "Loopers3#"
+}

@@ -27,4 +27,17 @@ interface UserV1ApiSpec {
         loginId: String,
         response: HttpServletResponse,
     ): ApiResponse<UserV1Dto.MeResponse>
+
+    @Operation(
+        summary = "비밀번호 수정",
+        description = "기존 비밀번호를 확인한 뒤 새 비밀번호로 교체합니다. " +
+            "새 비밀번호는 8~16자에 영문·숫자·특수문자를 각각 1자 이상 포함해야 하고, 생년월일을 포함할 수 없으며, " +
+            "기존 비밀번호와 같을 수 없습니다.",
+    )
+    fun changePassword(
+        @Schema(name = "로그인 ID", description = "비밀번호를 변경할 회원의 로그인 ID. 영문과 숫자만 10자 이내로 허용합니다.")
+        loginId: String,
+        @Schema(name = "비밀번호 수정 요청", description = "기존 비밀번호와 새 비밀번호")
+        request: UserV1Dto.ChangePasswordRequest,
+    ): ApiResponse<Any>
 }

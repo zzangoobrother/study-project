@@ -29,6 +29,7 @@ class UserV1ApiE2ETest @Autowired constructor(
     companion object {
         private const val ENDPOINT_SIGN_UP = "/api/v1/users"
         private const val ENDPOINT_ME = "/api/v1/users/me"
+        private const val ENDPOINT_PASSWORD = "/api/v1/users/me/password"
     }
 
     private fun signUpRequest(
@@ -61,6 +62,26 @@ class UserV1ApiE2ETest @Autowired constructor(
     private fun signUp(request: UserV1Dto.SignUpRequest = signUpRequest()) {
         val responseType = object : ParameterizedTypeReference<ApiResponse<UserV1Dto.UserResponse>>() {}
         testRestTemplate.exchange(ENDPOINT_SIGN_UP, HttpMethod.POST, jsonEntity(request), responseType)
+    }
+
+    private fun changePasswordRequest(
+        currentPassword: String = "Loopers1!",
+        newPassword: String = "Loopers2@",
+    ) = UserV1Dto.ChangePasswordRequest(
+        currentPassword = currentPassword,
+        newPassword = newPassword,
+    )
+
+    /** loginId 가 null 이면 X-Loopers-LoginId 헤더를 아예 넣지 않는다. */
+    private fun changePasswordEntity(
+        request: UserV1Dto.ChangePasswordRequest = changePasswordRequest(),
+        loginId: String? = null,
+    ): HttpEntity<UserV1Dto.ChangePasswordRequest> {
+        val headers = HttpHeaders().apply {
+            contentType = MediaType.APPLICATION_JSON
+            loginId?.let { set(UserV1Controller.HEADER_LOGIN_ID, it) }
+        }
+        return HttpEntity(request, headers)
     }
 
     @AfterEach
@@ -300,6 +321,172 @@ class UserV1ApiE2ETest @Autowired constructor(
             assertAll(
                 { assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST) },
                 { assertThat(response.body?.meta?.result).isEqualTo(ApiResponse.Metadata.Result.FAIL) },
+            )
+        }
+    }
+
+    @DisplayName("PUT /api/v1/users/me/password")
+    @Nested
+    inner class ChangePassword {
+        @DisplayName("기존 비밀번호가 일치하면, 200 OK 와 빈 data 를 반환하고 새 비밀번호로 다시 변경할 수 있다.")
+        @Test
+        fun changesPassword_whenCurrentPasswordMatches() {
+            // arrange
+            signUp()
+            val responseType = object : ParameterizedTypeReference<ApiResponse<Any>>() {}
+
+            // act
+            val response = testRestTemplate.exchange(
+                ENDPOINT_PASSWORD,
+                HttpMethod.PUT,
+                changePasswordEntity(loginId = "loopers01"),
+                responseType,
+            )
+
+            // 실제로 교체되었다면 새 비밀번호가 기존 비밀번호로 동작해야 한다.
+            val second = testRestTemplate.exchange(
+                ENDPOINT_PASSWORD,
+                HttpMethod.PUT,
+                changePasswordEntity(
+                    request = changePasswordRequest(currentPassword = "Loopers2@", newPassword = "Loopers3#"),
+                    loginId = "loopers01",
+                ),
+                responseType,
+            )
+
+            // assert
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.OK) },
+                { assertThat(response.body?.meta?.result).isEqualTo(ApiResponse.Metadata.Result.SUCCESS) },
+                { assertThat(response.body?.data).isNull() },
+                { assertThat(second.statusCode).isEqualTo(HttpStatus.OK) },
+            )
+        }
+
+        @DisplayName("가입되지 않은 로그인 ID 와 기존 비밀번호 불일치가, 완전히 동일한 401 응답을 반환한다.")
+        @Test
+        fun returnsIdenticalUnauthorized_forUnknownLoginIdAndWrongPassword() {
+            // arrange
+            signUp()
+            val responseType = object : ParameterizedTypeReference<ApiResponse<Any>>() {}
+
+            // act
+            val wrongPassword = testRestTemplate.exchange(
+                ENDPOINT_PASSWORD,
+                HttpMethod.PUT,
+                changePasswordEntity(
+                    request = changePasswordRequest(currentPassword = "Wrong123!"),
+                    loginId = "loopers01",
+                ),
+                responseType,
+            )
+            val unknownLoginId = testRestTemplate.exchange(
+                ENDPOINT_PASSWORD,
+                HttpMethod.PUT,
+                changePasswordEntity(loginId = "nobody"),
+                responseType,
+            )
+
+            // assert
+            assertAll(
+                { assertThat(wrongPassword.statusCode).isEqualTo(HttpStatus.UNAUTHORIZED) },
+                { assertThat(unknownLoginId.statusCode).isEqualTo(HttpStatus.UNAUTHORIZED) },
+                { assertThat(wrongPassword.body?.meta?.result).isEqualTo(ApiResponse.Metadata.Result.FAIL) },
+                { assertThat(unknownLoginId.body?.meta?.errorCode).isEqualTo(wrongPassword.body?.meta?.errorCode) },
+                { assertThat(unknownLoginId.body?.meta?.message).isEqualTo(wrongPassword.body?.meta?.message) },
+            )
+        }
+
+        @DisplayName("새 비밀번호가 기존 비밀번호와 같으면, 400 BAD_REQUEST 를 반환한다.")
+        @Test
+        fun returnsBadRequest_whenNewPasswordIsSameAsCurrent() {
+            // arrange
+            signUp()
+            val responseType = object : ParameterizedTypeReference<ApiResponse<Any>>() {}
+
+            // act
+            val response = testRestTemplate.exchange(
+                ENDPOINT_PASSWORD,
+                HttpMethod.PUT,
+                changePasswordEntity(
+                    request = changePasswordRequest(newPassword = "Loopers1!"),
+                    loginId = "loopers01",
+                ),
+                responseType,
+            )
+
+            // assert
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST) },
+                { assertThat(response.body?.meta?.result).isEqualTo(ApiResponse.Metadata.Result.FAIL) },
+            )
+        }
+
+        @DisplayName("새 비밀번호가 규칙을 위반하면, 400 BAD_REQUEST 를 반환한다.")
+        @ParameterizedTest
+        @ValueSource(strings = ["Abc19900101!", "abcdefgh", "Ab1!"])
+        fun returnsBadRequest_whenNewPasswordViolatesPolicy(newPassword: String) {
+            // arrange
+            signUp()
+            val responseType = object : ParameterizedTypeReference<ApiResponse<Any>>() {}
+
+            // act
+            val response = testRestTemplate.exchange(
+                ENDPOINT_PASSWORD,
+                HttpMethod.PUT,
+                changePasswordEntity(
+                    request = changePasswordRequest(newPassword = newPassword),
+                    loginId = "loopers01",
+                ),
+                responseType,
+            )
+
+            // assert
+            assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        }
+
+        @DisplayName("X-Loopers-LoginId 헤더가 없으면, 400 BAD_REQUEST 를 반환한다.")
+        @Test
+        fun returnsBadRequest_whenHeaderIsMissing() {
+            // arrange
+            signUp()
+            val responseType = object : ParameterizedTypeReference<ApiResponse<Any>>() {}
+
+            // act
+            val response = testRestTemplate.exchange(
+                ENDPOINT_PASSWORD,
+                HttpMethod.PUT,
+                changePasswordEntity(),
+                responseType,
+            )
+
+            // assert
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST) },
+                { assertThat(response.body?.meta?.result).isEqualTo(ApiResponse.Metadata.Result.FAIL) },
+            )
+        }
+
+        @DisplayName("변경에 성공해도, 응답 본문에 평문 비밀번호가 노출되지 않는다.")
+        @Test
+        fun doesNotExposePassword_whenChangeSucceeds() {
+            // arrange
+            signUp()
+
+            // act
+            val response = testRestTemplate.exchange(
+                ENDPOINT_PASSWORD,
+                HttpMethod.PUT,
+                changePasswordEntity(loginId = "loopers01"),
+                String::class.java,
+            )
+
+            // assert
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.OK) },
+                { assertThat(response.body).doesNotContain("Loopers1!") },
+                { assertThat(response.body).doesNotContain("Loopers2@") },
+                { assertThat(response.body).doesNotContain("password") },
             )
         }
     }

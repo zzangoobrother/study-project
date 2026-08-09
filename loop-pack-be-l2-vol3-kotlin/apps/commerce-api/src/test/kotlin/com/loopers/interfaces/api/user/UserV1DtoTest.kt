@@ -68,4 +68,29 @@ class UserV1DtoTest {
             )
         }
     }
+
+    @DisplayName("ChangePasswordRequest 를 문자열로 변환할 때, ")
+    @Nested
+    inner class ChangePasswordRequestToString {
+        @DisplayName("기존 비밀번호와 새 비밀번호가 모두 마스킹된다.")
+        @Test
+        fun masksBothPasswords_whenConvertedToString() {
+            // arrange
+            val request = UserV1Dto.ChangePasswordRequest(
+                currentPassword = "Loopers1!",
+                newPassword = "Loopers2@",
+            )
+
+            // act
+            val result = request.toString()
+
+            // assert
+            assertAll(
+                { assertThat(result).doesNotContain("Loopers1!") },
+                { assertThat(result).doesNotContain("Loopers2@") },
+                { assertThat(result).contains("currentPassword=****") },
+                { assertThat(result).contains("newPassword=****") },
+            )
+        }
+    }
 }
