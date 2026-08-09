@@ -1176,6 +1176,7 @@ PUT /api/v1/users/me/password 가 X-Loopers-LoginId 헤더로 대상을 식별�
 - [ ] `git diff master --stat` 으로 확인: `LoginId.kt` / `Email.kt` / `BirthDate.kt` / `UserName.kt` / `RawPassword.kt` / `EncodedPassword.kt` / `PasswordEncoder.kt` / `Sha256PasswordEncoder.kt` / `UserInfo.kt` / `UserRepository.kt` / `UserJpaRepository.kt` / `UserRepositoryImpl.kt` / `ApiControllerAdvice.kt` / `ApiResponse.kt` 가 변경되지 않았다
 - [ ] `ErrorType` 에 추가된 상수가 `UNAUTHORIZED` 하나뿐이다
 - [ ] `"로그인 ID 또는 비밀번호가 올바르지 않습니다."` 문자열 리터럴이 프로덕션 코드에 **한 번만** 등장한다 (`grep -rn "올바르지 않습니다" apps/commerce-api/src/main` 으로 확인)
+- [ ] `UserModel.create()` 와 `UserModel.changePassword()` 가 같은 `validateBirthDateNotIncluded()` 를 호출한다
 
 ---
 
@@ -1192,4 +1193,3 @@ PUT /api/v1/users/me/password 가 X-Loopers-LoginId 헤더로 대상을 식별�
 존재 이유로 든 "salt 때문에 encode 결과 비교로는 잡을 수 없다" 는 논지는 더 이상 성립하지 않는다.
 동일성 판정이 인코더를 거치지 않기 때문이다. 그 테스트는 그대로 통과하며, 이제
 "제출된 두 평문이 같으면 거부된다" 는 계약을 통합 계층에서 지킨다.
-- [ ] `UserModel.create()` 와 `UserModel.changePassword()` 가 같은 `validateBirthDateNotIncluded()` 를 호출한다

@@ -460,6 +460,7 @@ fun changePassword(
 - 새 비밀번호에 생년월일 `yyyyMMdd` 표기가 포함되면, `BAD_REQUEST` 예외가 발생한다
 - 새 비밀번호에 생년월일 `yyMMdd` 표기가 포함되면, `BAD_REQUEST` 예외가 발생한다
 - 기존 비밀번호가 틀리고 새 비밀번호도 정책 위반이면, `UNAUTHORIZED` 가 우선한다 (6.3 장의 검사 순서 고정)
+- 제출된 두 비밀번호가 같으면, 기존 비밀번호가 틀렸더라도 `UNAUTHORIZED` 가 아니라 `BAD_REQUEST` 가 발생한다 (9.5 장의 오라클 제거를 고정)
 - 예외가 발생하면 기존 비밀번호가 그대로 남는다
 
 ### 7.2 통합 테스트 — `UserServiceIntegrationTest` 에 `ChangePassword` Nested 추가
@@ -491,6 +492,7 @@ salt 가 존재하지 않는다. 따라서 구현이 실수로 `passwordEncoder.
 - 기존 비밀번호가 틀리면, `401 Unauthorized` 를 반환한다
 - 미가입 로그인 ID 면 `401 Unauthorized` 이고, **메시지가 위 케이스와 완전히 동일하다** (6.2 장 규약 고정)
 - 새 비밀번호가 기존 비밀번호와 같으면, `400 Bad Request` 를 반환한다
+- **제출된 두 비밀번호가 같으면, 기존 비밀번호의 정오와 무관하게 완전히 동일한 `400` 응답을 반환한다** ← 9.5 장의 오라클 제거를 고정
 - 새 비밀번호에 생년월일이 포함되면, `400 Bad Request` 를 반환한다
 - 새 비밀번호가 형식 규칙을 위반하면, `400 Bad Request` 를 반환한다
 - `X-Loopers-LoginId` 헤더가 없으면, `400 Bad Request` 를 반환한다
