@@ -60,24 +60,28 @@ class UserModel private constructor(
      * "바꿔도 되는가"(기존 비밀번호 일치)와 "무엇으로 바꿀 수 있는가"(기존과 다를 것, 생년월일 불포함)가
      * 모두 이 애그리거트의 상태(password, birthDate)에 의존하므로 판정을 여기서 한다.
      *
-     * 검사 순서는 인증(401) → 정책(400) 이다.
-     * 인증되지 않은 요청자에게 새 비밀번호의 정책 위반 여부를 알려주지 않는다.
+     * 검사 순서에는 두 구간이 있다.
+     * 요청 데이터만으로 판정할 수 있는 것을 먼저 보고(400), 그다음 자격 증명을 검증하며(401),
+     * 저장된 상태에 의존하는 정책은 인증 뒤에 둔다(400).
+     * 근거는 설계 문서 6.3 장과 9.5 장에 있다.
      */
     fun changePassword(
         currentPassword: RawPassword,
         newPassword: RawPassword,
         passwordEncoder: PasswordEncoder,
     ) {
+        // 두 값 모두 요청에서 온 것이므로 이 판정은 저장된 상태를 전혀 드러내지 않는다.
+        // 인증보다 앞에 두어야 400/401 차이가 "기존 비밀번호를 맞혔다" 는 확증이 되지 않는다.
+        if (currentPassword == newPassword) {
+            throw CoreException(ErrorType.BAD_REQUEST, "기존 비밀번호와 새 비밀번호가 같습니다.")
+        }
+
         if (!passwordEncoder.matches(currentPassword, password)) {
             throw CoreException(ErrorType.UNAUTHORIZED, INVALID_CREDENTIAL_MESSAGE)
         }
 
-        // encode() 는 호출마다 새 salt 를 뽑아 같은 평문도 다른 결과를 낸다.
-        // 따라서 encode 결과 비교로는 판정할 수 없고 반드시 matches 를 써야 한다.
-        if (passwordEncoder.matches(newPassword, password)) {
-            throw CoreException(ErrorType.BAD_REQUEST, "새 비밀번호는 기존 비밀번호와 달라야 합니다.")
-        }
-
+        // 저장된 birthDate 에 의존하므로 반드시 인증 뒤에 남아야 한다.
+        // 앞으로 옮기면 틀린 비밀번호로도 피해자의 생년월일을 맞혀 볼 수 있는 반대 방향의 유출이 생긴다.
         validateBirthDateNotIncluded(newPassword, birthDate)
 
         password = passwordEncoder.encode(newPassword)

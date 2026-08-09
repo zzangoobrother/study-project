@@ -173,23 +173,28 @@ enum class ErrorType(val status: HttpStatus, val code: String, val message: Stri
  * "바꿔도 되는가"(기존 비밀번호 일치)와 "무엇으로 바꿀 수 있는가"(기존과 다를 것, 생년월일 불포함)가
  * 모두 이 애그리거트의 상태(password, birthDate)에 의존하므로 판정을 여기서 한다.
  *
- * 검사 순서는 인증(401) → 정책(400) 이다.
- * 인증되지 않은 요청에 새 비밀번호 규칙 위반 여부를 알려주지 않는다.
+ * 검사 순서에는 두 구간이 있다.
+ * 요청 데이터만으로 판정할 수 있는 것을 먼저 보고(400), 그다음 자격 증명을 검증하며(401),
+ * 저장된 상태에 의존하는 정책은 인증 뒤에 둔다(400).
+ * 근거는 6.3 장과 9.5 장에 있다.
  */
 fun changePassword(
     currentPassword: RawPassword,
     newPassword: RawPassword,
     passwordEncoder: PasswordEncoder,
 ) {
+    // 두 값 모두 요청에서 온 것이므로 이 판정은 저장된 상태를 전혀 드러내지 않는다.
+    // 인증보다 앞에 두어야 400/401 차이가 "기존 비밀번호를 맞혔다" 는 확증이 되지 않는다.
+    if (currentPassword == newPassword) {
+        throw CoreException(ErrorType.BAD_REQUEST, "기존 비밀번호와 새 비밀번호가 같습니다.")
+    }
+
     if (!passwordEncoder.matches(currentPassword, password)) {
         throw CoreException(ErrorType.UNAUTHORIZED, INVALID_CREDENTIAL_MESSAGE)
     }
 
-    // encode() 는 호출마다 새 salt 를 뽑으므로 encode 결과 비교로는 판정할 수 없다. 반드시 matches 를 쓴다.
-    if (passwordEncoder.matches(newPassword, password)) {
-        throw CoreException(ErrorType.BAD_REQUEST, "새 비밀번호는 기존 비밀번호와 달라야 합니다.")
-    }
-
+    // 저장된 birthDate 에 의존하므로 반드시 인증 뒤에 남아야 한다.
+    // 앞으로 옮기면 틀린 비밀번호로도 피해자의 생년월일을 맞혀 볼 수 있는 반대 방향의 유출이 생긴다.
     validateBirthDateNotIncluded(newPassword, birthDate)
 
     password = passwordEncoder.encode(newPassword)
@@ -254,6 +259,10 @@ companion object {
   `ErrorType` 은 도메인 전 계층에서 쓰인다.
 - **`password` 의 setter 는 `protected` 이므로 클래스 본문 안에서 대입할 수 있다.** 외부 계층은 여전히 대입할 수 없어,
   "비밀번호는 `changePassword()` 를 통해서만 바뀐다" 가 타입으로 강제된다.
+- **`currentPassword == newPassword` 판정을 자격 증명 검증보다 앞에 둔다.** 두 값 모두 요청에서 왔으므로
+  저장된 상태를 드러내지 않는다. 인증 뒤에 두면 400 응답이 "기존 비밀번호를 맞혔다" 는 확증이 된다 (9.5 장).
+  인증을 통과하면 `currentPassword` 가 곧 저장된 비밀번호이므로, 해시 비교(`matches(newPassword, password)`)는
+  논리적으로 잉여이며 제거해도 규칙이 약해지지 않는다.
 
 ### 5.3 `UserCommand.ChangePassword`
 
@@ -386,7 +395,7 @@ fun changePassword(
 | 미가입 로그인 ID | `UserService` | `UNAUTHORIZED` | **401** |
 | 소프트 삭제된 회원 | `UserService` | `UNAUTHORIZED` | **401** |
 | 기존 비밀번호 불일치 | `UserModel` | `UNAUTHORIZED` | **401** |
-| 새 비밀번호 == 기존 비밀번호 | `UserModel` | `BAD_REQUEST` | 400 |
+| 새 비밀번호 == 기존 비밀번호 | `UserModel` (인증 이전) | `BAD_REQUEST` | 400 |
 | 새 비밀번호에 생년월일 포함 | `UserModel` | `BAD_REQUEST` | 400 |
 
 **`ApiControllerAdvice` 에 신규 핸들러를 추가하지 않는다.** 모든 도메인 에러가 `CoreException` 으로 흐르고,
@@ -429,8 +438,15 @@ fun changePassword(
 **이것을 막지 않는다.** 판정 근거가 요청 문자열뿐이고 저장된 값과 무관하므로, 공격자가 이미 아는 사실만
 되돌려줄 뿐이다. 회원 존재 여부나 비밀번호에 대한 정보는 새어 나가지 않는다.
 
-같은 이유로 검사 순서는 `RawPassword` 생성 → 회원 조회 → 기존 비밀번호 일치 → 새 비밀번호 정책 순이며,
-**자격 증명 검증이 새 비밀번호 정책 검증보다 앞선다.** 인증되지 않은 요청자에게 정책 위반 여부를 알려주지 않는다.
+검사 순서는 세 구간으로 나뉜다.
+
+1. **요청 데이터만으로 판정 가능한 것** — `RawPassword` 형식 검증, `currentPassword == newPassword` 동일성 (400)
+2. **자격 증명 검증** — 기존 비밀번호 일치 (401)
+3. **저장된 상태에 의존하는 정책** — 생년월일 불포함 (400)
+
+1번 구간은 저장된 값을 전혀 참조하지 않으므로 인증 전에 두어도 아무것도 유출하지 않는다.
+3번 구간은 저장된 `birthDate` 를 참조하므로 반드시 인증 뒤에 있어야 한다.
+이 배치가 만들어 내는 잔여 위험은 9.5 장에 기록한다.
 
 ## 7. 테스트 계획
 
@@ -529,3 +545,36 @@ RFC 9110 §15.5.2 는 401 응답에 `WWW-Authenticate` 헤더를 요구한다.
 즉 401 통일의 현재 실질 방어력은 제한적이다. 그럼에도 채택한 이유는,
 `GET /me` 에 인증이 붙는 시점에 이 엔드포인트가 홀로 구멍으로 남지 않게 하기 위해서다.
 `UserV1Controller.getMyInfo` 의 경고 주석이 이 미해결 상태를 이미 표시하고 있다.
+
+### 9.5 정책 거부가 자격 증명을 확인해 주는 오라클
+
+6.3 장이 정한 검사 순서에는 반대급부가 있다.
+**인증 이후의 정책 거부(400)는 곧 "당신이 보낸 `currentPassword` 가 맞았다" 는 확증**이 된다.
+
+특히 위험한 것은 이 확인이 **아무 흔적도 남기지 않는다**는 점이다.
+정책 위반 예외는 `password` 대입 이전에 던져지므로 트랜잭션이 롤백되고,
+더티 상태가 없어 `updatedAt` 조차 움직이지 않는다.
+9.3 장이 기록한 "시도 횟수 제한 부재" 는 암묵적으로 *성공한 추측은 비밀번호를 실제로 바꾸므로
+피해자가 즉시 알아차린다* 를 전제하는데, 이 오라클은 그 전제를 무너뜨린다.
+
+**두 유형 중 하나는 코드로 제거했다.**
+
+`currentPassword == newPassword` 판정을 저장 해시 비교(`matches`)에서 **제출된 두 평문의 비교**로 바꾸고
+자격 증명 검증보다 앞으로 옮겼다 (5.2 장). 두 값 모두 요청에서 왔으므로 이 판정은 저장된 상태를 드러내지 않는다.
+6.3 장이 형식 검증에 적용한 기준 — "판정 근거가 요청 문자열뿐이고 저장된 값과 무관하므로
+공격자가 이미 아는 사실만 되돌려준다" — 을 그대로 적용한 것이다.
+
+**남은 유형은 제거하지 않았다.**
+
+새 비밀번호에 피해자의 생년월일을 넣어 보내면, 기존 비밀번호 추측이 맞을 때만 400 이 돌아온다.
+
+    { "currentPassword": "<추측>", "newPassword": "Abc19900101!" }
+
+이 판정은 저장된 `birthDate` 에 의존하므로 앞으로 옮길 수 없다.
+옮기면 **틀린 비밀번호로도 피해자의 생년월일을 맞혀 볼 수 있는** 반대 방향의 유출이 생긴다.
+현재 위치는 두 위험 중 작은 쪽을 택한 결과다.
+
+이 공격은 피해자의 생년월일을 알아야 성립하는데, 9.4 장이 기록한 대로 `GET /me` 가 인증 없이
+생년월일을 반환한다. **9.3·9.4 와 곱해지는 위험**이며, 세 장을 따로 읽어서는 이 결합이 보이지 않는다.
+
+근본 해결은 9.3 장의 시도 횟수 제한이다. 그것이 도입되기 전까지 이 오라클은 남는다.

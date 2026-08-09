@@ -422,6 +422,42 @@ class UserV1ApiE2ETest @Autowired constructor(
             )
         }
 
+        @DisplayName("제출된 두 비밀번호가 같으면, 기존 비밀번호의 정오와 무관하게 완전히 동일한 400 응답을 반환한다.")
+        @Test
+        fun returnsIdenticalBadRequest_whenSubmittedPasswordsAreIdentical() {
+            // arrange
+            signUp()
+            val responseType = object : ParameterizedTypeReference<ApiResponse<Any>>() {}
+
+            // act — 기존 비밀번호를 맞힌 경우와 틀린 경우
+            val correctGuess = testRestTemplate.exchange(
+                ENDPOINT_PASSWORD,
+                HttpMethod.PUT,
+                changePasswordEntity(
+                    request = changePasswordRequest(currentPassword = "Loopers1!", newPassword = "Loopers1!"),
+                    loginId = "loopers01",
+                ),
+                responseType,
+            )
+            val wrongGuess = testRestTemplate.exchange(
+                ENDPOINT_PASSWORD,
+                HttpMethod.PUT,
+                changePasswordEntity(
+                    request = changePasswordRequest(currentPassword = "Wrong123!", newPassword = "Wrong123!"),
+                    loginId = "loopers01",
+                ),
+                responseType,
+            )
+
+            // assert — 두 응답이 구별되지 않아야 비밀번호 확인 오라클이 성립하지 않는다
+            assertAll(
+                { assertThat(correctGuess.statusCode).isEqualTo(HttpStatus.BAD_REQUEST) },
+                { assertThat(wrongGuess.statusCode).isEqualTo(HttpStatus.BAD_REQUEST) },
+                { assertThat(wrongGuess.body?.meta?.errorCode).isEqualTo(correctGuess.body?.meta?.errorCode) },
+                { assertThat(wrongGuess.body?.meta?.message).isEqualTo(correctGuess.body?.meta?.message) },
+            )
+        }
+
         @DisplayName("새 비밀번호가 규칙을 위반하면, 400 BAD_REQUEST 를 반환한다.")
         @ParameterizedTest
         @ValueSource(strings = ["Abc19900101!", "abcdefgh", "Ab1!"])

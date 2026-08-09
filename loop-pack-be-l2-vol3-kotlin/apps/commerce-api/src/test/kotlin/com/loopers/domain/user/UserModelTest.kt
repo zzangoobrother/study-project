@@ -164,6 +164,25 @@ class UserModelTest {
             assertThat(result.errorType).isEqualTo(ErrorType.BAD_REQUEST)
         }
 
+        @DisplayName("제출된 두 비밀번호가 같으면, 기존 비밀번호가 틀렸더라도 UNAUTHORIZED 가 아니라 BAD_REQUEST 가 발생한다.")
+        @Test
+        fun throwsBadRequestException_whenSubmittedPasswordsAreIdenticalButCurrentIsWrong() {
+            // arrange
+            val user = createUser(rawPassword = "Loopers1!")
+
+            // act
+            val result = assertThrows<CoreException> {
+                user.changePassword(
+                    currentPassword = RawPassword("Wrong123!"),
+                    newPassword = RawPassword("Wrong123!"),
+                    passwordEncoder = passwordEncoder,
+                )
+            }
+
+            // assert
+            assertThat(result.errorType).isEqualTo(ErrorType.BAD_REQUEST)
+        }
+
         @DisplayName("새 비밀번호에 생년월일이 포함되면, BAD_REQUEST 예외가 발생한다.")
         @ParameterizedTest
         @ValueSource(strings = ["Abc19900101!", "pass900101@x"])

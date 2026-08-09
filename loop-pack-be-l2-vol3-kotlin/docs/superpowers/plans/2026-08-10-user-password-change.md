@@ -1176,4 +1176,20 @@ PUT /api/v1/users/me/password 가 X-Loopers-LoginId 헤더로 대상을 식별�
 - [ ] `git diff master --stat` 으로 확인: `LoginId.kt` / `Email.kt` / `BirthDate.kt` / `UserName.kt` / `RawPassword.kt` / `EncodedPassword.kt` / `PasswordEncoder.kt` / `Sha256PasswordEncoder.kt` / `UserInfo.kt` / `UserRepository.kt` / `UserJpaRepository.kt` / `UserRepositoryImpl.kt` / `ApiControllerAdvice.kt` / `ApiResponse.kt` 가 변경되지 않았다
 - [ ] `ErrorType` 에 추가된 상수가 `UNAUTHORIZED` 하나뿐이다
 - [ ] `"로그인 ID 또는 비밀번호가 올바르지 않습니다."` 문자열 리터럴이 프로덕션 코드에 **한 번만** 등장한다 (`grep -rn "올바르지 않습니다" apps/commerce-api/src/main` 으로 확인)
+
+---
+
+## 구현 후 변경 (2026-08-10, 최종 리뷰 반영)
+
+최종 전체 브랜치 리뷰에서 **무흔적 자격 증명 확인 오라클**이 발견되어, Task 1 이 만든
+`UserModel.changePassword` 의 검사 순서를 바꿨다. `currentPassword == newPassword` 판정을
+저장 해시 비교에서 제출된 두 평문의 비교로 바꾸고 자격 증명 검증보다 앞으로 옮겼다.
+
+따라서 **위 Task 1 Step 4 의 코드 블록은 최종 상태가 아니다.** 현재 계약은
+설계 문서 `2026-08-10-user-password-change-design.md` 의 5.2 · 6.3 · 9.5 장을 따른다.
+
+부수 효과: Task 2 Step 1 이 `throwsBadRequestException_whenNewPasswordIsSameAsCurrent` 통합 테스트의
+존재 이유로 든 "salt 때문에 encode 결과 비교로는 잡을 수 없다" 는 논지는 더 이상 성립하지 않는다.
+동일성 판정이 인코더를 거치지 않기 때문이다. 그 테스트는 그대로 통과하며, 이제
+"제출된 두 평문이 같으면 거부된다" 는 계약을 통합 계층에서 지킨다.
 - [ ] `UserModel.create()` 와 `UserModel.changePassword()` 가 같은 `validateBirthDateNotIncluded()` 를 호출한다
