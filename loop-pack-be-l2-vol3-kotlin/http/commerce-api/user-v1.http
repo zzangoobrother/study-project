@@ -1,4 +1,9 @@
+// 위에서 아래로 순서대로 실행하는 것을 전제로 한다.
+// 상태를 바꾸지 않는 실패 케이스를 앞에 두고, 상태를 바꾸는 요청을 각 구간의 끝에 둔다.
+// 처음부터 다시 실행하려면 DB 를 비워야 한다. loginId 가 남아 있으면 회원 가입이 409 로 떨어진다.
+
 ### 회원 가입
+// 이후 케이스들이 이 회원에 의존하므로 성공 요청이 구간의 처음에 온다.
 POST {{commerce-api}}/api/v1/users
 Content-Type: application/json
 
@@ -49,18 +54,28 @@ X-Loopers-LoginId: loopers-01
 GET {{commerce-api}}/api/v1/users/me
 X-Loopers-LoginId: nobody
 
-### 비밀번호 수정
-PUT {{commerce-api}}/api/v1/users/me/password
+### 비밀번호 수정 - 헤더 누락 (400 Bad Request)
+PUT {{commerce-api}}/api/v1/users/password
+Content-Type: application/json
+
+{
+  "currentPassword": "Loopers1!",
+  "newPassword": "Loopers3#"
+}
+
+### 비밀번호 수정 - 새 비밀번호가 기존과 동일 (400 Bad Request)
+// 두 값 모두 요청에서 온 것이라 인증 이전에 판정된다. 기존 비밀번호가 무엇이든 400 이다.
+PUT {{commerce-api}}/api/v1/users/password
 X-Loopers-LoginId: loopers01
 Content-Type: application/json
 
 {
   "currentPassword": "Loopers1!",
-  "newPassword": "Loopers2@"
+  "newPassword": "Loopers1!"
 }
 
 ### 비밀번호 수정 - 기존 비밀번호 불일치 (401 Unauthorized)
-PUT {{commerce-api}}/api/v1/users/me/password
+PUT {{commerce-api}}/api/v1/users/password
 X-Loopers-LoginId: loopers01
 Content-Type: application/json
 
@@ -70,7 +85,7 @@ Content-Type: application/json
 }
 
 ### 비밀번호 수정 - 가입되지 않은 ID (401 Unauthorized, 위와 동일한 응답)
-PUT {{commerce-api}}/api/v1/users/me/password
+PUT {{commerce-api}}/api/v1/users/password
 X-Loopers-LoginId: nobody
 Content-Type: application/json
 
@@ -79,18 +94,10 @@ Content-Type: application/json
   "newPassword": "Loopers3#"
 }
 
-### 비밀번호 수정 - 새 비밀번호가 기존과 동일 (400 Bad Request)
-PUT {{commerce-api}}/api/v1/users/me/password
-X-Loopers-LoginId: loopers01
-Content-Type: application/json
-
-{
-  "currentPassword": "Loopers1!",
-  "newPassword": "Loopers1!"
-}
-
 ### 비밀번호 수정 - 새 비밀번호에 생년월일 포함 (400 Bad Request)
-PUT {{commerce-api}}/api/v1/users/me/password
+// 저장된 생년월일에 의존하는 규칙이라 인증을 통과해야 판정된다.
+// 따라서 currentPassword 가 실제 비밀번호여야 하고, 아래 성공 요청보다 앞에 있어야 한다.
+PUT {{commerce-api}}/api/v1/users/password
 X-Loopers-LoginId: loopers01
 Content-Type: application/json
 
@@ -99,11 +106,15 @@ Content-Type: application/json
   "newPassword": "Abc19900101!"
 }
 
-### 비밀번호 수정 - 헤더 누락 (400 Bad Request)
-PUT {{commerce-api}}/api/v1/users/me/password
+### 비밀번호 수정
+// 유일하게 상태를 바꾸는 요청이라 마지막에 둔다.
+// 이 요청 이후 loopers01 의 비밀번호는 Loopers2@ 이므로,
+// 위 케이스들을 다시 실행하려면 currentPassword 를 Loopers2@ 로 바꾸거나 DB 를 초기화해야 한다.
+PUT {{commerce-api}}/api/v1/users/password
+X-Loopers-LoginId: loopers01
 Content-Type: application/json
 
 {
   "currentPassword": "Loopers1!",
-  "newPassword": "Loopers3#"
+  "newPassword": "Loopers2@"
 }

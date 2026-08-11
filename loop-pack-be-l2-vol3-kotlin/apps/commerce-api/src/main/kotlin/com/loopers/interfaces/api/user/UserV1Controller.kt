@@ -56,7 +56,7 @@ class UserV1Controller(
      * Cache-Control 을 세팅하지 않는 이유는, 캐시가 PUT 응답을 저장하지 않고 오히려 해당 URI 의
      * 캐시 항목을 무효화하기 때문이다. GET /me 와 달리 방어할 대상이 없다.
      */
-    @PutMapping("/me/password")
+    @PutMapping("/password")
     override fun changePassword(
         @RequestHeader(HEADER_LOGIN_ID) loginId: String,
         @RequestBody request: UserV1Dto.ChangePasswordRequest,

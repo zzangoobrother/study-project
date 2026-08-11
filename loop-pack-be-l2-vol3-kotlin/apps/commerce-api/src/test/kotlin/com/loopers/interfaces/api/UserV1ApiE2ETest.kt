@@ -29,7 +29,7 @@ class UserV1ApiE2ETest @Autowired constructor(
     companion object {
         private const val ENDPOINT_SIGN_UP = "/api/v1/users"
         private const val ENDPOINT_ME = "/api/v1/users/me"
-        private const val ENDPOINT_PASSWORD = "/api/v1/users/me/password"
+        private const val ENDPOINT_PASSWORD = "/api/v1/users/password"
     }
 
     private fun signUpRequest(
@@ -325,7 +325,7 @@ class UserV1ApiE2ETest @Autowired constructor(
         }
     }
 
-    @DisplayName("PUT /api/v1/users/me/password")
+    @DisplayName("PUT /api/v1/users/password")
     @Nested
     inner class ChangePassword {
         @DisplayName("기존 비밀번호가 일치하면, 200 OK 와 빈 data 를 반환하고 새 비밀번호로 다시 변경할 수 있다.")

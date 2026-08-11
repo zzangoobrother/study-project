@@ -20,7 +20,7 @@
 
 ### 포함
 
-- `PUT /api/v1/users/me/password` 1개
+- `PUT /api/v1/users/password` 1개
 - `ErrorType.UNAUTHORIZED(401)` 신설
 - `UserModel.changePassword()` 신설 — 자격 증명 검증과 비밀번호 교체
 - 생년월일 포함 금지 규칙을 생성 전용에서 애그리거트 공용 규칙으로 승격
@@ -72,12 +72,12 @@
 
 ## 4. API 스펙
 
-### `PUT /api/v1/users/me/password`
+### `PUT /api/v1/users/password`
 
 요청:
 
 ```
-PUT /api/v1/users/me/password
+PUT /api/v1/users/password
 X-Loopers-LoginId: loopers01
 Content-Type: application/json
 
@@ -102,11 +102,11 @@ Content-Type: application/json
 
 - 요구사항이 `{ 기존 비밀번호, 새 비밀번호 }` 를 한 묶음으로 제시한 형태에 그대로 대응한다.
 - 비밀번호가 URL 이나 헤더가 아닌 본문에만 실려 액세스 로그·리퍼러·프록시 로그 유출 표면이 가장 좁다.
-- 대상 회원 식별은 `X-Loopers-LoginId` 헤더를 계승해 `/me` 네임스페이스의 의미("헤더가 대상을 식별한다")를 유지한다.
+- 대상 회원 식별은 `GET /api/v1/users/me` 와 마찬가지로 `X-Loopers-LoginId` 헤더가 맡는다. 경로에는 대상이 드러나지 않는다.
 
 ### 4.2 메서드와 경로 결정
 
-**`PUT` 을 쓴다.** `/me/password` 를 "현재 비밀번호" 라는 하나의 리소스로 보고 통째로 교체한다.
+**`PUT` 을 쓴다.** `/password` 를 "현재 비밀번호" 라는 하나의 리소스로 보고 통째로 교체한다.
 
 같은 요청을 두 번 보내면 두 번째는 401 을 받는다. 그럼에도 멱등성 위배가 아닌 이유는,
 RFC 9110 의 멱등성이 *응답*이 아니라 *서버에 대한 의도된 효과* 를 기준으로 정의되기 때문이다.
@@ -142,7 +142,7 @@ RFC 9111 상 캐시는 `PUT` 응답을 저장하지 않으며 오히려 해당 U
 | `domain/user/UserService.kt` | `changePassword()` 추가 |
 | `application/user/UserFacade.kt` | `changePassword()` 추가 |
 | `interfaces/api/user/UserV1Dto.kt` | `ChangePasswordRequest` 추가 |
-| `interfaces/api/user/UserV1Controller.kt` | `PUT /me/password` 핸들러 추가 |
+| `interfaces/api/user/UserV1Controller.kt` | `PUT /password` 핸들러 추가 |
 | `interfaces/api/user/UserV1ApiSpec.kt` | Swagger 시그니처 추가 |
 | `http/commerce-api/user-v1.http` | 요청 케이스 추가 |
 
@@ -352,7 +352,7 @@ data class ChangePasswordRequest(
 ### 5.7 `UserV1Controller`
 
 ```kotlin
-@PutMapping("/me/password")
+@PutMapping("/password")
 override fun changePassword(
     @RequestHeader(HEADER_LOGIN_ID) loginId: String,
     @RequestBody request: UserV1Dto.ChangePasswordRequest,
