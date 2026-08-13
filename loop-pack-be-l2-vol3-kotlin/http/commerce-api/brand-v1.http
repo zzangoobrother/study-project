@@ -1,0 +1,15 @@
+// 모든 요청이 조회라 순서에 의존하지 않는다. 어느 요청이든 단독으로 실행할 수 있다.
+// 브랜드 ID 1~5 는 LocalDataSeeder 가 넣는 값이다. DB 를 비우고 재기동하면 ID 가 달라질 수 있다.
+
+### 브랜드 정보 조회
+GET {{commerce-api}}/api/v1/brands/1
+
+### 브랜드 정보 조회 - 설명이 비어 있는 브랜드
+// 시더의 세 번째 브랜드("하바나")는 설명이 빈 문자열이다. description 이 null 이 아니라 "" 로 온다.
+GET {{commerce-api}}/api/v1/brands/3
+
+### 브랜드 정보 조회 - 존재하지 않는 브랜드 (404 Not Found)
+GET {{commerce-api}}/api/v1/brands/99999
+
+### 브랜드 정보 조회 - 브랜드 ID 가 숫자가 아님 (400 Bad Request)
+GET {{commerce-api}}/api/v1/brands/abc

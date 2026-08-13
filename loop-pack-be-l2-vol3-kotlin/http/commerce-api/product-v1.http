@@ -1,0 +1,62 @@
+// 모든 요청이 조회라 순서에 의존하지 않는다. 어느 요청이든 단독으로 실행할 수 있다.
+// 브랜드 ID 1~5 와 상품 137건은 LocalDataSeeder 가 넣는 값이다.
+// 시더는 상품을 브랜드에 번갈아 배분하므로 브랜드당 27~28건이다.
+
+### 상품 목록 조회 - 기본값
+// 파라미터를 주지 않으면 sort=latest, page=0, size=20 이 적용된다.
+GET {{commerce-api}}/api/v1/products
+
+### 상품 목록 조회 - 브랜드 필터
+GET {{commerce-api}}/api/v1/products?brandId=1
+
+### 상품 목록 조회 - 가격 오름차순
+// 시더가 가격을 20종으로 좁혀 넣으므로 같은 가격의 상품이 여러 개다.
+// page 를 넘겨도 중복되거나 빠지는 상품이 없어야 한다. (id 보조 정렬)
+GET {{commerce-api}}/api/v1/products?sort=price_asc&size=10
+
+### 상품 목록 조회 - 가격 오름차순 2페이지
+GET {{commerce-api}}/api/v1/products?sort=price_asc&size=10&page=1
+
+### 상품 목록 조회 - 좋아요 많은 순
+GET {{commerce-api}}/api/v1/products?sort=likes_desc
+
+### 상품 목록 조회 - 마지막 페이지
+// 총 137건, size=20 이면 7페이지(page=6)가 마지막이고 17건이 온다.
+GET {{commerce-api}}/api/v1/products?page=6
+
+### 상품 목록 조회 - 마지막 페이지를 넘어선 요청
+// content 는 비지만 totalElements 는 137 로 유지된다.
+GET {{commerce-api}}/api/v1/products?page=100
+
+### 상품 목록 조회 - 존재하지 않는 브랜드 필터 (200 OK, 빈 목록)
+// 404 가 아니다. brandId 는 리소스 식별자가 아니라 필터 조건이므로 "조건에 맞는 것이 없음" 이 정상 응답이다.
+GET {{commerce-api}}/api/v1/products?brandId=99999
+
+### 상품 목록 조회 - 지원하지 않는 정렬 기준 (400 Bad Request)
+// sort 는 클라이언트에 박힌 고정 상수 집합이라 오타를 조용히 폴백하지 않는다.
+GET {{commerce-api}}/api/v1/products?sort=price_desc
+
+### 상품 목록 조회 - 대소문자가 다른 정렬 기준 (400 Bad Request)
+GET {{commerce-api}}/api/v1/products?sort=LATEST
+
+### 상품 목록 조회 - 음수 페이지 (400 Bad Request)
+GET {{commerce-api}}/api/v1/products?page=-1
+
+### 상품 목록 조회 - 페이지 크기 0 (400 Bad Request)
+GET {{commerce-api}}/api/v1/products?size=0
+
+### 상품 목록 조회 - 페이지 크기 상한 초과 (400 Bad Request)
+// 상한이 없으면 ?size=1000000 한 번으로 테이블 전체를 긁어갈 수 있어 100 으로 제한한다.
+GET {{commerce-api}}/api/v1/products?size=101
+
+### 상품 목록 조회 - 숫자가 아닌 페이지 (400 Bad Request)
+GET {{commerce-api}}/api/v1/products?page=abc
+
+### 상품 정보 조회
+GET {{commerce-api}}/api/v1/products/1
+
+### 상품 정보 조회 - 존재하지 않는 상품 (404 Not Found)
+GET {{commerce-api}}/api/v1/products/99999
+
+### 상품 정보 조회 - 상품 ID 가 숫자가 아님 (400 Bad Request)
+GET {{commerce-api}}/api/v1/products/abc
