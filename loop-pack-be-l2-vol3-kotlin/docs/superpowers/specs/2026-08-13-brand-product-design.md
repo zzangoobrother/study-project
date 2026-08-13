@@ -547,6 +547,11 @@ Spring 의 기본 400 변환이 적용되지 않는다. 결국 포괄 핸들러 
 | 경로 변수가 숫자가 아님 (`/products/abc`) | `400 Bad Request` | `ApiControllerAdvice` (기존) |
 | 존재하지 않는 `brandId` 로 필터 | `200 OK` 빈 목록 | 판정 없음 |
 | 상품의 브랜드가 삭제됨 | `200 OK`, `"brand": null` | `ProductFacade` |
+| `?sort=` (빈 값) | `400 Bad Request` | `ProductSortType.from` |
+
+`?brandId=` / `?page=` / `?size=` 를 빈 값으로 보내면 400 이 아니다.
+이 셋은 `Long?` / `Int?` 파라미터라 스프링이 빈 문자열을 `null` 로 변환해 통과시키지만,
+`sort` 는 `String?` 이라 빈 문자열이 그대로 `ProductSortType.from` 에 전달되기 때문이다 — 파라미터 타입의 차이일 뿐 의도한 비대칭은 아니다.
 
 `ErrorType` 에 새 상수를 추가하지 않는다. `BAD_REQUEST` 와 `NOT_FOUND` 로 충분하다.
 `ApiControllerAdvice` 도 수정하지 않는다.
@@ -696,3 +701,17 @@ E2E 는 시더에 의존하지 않는다. 테스트 프로필에서는 시더가
 
 방어가 필요하다는 판단은 분명하지만 100 이라는 숫자 자체는 관례에 가깝다.
 실제 클라이언트가 한 번에 더 많이 필요로 한다는 사실이 확인되면 조정한다. 값은 `PageQuery.MAX_SIZE` 한 곳에만 있다.
+
+### 10.6 정렬 키에 인덱스가 없다
+
+`ProductModel` 에는 `idx_products_brand_id` 하나뿐이고, 정렬에 쓰는 `created_at` / `price` / `like_count` 와
+소프트 삭제 필터 `deleted_at` 에는 인덱스가 없다. `brandId` 필터 없이 조회하는 기본값(`latest`)은
+이 하나뿐인 인덱스의 도움도 받지 못해 첫 페이지부터 풀 스캔과 filesort 가 붙는다.
+10.2 장의 OFFSET 문제가 깊은 페이지에서만 드러나는 것과 달리, 이 문제는 1페이지부터 그대로 드러난다.
+
+지금 137건 규모에서는 체감되지 않고, `brandId` 필터 사용 비율이나 정렬 기준별 실제 사용 빈도를 모르는 채로
+인덱스를 먼저 설계하면 맞지 않는 인덱스만 늘리게 된다. 그래서 지금은 추가하지 않고 후속 과제로 남긴다.
+
+후보로 고려할 인덱스: `(brand_id, price, id)`, `(brand_id, like_count, id)`, `(created_at, id)`.
+소프트 삭제 필터(`deleted_at IS NULL`)를 이 복합 인덱스들의 선두에 둘지, 뒤에 붙일지는 실제 데이터에서
+`deleted_at` 의 선택도를 확인한 뒤 정한다.
