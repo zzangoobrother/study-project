@@ -27,4 +27,21 @@ class ProductService(
     fun getProducts(criteria: ProductCriteria.Search): PageResult<ProductModel> {
         return productRepository.findAll(criteria)
     }
+
+    /**
+     * 삭제 여부와 무관하게 상품을 조회한다.
+     *
+     * getProduct 와 계약이 정반대다. 어드민은 삭제된 리소스도 조회할 수 있어야
+     * "없어서 404" 와 "삭제돼서 409" 를 구분할 수 있다.
+     */
+    @Transactional(readOnly = true)
+    fun getProductIncludingDeleted(id: Long): ProductModel? {
+        return productRepository.findByIdIncludingDeleted(id)
+    }
+
+    /** 삭제 여부와 무관하게 상품 목록을 최신순으로 조회한다. 브랜드 정보는 여기서 채우지 않는다. */
+    @Transactional(readOnly = true)
+    fun getProductPageIncludingDeleted(criteria: ProductCriteria.AdminSearch): PageResult<ProductModel> {
+        return productRepository.findAllIncludingDeleted(criteria)
+    }
 }

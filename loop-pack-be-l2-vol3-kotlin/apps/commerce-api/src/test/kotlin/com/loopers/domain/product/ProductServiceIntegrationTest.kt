@@ -39,6 +39,16 @@ class ProductServiceIntegrationTest @Autowired constructor(
         size: Int = 20,
     ) = ProductCriteria.Search(brandId = brandId, sort = sort, pageQuery = PageQuery(page, size))
 
+    /**
+     * 단건 저장 단축 헬퍼. Task 8 에서 ProductRepository.save 가 생기지만
+     * 이 시점에는 없으므로 기존 saveProducts(= saveAll) 를 그대로 쓴다.
+     */
+    private fun saveProductFor(
+        brandId: Long,
+        name: String = "운동화",
+        price: Long = 39000,
+    ): ProductModel = saveProducts(product(brandId = brandId, name = name, price = price)).first()
+
     @AfterEach
     fun tearDown() {
         databaseCleanUp.truncateAllTables()
@@ -255,6 +265,155 @@ class ProductServiceIntegrationTest @Autowired constructor(
                 { assertThat(result.content).hasSize(10) },
                 { assertThat(result.totalElements).isEqualTo(25L) },
                 { assertThat(result.totalPages).isEqualTo(3) },
+            )
+        }
+    }
+
+    @DisplayName("삭제 포함으로 상품을 단건 조회할 때, ")
+    @Nested
+    inner class GetProductIncludingDeleted {
+        @DisplayName("살아 있는 상품이 반환된다.")
+        @Test
+        fun returnsAliveProduct() {
+            // arrange
+            val saved = saveProductFor(brandId = 1L)
+
+            // act
+            val found = productService.getProductIncludingDeleted(saved.id)
+
+            // assert
+            assertThat(found?.id).isEqualTo(saved.id)
+        }
+
+        @DisplayName("소프트 삭제된 상품도 반환된다.")
+        @Test
+        fun returnsSoftDeletedProduct() {
+            // arrange
+            val saved = saveProductFor(brandId = 1L)
+            saved.delete()
+            productRepository.saveAll(listOf(saved))
+
+            // act
+            val found = productService.getProductIncludingDeleted(saved.id)
+
+            // assert
+            assertAll(
+                { assertThat(found?.id).isEqualTo(saved.id) },
+                { assertThat(found?.deletedAt).isNotNull() },
+            )
+        }
+
+        @DisplayName("존재하지 않는 ID 면, null 이 반환된다.")
+        @Test
+        fun returnsNull_whenProductDoesNotExist() {
+            // act
+            val found = productService.getProductIncludingDeleted(99999L)
+
+            // assert
+            assertThat(found).isNull()
+        }
+    }
+
+    @DisplayName("삭제 포함으로 상품 목록을 조회할 때, ")
+    @Nested
+    inner class GetProductPageIncludingDeleted {
+        @DisplayName("삭제된 상품도 content 와 totalElements 양쪽에 포함된다.")
+        @Test
+        fun includesSoftDeletedProducts() {
+            // arrange
+            saveProductFor(brandId = 1L, name = "운동화")
+            val deleted = saveProductFor(brandId = 1L, name = "러닝화")
+            deleted.delete()
+            productRepository.saveAll(listOf(deleted))
+
+            // act
+            val page = productService.getProductPageIncludingDeleted(
+                ProductCriteria.AdminSearch(brandId = null, pageQuery = PageQuery(0, 20)),
+            )
+
+            // assert
+            assertAll(
+                { assertThat(page.content).hasSize(2) },
+                { assertThat(page.totalElements).isEqualTo(2L) },
+            )
+        }
+
+        @DisplayName("brandId 로 필터하면, 해당 브랜드의 상품만 반환된다.")
+        @Test
+        fun filtersByBrandId() {
+            // arrange
+            val target = saveProductFor(brandId = 1L, name = "운동화")
+            saveProductFor(brandId = 2L, name = "러닝화")
+
+            // act
+            val page = productService.getProductPageIncludingDeleted(
+                ProductCriteria.AdminSearch(brandId = 1L, pageQuery = PageQuery(0, 20)),
+            )
+
+            // assert
+            assertThat(page.content.map { it.id }).containsExactly(target.id)
+        }
+
+        @DisplayName("최신순으로 정렬된다.")
+        @Test
+        fun sortsByLatest() {
+            // arrange
+            val first = saveProductFor(brandId = 1L, name = "운동화")
+            val second = saveProductFor(brandId = 1L, name = "러닝화")
+
+            // act
+            val page = productService.getProductPageIncludingDeleted(
+                ProductCriteria.AdminSearch(brandId = null, pageQuery = PageQuery(0, 20)),
+            )
+
+            // assert
+            assertThat(page.content.map { it.id }).containsExactly(second.id, first.id)
+        }
+
+        @DisplayName("존재하지 않는 brandId 로 필터하면, 빈 목록이 반환된다.")
+        @Test
+        fun returnsEmpty_whenBrandIdMatchesNothing() {
+            // arrange
+            saveProductFor(brandId = 1L)
+
+            // act
+            val page = productService.getProductPageIncludingDeleted(
+                ProductCriteria.AdminSearch(brandId = 99999L, pageQuery = PageQuery(0, 20)),
+            )
+
+            // assert
+            assertAll(
+                { assertThat(page.content).isEmpty() },
+                { assertThat(page.totalElements).isEqualTo(0L) },
+            )
+        }
+    }
+
+    /**
+     * 공개 조회가 어드민 변경의 영향을 받지 않는지 확인한다.
+     * QueryDSL 쿼리 본문을 execute 로 추출하면서 삭제 필터가 빠지는 회귀가 가장 위험하다.
+     */
+    @DisplayName("QueryDSL 재구성 이후에도 공개 목록 조회는, ")
+    @Nested
+    inner class PublicSearchRegression {
+        @DisplayName("소프트 삭제된 상품을 여전히 제외한다.")
+        @Test
+        fun stillExcludesSoftDeletedProducts() {
+            // arrange
+            saveProductFor(brandId = 1L, name = "운동화")
+            val deleted = saveProductFor(brandId = 1L, name = "러닝화")
+            deleted.delete()
+            productRepository.saveAll(listOf(deleted))
+
+            // act
+            val page = productService.getProducts(
+                ProductCriteria.Search(brandId = null, sort = ProductSortType.LATEST, pageQuery = PageQuery(0, 20)),
+            )
+
+            // assert
+            assertAll(
+                { assertThat(page.content).hasSize(1) },
+                { assertThat(page.totalElements).isEqualTo(1L) },
             )
         }
     }

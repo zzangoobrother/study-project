@@ -22,4 +22,12 @@ class ProductRepositoryImpl(
     override fun findAll(criteria: ProductCriteria.Search): PageResult<ProductModel> {
         return productQueryDslRepository.search(criteria)
     }
+
+    override fun findByIdIncludingDeleted(id: Long): ProductModel? {
+        return productJpaRepository.findById(id).orElse(null)
+    }
+
+    override fun findAllIncludingDeleted(criteria: ProductCriteria.AdminSearch): PageResult<ProductModel> {
+        return productQueryDslRepository.searchIncludingDeleted(criteria)
+    }
 }

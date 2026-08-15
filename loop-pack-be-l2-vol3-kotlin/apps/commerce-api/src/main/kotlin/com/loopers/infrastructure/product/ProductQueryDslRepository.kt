@@ -4,6 +4,7 @@ import com.loopers.domain.product.ProductCriteria
 import com.loopers.domain.product.ProductModel
 import com.loopers.domain.product.ProductSortType
 import com.loopers.domain.product.QProductModel.productModel
+import com.loopers.domain.support.PageQuery
 import com.loopers.domain.support.PageResult
 import com.querydsl.core.types.OrderSpecifier
 import com.querydsl.core.types.dsl.BooleanExpression
@@ -21,18 +22,43 @@ import org.springframework.stereotype.Component
 class ProductQueryDslRepository(
     private val queryFactory: JPAQueryFactory,
 ) {
-    fun search(criteria: ProductCriteria.Search): PageResult<ProductModel> {
-        val conditions: Array<BooleanExpression?> = arrayOf(
-            productModel.deletedAt.isNull,
-            brandIdEq(criteria.brandId),
+    fun search(criteria: ProductCriteria.Search): PageResult<ProductModel> =
+        execute(
+            conditions = arrayOf(productModel.deletedAt.isNull, brandIdEq(criteria.brandId)),
+            sort = criteria.sort,
+            pageQuery = criteria.pageQuery,
         )
 
+    /**
+     * 어드민 목록 조회. 공개 조회와 deletedAt 조건 하나만 다르다.
+     *
+     * 정렬이 LATEST 고정인 것은 요구사항에 sort 파라미터가 없기 때문이다.
+     */
+    fun searchIncludingDeleted(criteria: ProductCriteria.AdminSearch): PageResult<ProductModel> =
+        execute(
+            conditions = arrayOf(brandIdEq(criteria.brandId)),
+            sort = ProductSortType.LATEST,
+            pageQuery = criteria.pageQuery,
+        )
+
+    /**
+     * 쿼리 본문을 한 곳에 모은다.
+     *
+     * 어드민용 쿼리를 복사해서 만들지 않는 이유는 코드 정리가 아니라 회귀 방어다.
+     * 복사하면 id DESC 보조 정렬과 "content 가 비어도 count 는 센다" 규칙이 두 벌이 되고,
+     * 한쪽만 고쳐지는 순간 어드민 목록의 페이지 경계에서 중복과 누락이 조용히 생긴다.
+     */
+    private fun execute(
+        conditions: Array<BooleanExpression?>,
+        sort: ProductSortType,
+        pageQuery: PageQuery,
+    ): PageResult<ProductModel> {
         val content = queryFactory
             .selectFrom(productModel)
             .where(*conditions)
-            .orderBy(*orderSpecifiers(criteria.sort))
-            .offset(criteria.pageQuery.offset)
-            .limit(criteria.pageQuery.size.toLong())
+            .orderBy(*orderSpecifiers(sort))
+            .offset(pageQuery.offset)
+            .limit(pageQuery.size.toLong())
             .fetch()
 
         // 마지막 페이지를 넘어선 요청에서도 totalElements 는 유지되어야 하므로, content 가 비어도 count 는 센다.
@@ -42,7 +68,7 @@ class ProductQueryDslRepository(
             .where(*conditions)
             .fetchOne() ?: 0L
 
-        return PageResult.of(content = content, pageQuery = criteria.pageQuery, totalElements = totalElements)
+        return PageResult.of(content = content, pageQuery = pageQuery, totalElements = totalElements)
     }
 
     /** null 을 반환하면 QueryDSL 이 이 조건을 무시하므로, 필터 유무를 if 분기 없이 처리한다. */
