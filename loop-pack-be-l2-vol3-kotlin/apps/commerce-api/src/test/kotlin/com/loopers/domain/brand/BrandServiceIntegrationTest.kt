@@ -1,8 +1,11 @@
 package com.loopers.domain.brand
 
 import com.loopers.domain.support.PageQuery
+import com.loopers.support.error.CoreException
+import com.loopers.support.error.ErrorType
 import com.loopers.utils.DatabaseCleanUp
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -270,6 +273,143 @@ class BrandServiceIntegrationTest @Autowired constructor(
                 { assertThat(page.content).isEmpty() },
                 { assertThat(page.totalElements).isEqualTo(1L) },
             )
+        }
+    }
+
+    @DisplayName("브랜드를 등록할 때, ")
+    @Nested
+    inner class Register {
+        @DisplayName("브랜드가 저장되고 ID 가 부여된다.")
+        @Test
+        fun savesBrand() {
+            // arrange
+            val command = BrandCommand.Register(BrandName("루퍼스"), BrandDescription("일상을 조금 낫게"))
+
+            // act
+            val registered = brandService.register(command)
+
+            // assert
+            assertAll(
+                { assertThat(registered.id).isPositive() },
+                { assertThat(registered.name).isEqualTo(BrandName("루퍼스")) },
+                { assertThat(registered.deletedAt).isNull() },
+            )
+        }
+
+        @DisplayName("등록한 브랜드를 다시 조회할 수 있다.")
+        @Test
+        fun registeredBrandIsRetrievable() {
+            // arrange
+            val command = BrandCommand.Register(BrandName("루퍼스"), BrandDescription("일상을 조금 낫게"))
+
+            // act
+            val registered = brandService.register(command)
+
+            // assert
+            assertThat(brandService.getBrand(registered.id)?.name).isEqualTo(BrandName("루퍼스"))
+        }
+    }
+
+    @DisplayName("브랜드를 수정할 때, ")
+    @Nested
+    inner class Change {
+        @DisplayName("이름과 설명이 교체된다.")
+        @Test
+        fun changesNameAndDescription() {
+            // arrange
+            val saved = saveBrand()
+
+            // act
+            brandService.change(BrandCommand.Change(saved.id, BrandName("몬드리안"), BrandDescription("선과 면")))
+
+            // assert
+            val found = brandService.getBrand(saved.id)
+            assertAll(
+                { assertThat(found?.name).isEqualTo(BrandName("몬드리안")) },
+                { assertThat(found?.description).isEqualTo(BrandDescription("선과 면")) },
+            )
+        }
+
+        @DisplayName("존재하지 않는 브랜드면, NOT_FOUND 를 던진다.")
+        @Test
+        fun throwsNotFound_whenBrandDoesNotExist() {
+            // act & assert
+            assertThatThrownBy {
+                brandService.change(BrandCommand.Change(99999L, BrandName("몬드리안"), BrandDescription.EMPTY))
+            }
+                .isInstanceOf(CoreException::class.java)
+                .extracting { (it as CoreException).errorType }
+                .isEqualTo(ErrorType.NOT_FOUND)
+        }
+
+        /**
+         * 삭제된 브랜드는 어드민 조회에서 보이므로 "없는" 것이 아니다.
+         * 요청은 멀쩡하고 리소스도 존재하지만 리소스의 현재 상태와 충돌하므로 409 다.
+         */
+        @DisplayName("소프트 삭제된 브랜드면, CONFLICT 를 던진다.")
+        @Test
+        fun throwsConflict_whenBrandIsSoftDeleted() {
+            // arrange
+            val saved = saveBrand()
+            saved.delete()
+            brandRepository.save(saved)
+
+            // act & assert
+            assertThatThrownBy {
+                brandService.change(BrandCommand.Change(saved.id, BrandName("몬드리안"), BrandDescription.EMPTY))
+            }
+                .isInstanceOf(CoreException::class.java)
+                .extracting { (it as CoreException).errorType }
+                .isEqualTo(ErrorType.CONFLICT)
+        }
+    }
+
+    @DisplayName("브랜드를 삭제할 때, ")
+    @Nested
+    inner class Delete {
+        @DisplayName("deletedAt 이 찍히고 공개 조회에서 사라진다.")
+        @Test
+        fun softDeletesBrand() {
+            // arrange
+            val saved = saveBrand()
+
+            // act
+            brandService.delete(saved.id)
+
+            // assert
+            assertAll(
+                { assertThat(brandService.getBrand(saved.id)).isNull() },
+                { assertThat(brandService.getBrandIncludingDeleted(saved.id)?.deletedAt).isNotNull() },
+            )
+        }
+
+        @DisplayName("존재하지 않는 브랜드면, NOT_FOUND 를 던진다.")
+        @Test
+        fun throwsNotFound_whenBrandDoesNotExist() {
+            // act & assert
+            assertThatThrownBy { brandService.delete(99999L) }
+                .isInstanceOf(CoreException::class.java)
+                .extracting { (it as CoreException).errorType }
+                .isEqualTo(ErrorType.NOT_FOUND)
+        }
+
+        /**
+         * BaseEntity.delete() 가 deletedAt ?: run { ... } 로 멱등하다.
+         * 두 번째 삭제가 예외를 던지지 않고 deletedAt 을 갱신하지도 않아야 한다.
+         */
+        @DisplayName("이미 삭제된 브랜드를 다시 삭제해도, 예외 없이 deletedAt 이 유지된다.")
+        @Test
+        fun isIdempotent() {
+            // arrange
+            val saved = saveBrand()
+            brandService.delete(saved.id)
+            val firstDeletedAt = brandService.getBrandIncludingDeleted(saved.id)?.deletedAt
+
+            // act
+            brandService.delete(saved.id)
+
+            // assert
+            assertThat(brandService.getBrandIncludingDeleted(saved.id)?.deletedAt).isEqualTo(firstDeletedAt)
         }
     }
 }

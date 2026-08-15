@@ -2,6 +2,8 @@ package com.loopers.domain.brand
 
 import com.loopers.domain.support.PageQuery
 import com.loopers.domain.support.PageResult
+import com.loopers.support.error.CoreException
+import com.loopers.support.error.ErrorType
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 
@@ -59,5 +61,65 @@ class BrandService(
     @Transactional(readOnly = true)
     fun getBrandPageIncludingDeleted(pageQuery: PageQuery): PageResult<BrandModel> {
         return brandRepository.findAllIncludingDeleted(pageQuery)
+    }
+
+    /**
+     * 브랜드를 등록한다.
+     *
+     * 이름 중복을 검사하지 않는 것은 brands.name 에 unique 제약이 없고 요구사항에도 없기 때문이다.
+     * 같은 이름의 브랜드가 둘 생겨도 지금은 오류가 아니다.
+     */
+    @Transactional
+    fun register(command: BrandCommand.Register): BrandModel {
+        val brand = BrandModel.create(name = command.name, description = command.description)
+        return brandRepository.save(brand)
+    }
+
+    /**
+     * 브랜드 정보를 교체한다.
+     *
+     * 조회 유스케이스와 달리 실패를 여기서 직접 던진다.
+     * "없음" 과 "삭제됨" 을 어떻게 볼지 상위가 달리 정할 여지가 없기 때문이며,
+     * UserService.signUp 이 중복을 CONFLICT 로 직접 던지는 것과 같은 판단이다.
+     *
+     * 없으면 404, 삭제됐으면 409 로 갈리는 이유는 어드민이 삭제된 리소스도 조회할 수 있어서다.
+     * 삭제된 브랜드는 "없는" 것이 아니라 "그 요청을 받을 수 있는 상태가 아닌" 것이다.
+     */
+    @Transactional
+    fun change(command: BrandCommand.Change): BrandModel {
+        val brand = brandRepository.findByIdIncludingDeleted(command.id)
+            ?: throw CoreException(
+                errorType = ErrorType.NOT_FOUND,
+                customMessage = "[brandId = ${command.id}] 존재하지 않는 브랜드입니다.",
+            )
+
+        if (brand.deletedAt != null) {
+            throw CoreException(
+                errorType = ErrorType.CONFLICT,
+                customMessage = "[brandId = ${command.id}] 삭제된 브랜드는 수정할 수 없습니다.",
+            )
+        }
+
+        brand.change(name = command.name, description = command.description)
+        // 영속 상태의 엔티티이므로 커밋 시점에 변경 감지로 UPDATE 된다. save() 는 no-op 이라 호출하지 않는다.
+        return brand
+    }
+
+    /**
+     * 브랜드를 소프트 삭제한다.
+     *
+     * 이미 삭제된 브랜드를 다시 삭제해도 409 가 아니다. BaseEntity.delete() 가 멱등하고,
+     * DELETE 를 멱등으로 정의하는 것은 HTTP 명세와도 일치한다.
+     * 이 애그리거트만 삭제하며, 상품 연쇄 삭제는 두 애그리거트에 걸친 일이라 파사드가 조합한다.
+     */
+    @Transactional
+    fun delete(id: Long) {
+        val brand = brandRepository.findByIdIncludingDeleted(id)
+            ?: throw CoreException(
+                errorType = ErrorType.NOT_FOUND,
+                customMessage = "[brandId = $id] 존재하지 않는 브랜드입니다.",
+            )
+
+        brand.delete()
     }
 }
