@@ -55,6 +55,21 @@ class ProductModel private constructor(
         }
     }
 
+    /**
+     * 이름과 가격을 한 번에 교체한다.
+     *
+     * 이 시그니처에 brandId 와 likeCount 가 없는 것이 두 요구사항의 이행이다.
+     * "상품의 브랜드는 수정할 수 없음" 을 if 문으로 막는 대신 매개변수를 두지 않는 쪽을 택했다.
+     * 검증은 잊을 수 있지만 없는 매개변수는 잊을 수 없다.
+     *
+     * 필드별 메서드로 나누지 않는 이유는 수정 API 가 PUT — 전체 교체 — 이기 때문이다.
+     * 값 검증은 ProductName 과 Price 가 이미 소유한다.
+     */
+    fun change(name: ProductName, price: Price) {
+        this.name = name
+        this.price = price
+    }
+
     companion object {
         /**
          * likeCount 는 기본값 0 이며, 인자로 받는 경로는 로컬 시드 데이터를 위해 열어둔 것이다. (설계 문서 8.1 장)
