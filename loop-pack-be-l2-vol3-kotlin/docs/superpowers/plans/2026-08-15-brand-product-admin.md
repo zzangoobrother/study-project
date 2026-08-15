@@ -786,7 +786,8 @@ git commit -m "feat : 브랜드 변경 메서드와 BrandCommand 추가"
 - [ ] **Step 1: 실패하는 테스트 작성**
 
 `BrandServiceIntegrationTest.kt` 의 마지막 `@Nested` 클래스(`GetBrands`) **뒤**, 클래스 닫는 괄호 앞에 추가한다.
-import 도 함께 추가한다: `com.loopers.domain.support.PageQuery`.
+import 도 함께 추가한다: `com.loopers.domain.support.PageQuery`, `org.springframework.jdbc.core.JdbcTemplate`.
+테스트 클래스 생성자에 `private val jdbcTemplate: JdbcTemplate` 을 추가한다.
 
 ```kotlin
     @DisplayName("삭제 포함으로 브랜드를 단건 조회할 때, ")
@@ -897,6 +898,28 @@ import 도 함께 추가한다: `com.loopers.domain.support.PageQuery`.
             val first = saveBrand(name = "루퍼스")
             val second = saveBrand(name = "몬드리안")
             val third = saveBrand(name = "하바나")
+
+            // act
+            val page = brandService.getBrandPageIncludingDeleted(PageQuery(page = 0, size = 20))
+
+            // assert
+            assertThat(page.content.map { it.id }).containsExactly(third.id, second.id, first.id)
+        }
+
+        /**
+         * created_at 이 서로 다르면 1차 정렬 키만으로도 순서가 정해지므로, id DESC 보조 키는
+         * created_at 이 충돌할 때만 관찰할 수 있다. 대량 삽입이 같은 시계 틱에 몰리는 상황이 그 실제 사례다.
+         * 다만 이 테스트는 증명이 아니라 실용적인 가드다: ORDER BY 에 타이브레이커가 없으면 MySQL 의 행 순서는
+         * 정의되지 않으며, 이 테스트는 인덱스 스캔이 자연스럽게 id 오름차순으로 행을 반환한다는 점(단언과는 반대 순서)에 기대고 있다.
+         */
+        @DisplayName("created_at 이 같으면, id 내림차순으로 정렬된다.")
+        @Test
+        fun breaksCreatedAtTieByIdDesc() {
+            // arrange
+            val first = saveBrand(name = "루퍼스")
+            val second = saveBrand(name = "몬드리안")
+            val third = saveBrand(name = "하바나")
+            jdbcTemplate.update("UPDATE brands SET created_at = ?", java.sql.Timestamp.valueOf("2026-01-01 00:00:00"))
 
             // act
             val page = brandService.getBrandPageIncludingDeleted(PageQuery(page = 0, size = 20))
