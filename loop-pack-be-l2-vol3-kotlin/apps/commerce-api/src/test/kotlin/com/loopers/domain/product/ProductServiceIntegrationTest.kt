@@ -10,12 +10,14 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.jdbc.core.JdbcTemplate
 
 @SpringBootTest
 class ProductServiceIntegrationTest @Autowired constructor(
     private val productService: ProductService,
     private val productRepository: ProductRepository,
     private val databaseCleanUp: DatabaseCleanUp,
+    private val jdbcTemplate: JdbcTemplate,
 ) {
     private fun saveProducts(vararg products: ProductModel): List<ProductModel> =
         productRepository.saveAll(products.toList())
@@ -368,6 +370,30 @@ class ProductServiceIntegrationTest @Autowired constructor(
 
             // assert
             assertThat(page.content.map { it.id }).containsExactly(second.id, first.id)
+        }
+
+        /**
+         * created_at 이 서로 다르면 1차 정렬 키만으로도 순서가 정해지므로, id DESC 보조 키는
+         * created_at 이 충돌할 때만 관찰할 수 있다. 대량 삽입이 같은 시계 틱에 몰리는 상황이 그 실제 사례다.
+         * 다만 이 테스트는 증명이 아니라 실용적인 가드다: ORDER BY 에 타이브레이커가 없으면 MySQL 의 행 순서는
+         * 정의되지 않으며, 이 테스트는 인덱스 스캔이 자연스럽게 id 오름차순으로 행을 반환한다는 점(단언과는 반대 순서)에 기대고 있다.
+         */
+        @DisplayName("created_at 이 같으면, id 내림차순으로 정렬된다.")
+        @Test
+        fun breaksCreatedAtTieByIdDesc() {
+            // arrange
+            val first = saveProductFor(brandId = 1L, name = "A")
+            val second = saveProductFor(brandId = 1L, name = "B")
+            val third = saveProductFor(brandId = 1L, name = "C")
+            jdbcTemplate.update("UPDATE products SET created_at = ?", java.sql.Timestamp.valueOf("2026-01-01 00:00:00"))
+
+            // act
+            val page = productService.getProductPageIncludingDeleted(
+                ProductCriteria.AdminSearch(brandId = null, pageQuery = PageQuery(0, 20)),
+            )
+
+            // assert
+            assertThat(page.content.map { it.id }).containsExactly(third.id, second.id, first.id)
         }
 
         @DisplayName("존재하지 않는 brandId 로 필터하면, 빈 목록이 반환된다.")
