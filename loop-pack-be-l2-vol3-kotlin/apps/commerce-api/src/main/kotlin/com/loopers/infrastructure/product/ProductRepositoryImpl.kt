@@ -15,6 +15,10 @@ class ProductRepositoryImpl(
         return productJpaRepository.saveAll(products)
     }
 
+    override fun save(product: ProductModel): ProductModel {
+        return productJpaRepository.save(product)
+    }
+
     override fun findById(id: Long): ProductModel? {
         return productJpaRepository.findByIdAndDeletedAtIsNull(id)
     }
@@ -29,5 +33,9 @@ class ProductRepositoryImpl(
 
     override fun findAllIncludingDeleted(criteria: ProductCriteria.AdminSearch): PageResult<ProductModel> {
         return productQueryDslRepository.searchIncludingDeleted(criteria)
+    }
+
+    override fun findAllByBrandId(brandId: Long): List<ProductModel> {
+        return productJpaRepository.findAllByBrandIdAndDeletedAtIsNull(brandId)
     }
 }

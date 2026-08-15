@@ -1,6 +1,8 @@
 package com.loopers.domain.product
 
 import com.loopers.domain.support.PageResult
+import com.loopers.support.error.CoreException
+import com.loopers.support.error.ErrorType
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 
@@ -43,5 +45,74 @@ class ProductService(
     @Transactional(readOnly = true)
     fun getProductPageIncludingDeleted(criteria: ProductCriteria.AdminSearch): PageResult<ProductModel> {
         return productRepository.findAllIncludingDeleted(criteria)
+    }
+
+    /**
+     * 상품을 등록한다.
+     *
+     * 브랜드 존재 검증은 여기서 하지 않는다. 브랜드는 다른 애그리거트이고,
+     * 도메인 서비스는 자기 애그리거트만 알아야 한다. 그 검증은 ProductAdminFacade 가 조합한다.
+     * likeCount 는 ProductModel.create 의 기본값 0 이 적용된다.
+     */
+    @Transactional
+    fun register(command: ProductCommand.Register): ProductModel {
+        val product = ProductModel.create(
+            brandId = command.brandId,
+            name = command.name,
+            price = command.price,
+        )
+        return productRepository.save(product)
+    }
+
+    /**
+     * 상품 정보를 교체한다.
+     *
+     * 없으면 404, 삭제됐으면 409 로 갈리는 이유는 브랜드와 같다.
+     * 어드민이 삭제된 리소스도 조회할 수 있으므로 삭제된 상품은 "없는" 것이 아니다.
+     */
+    @Transactional
+    fun change(command: ProductCommand.Change): ProductModel {
+        val product = productRepository.findByIdIncludingDeleted(command.id)
+            ?: throw CoreException(
+                errorType = ErrorType.NOT_FOUND,
+                customMessage = "[productId = ${command.id}] 존재하지 않는 상품입니다.",
+            )
+
+        if (product.deletedAt != null) {
+            throw CoreException(
+                errorType = ErrorType.CONFLICT,
+                customMessage = "[productId = ${command.id}] 삭제된 상품은 수정할 수 없습니다.",
+            )
+        }
+
+        product.change(name = command.name, price = command.price)
+        // 영속 상태의 엔티티이므로 커밋 시점에 변경 감지로 UPDATE 된다.
+        return product
+    }
+
+    @Transactional
+    fun delete(id: Long) {
+        val product = productRepository.findByIdIncludingDeleted(id)
+            ?: throw CoreException(
+                errorType = ErrorType.NOT_FOUND,
+                customMessage = "[productId = $id] 존재하지 않는 상품입니다.",
+            )
+
+        product.delete()
+    }
+
+    /**
+     * 브랜드에 속한 상품을 모두 소프트 삭제한다. 브랜드 삭제의 연쇄 처리용이다.
+     *
+     * 벌크 UPDATE 대신 엔티티를 로드해 개별 delete() 를 호출하는 이유는 두 가지다.
+     * 첫째, BaseEntity.delete() 의 멱등 로직과 @PreUpdate 의 updatedAt 갱신을 그대로 쓰기 위해서다.
+     * JPQL 벌크 UPDATE 는 영속성 컨텍스트와 엔티티 콜백을 모두 우회하므로 두 규칙을 쿼리에 손으로 복제해야 한다.
+     * 둘째, 벌크 UPDATE 는 1차 캐시에 이미 올라온 상품을 stale 상태로 남긴다.
+     *
+     * 상품 수가 커지면 이 방식이 한계에 부딪힌다. 설계 문서 10.2 장 참고.
+     */
+    @Transactional
+    fun deleteAllByBrandId(brandId: Long) {
+        productRepository.findAllByBrandId(brandId).forEach { it.delete() }
     }
 }

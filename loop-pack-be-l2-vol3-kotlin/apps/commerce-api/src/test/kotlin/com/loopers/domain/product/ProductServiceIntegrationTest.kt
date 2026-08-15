@@ -1,8 +1,11 @@
 package com.loopers.domain.product
 
 import com.loopers.domain.support.PageQuery
+import com.loopers.support.error.CoreException
+import com.loopers.support.error.ErrorType
 import com.loopers.utils.DatabaseCleanUp
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -441,6 +444,201 @@ class ProductServiceIntegrationTest @Autowired constructor(
                 { assertThat(page.content).hasSize(1) },
                 { assertThat(page.totalElements).isEqualTo(1L) },
             )
+        }
+    }
+
+    @DisplayName("상품을 등록할 때, ")
+    @Nested
+    inner class Register {
+        @DisplayName("상품이 저장되고 좋아요 수는 0 이 된다.")
+        @Test
+        fun savesProductWithZeroLikeCount() {
+            // act
+            val registered = productService.register(
+                ProductCommand.Register(brandId = 1L, name = ProductName("운동화"), price = Price(39000)),
+            )
+
+            // assert
+            assertAll(
+                { assertThat(registered.id).isPositive() },
+                { assertThat(registered.likeCount).isEqualTo(LikeCount.ZERO) },
+                { assertThat(registered.brandId).isEqualTo(1L) },
+            )
+        }
+
+        @DisplayName("등록한 상품을 다시 조회할 수 있다.")
+        @Test
+        fun registeredProductIsRetrievable() {
+            // act
+            val registered = productService.register(
+                ProductCommand.Register(brandId = 1L, name = ProductName("운동화"), price = Price(39000)),
+            )
+
+            // assert
+            assertThat(productService.getProduct(registered.id)?.name).isEqualTo(ProductName("운동화"))
+        }
+    }
+
+    @DisplayName("상품을 수정할 때, ")
+    @Nested
+    inner class Change {
+        @DisplayName("이름과 가격이 교체되고 브랜드는 유지된다.")
+        @Test
+        fun changesNameAndPriceOnly() {
+            // arrange
+            val saved = saveProductFor(brandId = 1L)
+
+            // act
+            productService.change(ProductCommand.Change(saved.id, ProductName("러닝화"), Price(59000)))
+
+            // assert
+            val found = productService.getProduct(saved.id)
+            assertAll(
+                { assertThat(found?.name).isEqualTo(ProductName("러닝화")) },
+                { assertThat(found?.price).isEqualTo(Price(59000)) },
+                { assertThat(found?.brandId).isEqualTo(1L) },
+            )
+        }
+
+        @DisplayName("존재하지 않는 상품이면, NOT_FOUND 를 던진다.")
+        @Test
+        fun throwsNotFound_whenProductDoesNotExist() {
+            // act & assert
+            assertThatThrownBy {
+                productService.change(ProductCommand.Change(99999L, ProductName("러닝화"), Price(59000)))
+            }
+                .isInstanceOf(CoreException::class.java)
+                .extracting { (it as CoreException).errorType }
+                .isEqualTo(ErrorType.NOT_FOUND)
+        }
+
+        @DisplayName("소프트 삭제된 상품이면, CONFLICT 를 던진다.")
+        @Test
+        fun throwsConflict_whenProductIsSoftDeleted() {
+            // arrange
+            val saved = saveProductFor(brandId = 1L)
+            saved.delete()
+            productRepository.saveAll(listOf(saved))
+
+            // act & assert
+            assertThatThrownBy {
+                productService.change(ProductCommand.Change(saved.id, ProductName("러닝화"), Price(59000)))
+            }
+                .isInstanceOf(CoreException::class.java)
+                .extracting { (it as CoreException).errorType }
+                .isEqualTo(ErrorType.CONFLICT)
+        }
+    }
+
+    @DisplayName("상품을 삭제할 때, ")
+    @Nested
+    inner class Delete {
+        @DisplayName("deletedAt 이 찍히고 공개 조회에서 사라진다.")
+        @Test
+        fun softDeletesProduct() {
+            // arrange
+            val saved = saveProductFor(brandId = 1L)
+
+            // act
+            productService.delete(saved.id)
+
+            // assert
+            assertAll(
+                { assertThat(productService.getProduct(saved.id)).isNull() },
+                { assertThat(productService.getProductIncludingDeleted(saved.id)?.deletedAt).isNotNull() },
+            )
+        }
+
+        @DisplayName("존재하지 않는 상품이면, NOT_FOUND 를 던진다.")
+        @Test
+        fun throwsNotFound_whenProductDoesNotExist() {
+            // act & assert
+            assertThatThrownBy { productService.delete(99999L) }
+                .isInstanceOf(CoreException::class.java)
+                .extracting { (it as CoreException).errorType }
+                .isEqualTo(ErrorType.NOT_FOUND)
+        }
+
+        @DisplayName("이미 삭제된 상품을 다시 삭제해도, 예외 없이 deletedAt 이 유지된다.")
+        @Test
+        fun isIdempotent() {
+            // arrange
+            val saved = saveProductFor(brandId = 1L)
+            productService.delete(saved.id)
+            val firstDeletedAt = productService.getProductIncludingDeleted(saved.id)?.deletedAt
+
+            // act
+            productService.delete(saved.id)
+
+            // assert
+            assertThat(productService.getProductIncludingDeleted(saved.id)?.deletedAt).isEqualTo(firstDeletedAt)
+        }
+    }
+
+    @DisplayName("브랜드의 상품을 일괄 삭제할 때, ")
+    @Nested
+    inner class DeleteAllByBrandId {
+        @DisplayName("해당 브랜드의 상품이 전부 소프트 삭제된다.")
+        @Test
+        fun softDeletesAllProductsOfBrand() {
+            // arrange
+            val first = saveProductFor(brandId = 1L, name = "운동화")
+            val second = saveProductFor(brandId = 1L, name = "러닝화")
+
+            // act
+            productService.deleteAllByBrandId(1L)
+
+            // assert
+            assertAll(
+                { assertThat(productService.getProduct(first.id)).isNull() },
+                { assertThat(productService.getProduct(second.id)).isNull() },
+            )
+        }
+
+        /**
+         * 이 테스트가 이 메서드에서 가장 중요하다.
+         * where brand_id = ? 를 빠뜨리면 전체 상품이 삭제되는데,
+         * 대상 브랜드의 상품만 확인하는 테스트는 그 버그를 통과시킨다.
+         * 지워야 할 것이 지워졌는지와 지우지 말아야 할 것이 남았는지를 둘 다 봐야 한다.
+         */
+        @DisplayName("다른 브랜드의 상품은 삭제되지 않는다.")
+        @Test
+        fun doesNotTouchOtherBrandsProducts() {
+            // arrange
+            val target = saveProductFor(brandId = 1L, name = "운동화")
+            val untouched = saveProductFor(brandId = 2L, name = "러닝화")
+
+            // act
+            productService.deleteAllByBrandId(1L)
+
+            // assert
+            assertAll(
+                { assertThat(productService.getProduct(target.id)).isNull() },
+                { assertThat(productService.getProduct(untouched.id)).isNotNull() },
+            )
+        }
+
+        @DisplayName("상품이 없는 브랜드여도, 예외 없이 통과한다.")
+        @Test
+        fun doesNothing_whenBrandHasNoProducts() {
+            // act & assert
+            productService.deleteAllByBrandId(99999L)
+        }
+
+        @DisplayName("이미 삭제된 상품이 섞여 있어도, 그 deletedAt 은 갱신되지 않는다.")
+        @Test
+        fun keepsDeletedAtOfAlreadyDeletedProducts() {
+            // arrange
+            val alreadyDeleted = saveProductFor(brandId = 1L, name = "운동화")
+            alreadyDeleted.delete()
+            productRepository.saveAll(listOf(alreadyDeleted))
+            val firstDeletedAt = productService.getProductIncludingDeleted(alreadyDeleted.id)?.deletedAt
+
+            // act
+            productService.deleteAllByBrandId(1L)
+
+            // assert
+            assertThat(productService.getProductIncludingDeleted(alreadyDeleted.id)?.deletedAt).isEqualTo(firstDeletedAt)
         }
     }
 }
