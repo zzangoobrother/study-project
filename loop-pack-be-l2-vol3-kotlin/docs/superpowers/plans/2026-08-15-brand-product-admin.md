@@ -24,6 +24,7 @@
 - 도메인 서비스의 **조회**는 대상이 없으면 `null` 을 반환한다. 404 로 볼지는 `Facade` 가 정한다. 도메인 서비스의 **쓰기**는 실패를 직접 던진다 (`UserService.signUp` 이 `CONFLICT` 를 던지는 것과 같다).
 - 어드민 경로는 전부 `/api-admin/v1` 로 시작한다.
 - 주석은 한국어로 쓴다. "무엇을" 이 아니라 "왜" 를 쓴다.
+- **블록 주석 안에 `/**` 가 들어가는 문자열을 쓰지 않는다.** Kotlin 은 Java 와 달리 블록 주석이 중첩되므로, KDoc 본문에 경로 패턴 `/api-admin/**` 을 그대로 적으면 그 자리에서 주석이 새로 열리고 바깥 주석이 닫히지 않아 `Unclosed comment` 로 컴파일이 깨진다. 경로 패턴을 주석에서 언급할 때는 `/api-admin 하위` 처럼 풀어 쓴다. 문자열 리터럴(`"/api-admin/**"`)과 마크다운 문서에는 해당하지 않는다.
 - 커밋 메시지는 한국어로 쓰고 `feat : ` / `test : ` / `docs : ` 형식(콜론 앞에 공백)을 따른다.
 - 코드 스타일은 ktlint 가 강제한다. 최대 줄 길이 130자(`*Test.kt` 는 제한 없음).
 - **통합·E2E 테스트는 Docker 가 실행 중이어야 한다.** Testcontainers 가 `mysql:8.0` 컨테이너를 띄운다.
@@ -515,7 +516,7 @@ import org.springframework.web.servlet.HandlerInterceptor
  *
  * 컨트롤러마다 @RequestHeader 로 받지 않고 인터셉터로 올린 이유는 누락 가능성 때문이다.
  * @RequestHeader 방식이면 인증 코드가 엔드포인트 10개에 복사되고, 11번째에서 빠뜨려도 컴파일이 통과한다.
- * 경로 패턴으로 걸면 /api-admin/** 아래 새 엔드포인트가 자동으로 보호된다.
+ * 경로 패턴으로 걸면 /api-admin 하위의 새 엔드포인트가 자동으로 보호된다.
  *
  * 여기서 던지는 CoreException 은 ApiControllerAdvice 가 잡는다.
  * preHandle 의 예외는 DispatcherServlet 이 HandlerExceptionResolver 체인으로 넘기고
@@ -2749,7 +2750,7 @@ class BrandAdminV1ApiE2ETest @Autowired constructor(
     }
 
     /**
-     * 인터셉터가 /api-admin/** 에 실제로 등록됐는지 확인하는 첫 지점이다.
+     * 인터셉터가 /api-admin 하위 경로에 실제로 등록됐는지 확인하는 첫 지점이다.
      * WebConfig 의 경로 패턴이 틀리면 이 클래스가 통째로 실패한다.
      */
     @DisplayName("어드민 API 인증")
@@ -3085,7 +3086,7 @@ import org.springframework.web.bind.annotation.RestController
 /**
  * 브랜드 어드민 API.
  *
- * 인증 코드가 이 클래스에 없는 것은 AdminAuthInterceptor 가 /api-admin/** 를 통째로 막기 때문이다.
+ * 인증 코드가 이 클래스에 없는 것은 AdminAuthInterceptor 가 /api-admin 하위를 통째로 막기 때문이다.
  * 여기에 @RequestHeader 를 두면 인증이 엔드포인트마다 복사되고, 새 엔드포인트에서 빠뜨려도 컴파일이 통과한다.
  *
  * 쿼리 파라미터를 DTO 로 묶지 않고 개별 @RequestParam 으로 받는 이유는 공개 API 와 같다.
@@ -4505,7 +4506,7 @@ import org.springframework.web.bind.annotation.RestController
 /**
  * 상품 어드민 API.
  *
- * 인증은 AdminAuthInterceptor 가 /api-admin/** 에서 처리한다.
+ * 인증은 AdminAuthInterceptor 가 /api-admin 하위 경로에서 처리한다.
  * 목록에 sort 파라미터가 없는 것은 요구사항에 없기 때문이며, 정렬은 최신순 고정이다.
  */
 @RestController
