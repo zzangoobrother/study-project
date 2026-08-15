@@ -681,21 +681,14 @@ class BrandModelTest {
             assertThat(sut.description).isEqualTo(BrandDescription.EMPTY)
         }
 
-        @DisplayName("변경 후에도 같은 인스턴스가 유지된다.")
-        @Test
-        fun mutatesInPlace() {
-            // arrange
-            val sut = brand()
-
-            // act
-            sut.change(BrandName("몬드리안"), BrandDescription("선과 면"))
-
-            // assert
-            assertThat(sut.id).isEqualTo(0L)
-        }
     }
 }
 ```
+
+인스턴스 동일성을 확인하는 테스트는 두지 않는다.
+`id` 는 `BaseEntity` 의 `val id: Long = 0` 이라 영속화 전에는 항상 0 이고 `change` 가 건드릴 수 없으므로,
+`assertThat(sut.id).isEqualTo(0L)` 같은 단언은 구현이 무엇을 하든 참이라 아무것도 고정하지 못한다.
+같은 `sut` 참조에서 변경이 보인다는 사실은 `replacesNameAndDescription` 이 이미 증명한다.
 
 - [ ] **Step 2: 테스트가 실패하는지 확인**
 
