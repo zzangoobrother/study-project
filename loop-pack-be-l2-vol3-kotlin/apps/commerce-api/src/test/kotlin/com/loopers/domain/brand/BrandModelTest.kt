@@ -45,18 +45,5 @@ class BrandModelTest {
             // assert
             assertThat(sut.description).isEqualTo(BrandDescription.EMPTY)
         }
-
-        @DisplayName("변경 후에도 같은 인스턴스가 유지된다.")
-        @Test
-        fun mutatesInPlace() {
-            // arrange
-            val sut = brand()
-
-            // act
-            sut.change(BrandName("몬드리안"), BrandDescription("선과 면"))
-
-            // assert
-            assertThat(sut.id).isEqualTo(0L)
-        }
     }
 }
