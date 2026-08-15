@@ -35,6 +35,12 @@ spring:
     activate:
       on-profile: local, test
 
+loopers:
+  admin:
+    stub-credentials:
+      - id: admin
+        password: admin1234
+
 ---
 spring:
   config:
