@@ -640,5 +640,27 @@ class ProductServiceIntegrationTest @Autowired constructor(
             // assert
             assertThat(productService.getProductIncludingDeleted(alreadyDeleted.id)?.deletedAt).isEqualTo(firstDeletedAt)
         }
+
+        /**
+         * BaseEntity.delete() 자체가 멱등해서, 이미 삭제된 상품을 연쇄 삭제 대상에 다시 끌어와도
+         * deletedAt 은 바뀌지 않는다. 그래서 findAllByBrandId 가 삭제된 상품을 제외하지 못하게 퇴화해도
+         * deleteAllByBrandId 를 거치는 관찰로는 그 결함이 드러나지 않는다.
+         * 이 제외 조건은 저장소 경계에서 직접 확인해야만 관찰 가능하다.
+         */
+        @DisplayName("findAllByBrandId 는 소프트 삭제된 상품을 제외한다.")
+        @Test
+        fun findAllByBrandIdExcludesSoftDeletedProducts() {
+            // arrange
+            val alive = saveProductFor(brandId = 1L, name = "운동화")
+            val deleted = saveProductFor(brandId = 1L, name = "러닝화")
+            deleted.delete()
+            productRepository.saveAll(listOf(deleted))
+
+            // act
+            val found = productRepository.findAllByBrandId(1L)
+
+            // assert
+            assertThat(found.map { it.id }).containsExactly(alive.id)
+        }
     }
 }
