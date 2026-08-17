@@ -156,6 +156,33 @@ class BrandAdminV1ApiE2ETest @Autowired constructor(
         }
 
         /**
+         * 위 테스트의 createdAt 단언은 response.body 가 이미 역직렬화된 뒤라 와이어 형식과 무관하게 통과한다.
+         * 형식을 결정하는 것은 이 모듈이 아니라 supports:jackson 의 전역 설정과 Boot 기본값이라,
+         * 여기서 원시 응답 본문을 직접 확인해 형식을 못 박아 둔다.
+         */
+        @DisplayName("타임스탬프는 오프셋을 포함한 ISO-8601 문자열로 직렬화된다.")
+        @Test
+        fun serializesTimestampsAsIso8601() {
+            // arrange
+            val brand = saveBrand()
+
+            // act
+            val raw = testRestTemplate.exchange(
+                "$ENDPOINT/${brand.id}",
+                HttpMethod.GET,
+                HttpEntity<Any>(adminHeaders()),
+                String::class.java,
+            ).body!!
+
+            // assert
+            // 배열(epoch) 직렬화로 바뀌면 이 정규식이 실패한다. 형식은 supports:jackson 의 전역 설정이 결정하므로
+            // 이 모듈 밖의 변경으로 조용히 깨질 수 있고, 그래서 어드민 쪽에서 한 번 못 박아 둔다.
+            // ZonedDateTime.now() 가 JVM 기본 타임존을 따르므로(BaseEntity), 오프셋은 UTC 인 Z 로도,
+            // +09:00 같은 숫자 오프셋으로도 나올 수 있다 — 둘 다 유효한 ISO-8601 이므로 둘 다 허용한다.
+            assertThat(raw).containsPattern(""""createdAt":"\d{4}-\d{2}-\d{2}T[\d:.]+(Z|[+\-]\d{2}:\d{2})"""")
+        }
+
+        /**
          * 공개 API 는 같은 요청에 404 를 반환한다. 어드민만의 계약이다.
          */
         @DisplayName("삭제된 브랜드를 조회하면, 200 과 함께 deleted 가 true 로 반환된다.")
