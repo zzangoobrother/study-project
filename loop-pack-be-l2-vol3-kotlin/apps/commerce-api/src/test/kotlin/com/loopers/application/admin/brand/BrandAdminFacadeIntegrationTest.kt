@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.transaction.annotation.Transactional
 
 @SpringBootTest
 class BrandAdminFacadeIntegrationTest @Autowired constructor(
@@ -247,6 +248,22 @@ class BrandAdminFacadeIntegrationTest @Autowired constructor(
                 { assertThat(brandAdminFacade.getBrand(brand.id).deletedAt).isEqualTo(deletedAt) },
                 { assertThat(productService.getProductIncludingDeleted(product.id)?.deletedAt).isNotNull() },
             )
+        }
+
+        /**
+         * 연쇄 삭제의 원자성은 이 애노테이션 하나에 달려 있다.
+         * 두 애그리거트에 걸친 삭제가 한 트랜잭션이 아니면, 상품 삭제가 실패했을 때
+         * 브랜드만 삭제된 채 고아 상품이 남는다. 이 상태를 만드는 회귀는
+         * 기존 테스트 중 어느 것도 실패시키지 않으므로 여기서 직접 고정한다.
+         */
+        @DisplayName("연쇄 삭제는 한 트랜잭션 안에서 일어난다.")
+        @Test
+        fun deleteIsTransactional() {
+            // act
+            val method = BrandAdminFacade::class.java.getDeclaredMethod("delete", Long::class.java)
+
+            // assert
+            assertThat(method.getAnnotation(Transactional::class.java)).isNotNull()
         }
     }
 }
