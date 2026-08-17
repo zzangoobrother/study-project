@@ -425,10 +425,20 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
             )
 
             // assert
+            // 응답 DTO 만으로는 실제 저장 여부를 알 수 없다. 파사드가 영속화 없이 갱신된
+            // 엔티티로 응답을 만들어도 통과할 수 있으므로, 별도 GET 으로 재조회해 확인한다.
+            val found = testRestTemplate.exchange(
+                "$ENDPOINT/${product.id}",
+                HttpMethod.GET,
+                HttpEntity<Any>(adminHeaders()),
+                productType,
+            )
             assertAll(
                 { assertThat(response.statusCode).isEqualTo(HttpStatus.OK) },
                 { assertThat(response.body?.data?.name).isEqualTo("러닝화") },
                 { assertThat(response.body?.data?.price).isEqualTo(59000L) },
+                { assertThat(found.body?.data?.name).isEqualTo("러닝화") },
+                { assertThat(found.body?.data?.price).isEqualTo(59000L) },
             )
         }
 
