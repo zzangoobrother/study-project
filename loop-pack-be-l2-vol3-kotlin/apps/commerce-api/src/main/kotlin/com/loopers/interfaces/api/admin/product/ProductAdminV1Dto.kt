@@ -1,6 +1,9 @@
 package com.loopers.interfaces.api.admin.product
 
 import com.loopers.application.admin.product.ProductAdminInfo
+import com.loopers.domain.product.Price
+import com.loopers.domain.product.ProductCommand
+import com.loopers.domain.product.ProductName
 import java.time.ZonedDateTime
 
 class ProductAdminV1Dto {
@@ -48,5 +51,41 @@ class ProductAdminV1Dto {
                 )
             }
         }
+    }
+
+    /**
+     * 상품 등록 요청.
+     *
+     * likeCount 를 받지 않는다. 등록 시 항상 0 이며, 이 값을 바꾸는 메서드의 모양은
+     * 좋아요 기능이 붙을 때 결정되어야 한다는 LikeCount 의 주석을 그대로 존중한다.
+     */
+    data class RegisterRequest(
+        val brandId: Long,
+        val name: String,
+        val price: Long,
+    ) {
+        fun toCommand(): ProductCommand.Register = ProductCommand.Register(
+            brandId = brandId,
+            name = ProductName(name),
+            price = Price(price),
+        )
+    }
+
+    /**
+     * 상품 수정 요청. PUT 이므로 전체 교체다.
+     *
+     * brandId 필드가 없는 것이 "상품의 브랜드는 수정할 수 없음" 요구사항의 이행이다.
+     * 클라이언트가 본문에 brandId 를 실어 보내면 FAIL_ON_UNKNOWN_PROPERTIES 가 꺼져 있어 조용히 무시된다.
+     * 그 침묵은 설계 문서 10.3 장에 위험으로 기록돼 있으며, 필요해지면 "있으면 400" 으로 강화한다.
+     */
+    data class ChangeRequest(
+        val name: String,
+        val price: Long,
+    ) {
+        fun toCommand(id: Long): ProductCommand.Change = ProductCommand.Change(
+            id = id,
+            name = ProductName(name),
+            price = Price(price),
+        )
     }
 }

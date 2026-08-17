@@ -5,8 +5,12 @@ import com.loopers.domain.product.ProductCriteria
 import com.loopers.domain.support.PageQuery
 import com.loopers.interfaces.api.ApiResponse
 import com.loopers.interfaces.api.PageResponse
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -45,5 +49,32 @@ class ProductAdminV1Controller(
         return productAdminFacade.getProduct(productId)
             .let { ProductAdminV1Dto.ProductResponse.from(it) }
             .let { ApiResponse.success(it) }
+    }
+
+    @PostMapping
+    override fun register(
+        @RequestBody request: ProductAdminV1Dto.RegisterRequest,
+    ): ApiResponse<ProductAdminV1Dto.ProductResponse> {
+        return productAdminFacade.register(request.toCommand())
+            .let { ProductAdminV1Dto.ProductResponse.from(it) }
+            .let { ApiResponse.success(it) }
+    }
+
+    @PutMapping("/{productId}")
+    override fun change(
+        @PathVariable productId: Long,
+        @RequestBody request: ProductAdminV1Dto.ChangeRequest,
+    ): ApiResponse<ProductAdminV1Dto.ProductResponse> {
+        return productAdminFacade.change(request.toCommand(productId))
+            .let { ProductAdminV1Dto.ProductResponse.from(it) }
+            .let { ApiResponse.success(it) }
+    }
+
+    @DeleteMapping("/{productId}")
+    override fun delete(
+        @PathVariable productId: Long,
+    ): ApiResponse<Any> {
+        productAdminFacade.delete(productId)
+        return ApiResponse.success()
     }
 }
