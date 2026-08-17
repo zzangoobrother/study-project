@@ -3,7 +3,8 @@
 // 자격 증명은 application.yml 의 local, test 프로필에 있는 스텁 값이다.
 
 ### 브랜드 등록
-// 응답의 id 를 아래 요청들에 직접 넣어 쓴다.
+// 등록 결과는 목록 조회에서 최신순 맨 위에 오는지 확인하는 용도다. 아래 상세/수정/삭제는 시더가 넣은
+// brandId 1 을 대상으로 하며, 그 브랜드에 상품이 있어야 연쇄 삭제를 시연할 수 있다.
 POST {{commerce-api}}/api-admin/v1/brands
 X-Loopers-LdapId: {{admin-ldap-id}}
 X-Loopers-LdapPw: {{admin-ldap-pw}}
