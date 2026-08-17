@@ -171,6 +171,33 @@ class ProductAdminFacadeIntegrationTest @Autowired constructor(
             // assert
             assertThat(page.content.map { it.id }).containsExactly(targetProduct.id)
         }
+
+        /**
+         * includesDeletedProductsWithBrand 는 브랜드가 살아있어 loadBrands 가 getBrands(삭제 제외)로
+         * 바뀌어도 통과해버린다. 목록 경로에서 삭제된 브랜드가 실제로 채워지는지는 이 테스트만 검증한다.
+         */
+        @DisplayName("브랜드가 삭제됐어도 목록에서 브랜드 정보가 채워지고 brand.deleted 가 true 다.")
+        @Test
+        fun fillsDeletedBrand() {
+            // arrange
+            val brand = saveBrand()
+            val product = saveProduct(brand.id)
+            brand.delete()
+            brandRepository.save(brand)
+
+            // act
+            val page = productAdminFacade.getProducts(
+                ProductCriteria.AdminSearch(brandId = null, pageQuery = PageQuery(0, 20)),
+            )
+
+            // assert
+            assertAll(
+                { assertThat(page.content).hasSize(1) },
+                { assertThat(page.content.first().id).isEqualTo(product.id) },
+                { assertThat(page.content.first().brand?.id).isEqualTo(brand.id) },
+                { assertThat(page.content.first().brand?.deleted).isTrue() },
+            )
+        }
     }
 
     @DisplayName("상품을 등록할 때, ")
