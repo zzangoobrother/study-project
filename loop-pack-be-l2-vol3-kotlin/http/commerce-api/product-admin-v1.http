@@ -1,5 +1,9 @@
 // 쓰기 요청이 섞여 있어 실행 순서에 의존한다. 위에서부터 차례로 실행한다.
 // brandId 2 는 시더가 넣은 브랜드다. brand-admin-v1.http 에서 브랜드 1 을 삭제했다면 2 를 쓴다.
+// 아래 상세/수정/삭제 요청이 productId 1 이 아니라 2 를 쓰는 이유도 같다 — LocalDataSeeder 는
+// index % brands.size 로 상품을 브랜드에 배분하므로 productId 1 은 brandId 1 소속이고,
+// brand-admin-v1.http 의 캐스케이드 삭제로 이미 지워져 있다. brandId 2 는 그 파일에서
+// 삭제되지 않으므로, 같은 라운드로빈 규칙상 브랜드 2 소속인 productId 2 를 대상으로 삼는다.
 
 ### 상품 등록
 POST {{commerce-api}}/api-admin/v1/products
@@ -43,12 +47,12 @@ X-Loopers-LdapId: {{admin-ldap-id}}
 X-Loopers-LdapPw: {{admin-ldap-pw}}
 
 ### 상품 상세 조회
-GET {{commerce-api}}/api-admin/v1/products/1
+GET {{commerce-api}}/api-admin/v1/products/2
 X-Loopers-LdapId: {{admin-ldap-id}}
 X-Loopers-LdapPw: {{admin-ldap-pw}}
 
 ### 상품 정보 수정
-PUT {{commerce-api}}/api-admin/v1/products/1
+PUT {{commerce-api}}/api-admin/v1/products/2
 X-Loopers-LdapId: {{admin-ldap-id}}
 X-Loopers-LdapPw: {{admin-ldap-pw}}
 Content-Type: application/json
@@ -60,7 +64,7 @@ Content-Type: application/json
 
 ### 상품 정보 수정 - brandId 를 넣어도 무시된다
 // 응답의 brand.id 가 바뀌지 않아야 한다. 설계 문서 10.3 장의 "조용한 무시" 를 눈으로 확인하는 요청이다.
-PUT {{commerce-api}}/api-admin/v1/products/1
+PUT {{commerce-api}}/api-admin/v1/products/2
 X-Loopers-LdapId: {{admin-ldap-id}}
 X-Loopers-LdapPw: {{admin-ldap-pw}}
 Content-Type: application/json
@@ -72,17 +76,17 @@ Content-Type: application/json
 }
 
 ### 상품 삭제
-DELETE {{commerce-api}}/api-admin/v1/products/1
+DELETE {{commerce-api}}/api-admin/v1/products/2
 X-Loopers-LdapId: {{admin-ldap-id}}
 X-Loopers-LdapPw: {{admin-ldap-pw}}
 
 ### 삭제된 상품 상세 조회 (200, deleted = true)
-GET {{commerce-api}}/api-admin/v1/products/1
+GET {{commerce-api}}/api-admin/v1/products/2
 X-Loopers-LdapId: {{admin-ldap-id}}
 X-Loopers-LdapPw: {{admin-ldap-pw}}
 
 ### 삭제된 상품 수정 (409 Conflict)
-PUT {{commerce-api}}/api-admin/v1/products/1
+PUT {{commerce-api}}/api-admin/v1/products/2
 X-Loopers-LdapId: {{admin-ldap-id}}
 X-Loopers-LdapPw: {{admin-ldap-pw}}
 Content-Type: application/json
@@ -93,7 +97,7 @@ Content-Type: application/json
 }
 
 ### 상품 삭제 재요청 (200, 멱등)
-DELETE {{commerce-api}}/api-admin/v1/products/1
+DELETE {{commerce-api}}/api-admin/v1/products/2
 X-Loopers-LdapId: {{admin-ldap-id}}
 X-Loopers-LdapPw: {{admin-ldap-pw}}
 
