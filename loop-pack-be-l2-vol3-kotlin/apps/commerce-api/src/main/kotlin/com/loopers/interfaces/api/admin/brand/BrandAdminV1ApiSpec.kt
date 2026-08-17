@@ -27,4 +27,32 @@ interface BrandAdminV1ApiSpec {
         @Schema(name = "브랜드 ID", description = "조회할 브랜드의 ID")
         brandId: Long,
     ): ApiResponse<BrandAdminV1Dto.BrandResponse>
+
+    @Operation(
+        summary = "브랜드 등록",
+        description = "브랜드를 등록합니다. description 을 생략하면 빈 문자열로 저장됩니다.",
+    )
+    fun register(
+        request: BrandAdminV1Dto.RegisterRequest,
+    ): ApiResponse<BrandAdminV1Dto.BrandResponse>
+
+    @Operation(
+        summary = "브랜드 정보 수정",
+        description = "브랜드 정보를 전체 교체합니다. description 을 생략하면 빈 문자열로 덮입니다. " +
+            "삭제된 브랜드는 409 Conflict 입니다.",
+    )
+    fun change(
+        @Schema(name = "브랜드 ID", description = "수정할 브랜드의 ID")
+        brandId: Long,
+        request: BrandAdminV1Dto.ChangeRequest,
+    ): ApiResponse<BrandAdminV1Dto.BrandResponse>
+
+    @Operation(
+        summary = "브랜드 삭제",
+        description = "브랜드를 소프트 삭제하고, 그 브랜드의 상품도 함께 삭제합니다. 이미 삭제된 브랜드에 대해서도 200 입니다.",
+    )
+    fun delete(
+        @Schema(name = "브랜드 ID", description = "삭제할 브랜드의 ID")
+        brandId: Long,
+    ): ApiResponse<Any>
 }

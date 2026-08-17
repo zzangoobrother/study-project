@@ -4,6 +4,11 @@ import com.loopers.domain.brand.BrandDescription
 import com.loopers.domain.brand.BrandModel
 import com.loopers.domain.brand.BrandName
 import com.loopers.domain.brand.BrandRepository
+import com.loopers.domain.product.Price
+import com.loopers.domain.product.ProductModel
+import com.loopers.domain.product.ProductName
+import com.loopers.domain.product.ProductRepository
+import com.loopers.domain.product.ProductService
 import com.loopers.interfaces.api.ApiResponse
 import com.loopers.interfaces.api.PageResponse
 import com.loopers.interfaces.api.admin.brand.BrandAdminV1Dto
@@ -29,6 +34,8 @@ import org.springframework.http.MediaType
 class BrandAdminV1ApiE2ETest @Autowired constructor(
     private val testRestTemplate: TestRestTemplate,
     private val brandRepository: BrandRepository,
+    private val productRepository: ProductRepository,
+    private val productService: ProductService,
     private val databaseCleanUp: DatabaseCleanUp,
 ) {
     companion object {
@@ -52,6 +59,9 @@ class BrandAdminV1ApiE2ETest @Autowired constructor(
 
     private fun saveBrand(name: String = "루퍼스", description: String = "일상을 조금 낫게"): BrandModel =
         brandRepository.save(BrandModel.create(BrandName(name), BrandDescription(description)))
+
+    private fun saveProduct(brandId: Long, name: String = "운동화"): ProductModel =
+        productRepository.save(ProductModel.create(brandId = brandId, name = ProductName(name), price = Price(39000)))
 
     @AfterEach
     fun tearDown() {
@@ -282,6 +292,306 @@ class BrandAdminV1ApiE2ETest @Autowired constructor(
 
             // assert
             assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        }
+    }
+
+    @DisplayName("POST /api-admin/v1/brands")
+    @Nested
+    inner class RegisterBrand {
+        @DisplayName("브랜드를 등록하면, 200 과 함께 등록된 정보를 반환한다.")
+        @Test
+        fun registersBrand() {
+            // arrange
+            val body = mapOf("name" to "루퍼스", "description" to "일상을 조금 낫게")
+
+            // act
+            val response = testRestTemplate.exchange(
+                ENDPOINT,
+                HttpMethod.POST,
+                HttpEntity(body, adminHeaders()),
+                brandType,
+            )
+
+            // assert
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.OK) },
+                { assertThat(response.body?.data?.id).isNotNull() },
+                { assertThat(response.body?.data?.name).isEqualTo("루퍼스") },
+                { assertThat(response.body?.data?.description).isEqualTo("일상을 조금 낫게") },
+                { assertThat(response.body?.data?.deleted).isFalse() },
+            )
+        }
+
+        @DisplayName("description 을 생략하면, 빈 문자열로 등록된다.")
+        @Test
+        fun registersWithEmptyDescription_whenDescriptionIsOmitted() {
+            // arrange
+            val body = mapOf("name" to "하바나")
+
+            // act
+            val response = testRestTemplate.exchange(
+                ENDPOINT,
+                HttpMethod.POST,
+                HttpEntity(body, adminHeaders()),
+                brandType,
+            )
+
+            // assert
+            assertThat(response.body?.data?.description).isEmpty()
+        }
+
+        @DisplayName("name 이 비어 있으면, 400 Bad Request 를 반환한다.")
+        @Test
+        fun returnsBadRequest_whenNameIsBlank() {
+            // arrange
+            val body = mapOf("name" to "", "description" to "설명")
+
+            // act
+            val response = testRestTemplate.exchange(
+                ENDPOINT,
+                HttpMethod.POST,
+                HttpEntity(body, adminHeaders()),
+                brandType,
+            )
+
+            // assert
+            assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        }
+
+        @DisplayName("name 이 50자를 넘으면, 400 Bad Request 를 반환한다.")
+        @Test
+        fun returnsBadRequest_whenNameIsTooLong() {
+            // arrange
+            val body = mapOf("name" to "가".repeat(51))
+
+            // act
+            val response = testRestTemplate.exchange(
+                ENDPOINT,
+                HttpMethod.POST,
+                HttpEntity(body, adminHeaders()),
+                brandType,
+            )
+
+            // assert
+            assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        }
+
+        @DisplayName("name 필드 자체가 없으면, 400 Bad Request 를 반환한다.")
+        @Test
+        fun returnsBadRequest_whenNameFieldIsMissing() {
+            // arrange
+            val body = mapOf("description" to "설명")
+
+            // act
+            val response = testRestTemplate.exchange(
+                ENDPOINT,
+                HttpMethod.POST,
+                HttpEntity(body, adminHeaders()),
+                brandType,
+            )
+
+            // assert
+            assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        }
+
+        @DisplayName("인증 헤더가 없으면, 401 Unauthorized 를 반환한다.")
+        @Test
+        fun returnsUnauthorized_whenHeadersAreMissing() {
+            // arrange
+            val headers = HttpHeaders().apply { contentType = MediaType.APPLICATION_JSON }
+            val body = mapOf("name" to "루퍼스")
+
+            // act
+            val response = testRestTemplate.exchange(ENDPOINT, HttpMethod.POST, HttpEntity(body, headers), brandType)
+
+            // assert
+            assertThat(response.statusCode).isEqualTo(HttpStatus.UNAUTHORIZED)
+        }
+    }
+
+    @DisplayName("PUT /api-admin/v1/brands/{brandId}")
+    @Nested
+    inner class ChangeBrand {
+        @DisplayName("브랜드를 수정하면, 교체된 정보를 반환한다.")
+        @Test
+        fun changesBrand() {
+            // arrange
+            val brand = saveBrand()
+            val body = mapOf("name" to "몬드리안", "description" to "선과 면")
+
+            // act
+            val response = testRestTemplate.exchange(
+                "$ENDPOINT/${brand.id}",
+                HttpMethod.PUT,
+                HttpEntity(body, adminHeaders()),
+                brandType,
+            )
+
+            // assert
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.OK) },
+                { assertThat(response.body?.data?.name).isEqualTo("몬드리안") },
+                { assertThat(response.body?.data?.description).isEqualTo("선과 면") },
+            )
+        }
+
+        /**
+         * PUT 은 전체 교체다. description 을 생략하면 기존 값이 유지되는 것이 아니라 빈 문자열로 덮인다.
+         * "생략하면 유지" 는 PATCH 의 의미이며 이 API 의 계약이 아니다.
+         */
+        @DisplayName("description 을 생략하면, 기존 설명이 빈 문자열로 덮인다.")
+        @Test
+        fun overwritesDescriptionWithEmpty_whenDescriptionIsOmitted() {
+            // arrange
+            val brand = saveBrand(description = "일상을 조금 낫게")
+            val body = mapOf("name" to "루퍼스")
+
+            // act
+            val response = testRestTemplate.exchange(
+                "$ENDPOINT/${brand.id}",
+                HttpMethod.PUT,
+                HttpEntity(body, adminHeaders()),
+                brandType,
+            )
+
+            // assert
+            assertThat(response.body?.data?.description).isEmpty()
+        }
+
+        @DisplayName("존재하지 않는 브랜드를 수정하면, 404 Not Found 를 반환한다.")
+        @Test
+        fun returnsNotFound_whenBrandDoesNotExist() {
+            // arrange
+            val body = mapOf("name" to "몬드리안")
+
+            // act
+            val response = testRestTemplate.exchange(
+                "$ENDPOINT/99999",
+                HttpMethod.PUT,
+                HttpEntity(body, adminHeaders()),
+                brandType,
+            )
+
+            // assert
+            assertThat(response.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
+        }
+
+        /**
+         * 어드민은 삭제된 브랜드를 조회할 수 있으므로 그것은 "없는" 것이 아니다.
+         * 요청은 멀쩡하고 리소스도 존재하지만 현재 상태와 충돌하므로 404 가 아니라 409 다.
+         */
+        @DisplayName("삭제된 브랜드를 수정하면, 409 Conflict 를 반환한다.")
+        @Test
+        fun returnsConflict_whenBrandIsDeleted() {
+            // arrange
+            val brand = saveBrand()
+            brand.delete()
+            brandRepository.save(brand)
+            val body = mapOf("name" to "몬드리안")
+
+            // act
+            val response = testRestTemplate.exchange(
+                "$ENDPOINT/${brand.id}",
+                HttpMethod.PUT,
+                HttpEntity(body, adminHeaders()),
+                brandType,
+            )
+
+            // assert
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.CONFLICT) },
+                { assertThat(response.body?.meta?.result).isEqualTo(ApiResponse.Metadata.Result.FAIL) },
+            )
+        }
+    }
+
+    @DisplayName("DELETE /api-admin/v1/brands/{brandId}")
+    @Nested
+    inner class DeleteBrand {
+        @DisplayName("브랜드를 삭제하면, 200 을 반환하고 이후 조회에서 deleted 가 true 다.")
+        @Test
+        fun deletesBrand() {
+            // arrange
+            val brand = saveBrand()
+
+            // act
+            val response = testRestTemplate.exchange(
+                "$ENDPOINT/${brand.id}",
+                HttpMethod.DELETE,
+                HttpEntity<Any>(adminHeaders()),
+                brandType,
+            )
+
+            // assert
+            val found = testRestTemplate.exchange(
+                "$ENDPOINT/${brand.id}",
+                HttpMethod.GET,
+                HttpEntity<Any>(adminHeaders()),
+                brandType,
+            )
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.OK) },
+                { assertThat(response.body?.meta?.result).isEqualTo(ApiResponse.Metadata.Result.SUCCESS) },
+                { assertThat(found.body?.data?.deleted).isTrue() },
+            )
+        }
+
+        @DisplayName("브랜드를 삭제하면, 그 브랜드의 상품도 공개 조회에서 사라진다.")
+        @Test
+        fun cascadesToProducts() {
+            // arrange
+            val brand = saveBrand()
+            val product = saveProduct(brand.id)
+
+            // act
+            testRestTemplate.exchange(
+                "$ENDPOINT/${brand.id}",
+                HttpMethod.DELETE,
+                HttpEntity<Any>(adminHeaders()),
+                brandType,
+            )
+
+            // assert
+            assertThat(productService.getProduct(product.id)).isNull()
+        }
+
+        @DisplayName("존재하지 않는 브랜드를 삭제하면, 404 Not Found 를 반환한다.")
+        @Test
+        fun returnsNotFound_whenBrandDoesNotExist() {
+            // act
+            val response = testRestTemplate.exchange(
+                "$ENDPOINT/99999",
+                HttpMethod.DELETE,
+                HttpEntity<Any>(adminHeaders()),
+                brandType,
+            )
+
+            // assert
+            assertThat(response.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
+        }
+
+        @DisplayName("이미 삭제된 브랜드를 다시 삭제해도, 200 을 반환한다.")
+        @Test
+        fun isIdempotent() {
+            // arrange
+            val brand = saveBrand()
+            testRestTemplate.exchange(
+                "$ENDPOINT/${brand.id}",
+                HttpMethod.DELETE,
+                HttpEntity<Any>(adminHeaders()),
+                brandType,
+            )
+
+            // act
+            val response = testRestTemplate.exchange(
+                "$ENDPOINT/${brand.id}",
+                HttpMethod.DELETE,
+                HttpEntity<Any>(adminHeaders()),
+                brandType,
+            )
+
+            // assert
+            assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
         }
     }
 }

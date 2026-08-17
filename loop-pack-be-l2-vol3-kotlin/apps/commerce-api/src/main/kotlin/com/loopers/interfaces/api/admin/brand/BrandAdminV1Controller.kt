@@ -4,8 +4,12 @@ import com.loopers.application.admin.brand.BrandAdminFacade
 import com.loopers.domain.support.PageQuery
 import com.loopers.interfaces.api.ApiResponse
 import com.loopers.interfaces.api.PageResponse
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -41,5 +45,37 @@ class BrandAdminV1Controller(
         return brandAdminFacade.getBrand(brandId)
             .let { BrandAdminV1Dto.BrandResponse.from(it) }
             .let { ApiResponse.success(it) }
+    }
+
+    /**
+     * 등록 응답이 201 Created 가 아니라 200 인 것은 기존 POST /api/v1/users 와 맞추기 위해서다.
+     * 어드민만 201 을 쓰면 이 프로젝트에서 유일한 예외가 되고 Location 헤더 관례도 새로 정해야 한다.
+     * 설계 문서 10.4 장에 기록돼 있다.
+     */
+    @PostMapping
+    override fun register(
+        @RequestBody request: BrandAdminV1Dto.RegisterRequest,
+    ): ApiResponse<BrandAdminV1Dto.BrandResponse> {
+        return brandAdminFacade.register(request.toCommand())
+            .let { BrandAdminV1Dto.BrandResponse.from(it) }
+            .let { ApiResponse.success(it) }
+    }
+
+    @PutMapping("/{brandId}")
+    override fun change(
+        @PathVariable brandId: Long,
+        @RequestBody request: BrandAdminV1Dto.ChangeRequest,
+    ): ApiResponse<BrandAdminV1Dto.BrandResponse> {
+        return brandAdminFacade.change(request.toCommand(brandId))
+            .let { BrandAdminV1Dto.BrandResponse.from(it) }
+            .let { ApiResponse.success(it) }
+    }
+
+    @DeleteMapping("/{brandId}")
+    override fun delete(
+        @PathVariable brandId: Long,
+    ): ApiResponse<Any> {
+        brandAdminFacade.delete(brandId)
+        return ApiResponse.success()
     }
 }
