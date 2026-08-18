@@ -113,7 +113,7 @@
   - `data class AdminAuthProperties(val stubCredentials: List<Credential>)`, 중첩 `data class Credential(val id: String, val password: String)`
   - `class StubAdminAuthenticator(properties: AdminAuthProperties) : AdminAuthenticator`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `apps/commerce-api/src/test/kotlin/com/loopers/infrastructure/auth/StubAdminAuthenticatorTest.kt`
 
@@ -224,7 +224,7 @@ class StubAdminAuthenticatorTest {
 }
 ```
 
-- [ ] **Step 2: 테스트가 실패하는지 확인**
+- [x] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.infrastructure.auth.StubAdminAuthenticatorTest"
@@ -232,7 +232,7 @@ class StubAdminAuthenticatorTest {
 
 Expected: 컴파일 실패. `AdminPrincipal`, `AdminAuthProperties`, `StubAdminAuthenticator` 를 찾을 수 없다.
 
-- [ ] **Step 3: 구현 작성**
+- [x] **Step 3: 구현 작성**
 
 `apps/commerce-api/src/main/kotlin/com/loopers/support/auth/AdminPrincipal.kt`
 
@@ -357,7 +357,7 @@ spring:
       on-profile: dev
 ```
 
-- [ ] **Step 4: 테스트가 통과하는지 확인**
+- [x] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.infrastructure.auth.StubAdminAuthenticatorTest"
@@ -366,7 +366,7 @@ spring:
 
 Expected: 6개 테스트 전부 PASS, ktlint PASS
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/support/auth \
@@ -394,7 +394,7 @@ git commit -m "feat : 어드민 인증 이음새와 설정 기반 스텁 인증�
 
 **참고:** `WebConfig` 의 경로 등록은 이 태스크에서 검증하지 않는다. `/api-admin/**` 아래 엔드포인트가 아직 없기 때문이다. Task 10 의 E2E 테스트가 실제 등록 여부를 확인한다.
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `apps/commerce-api/src/test/kotlin/com/loopers/support/auth/AdminAuthInterceptorTest.kt`
 
@@ -488,7 +488,7 @@ class AdminAuthInterceptorTest {
 }
 ```
 
-- [ ] **Step 2: 테스트가 실패하는지 확인**
+- [x] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.support.auth.AdminAuthInterceptorTest"
@@ -496,7 +496,7 @@ class AdminAuthInterceptorTest {
 
 Expected: 컴파일 실패. `AdminAuthInterceptor` 를 찾을 수 없다.
 
-- [ ] **Step 3: 구현 작성**
+- [x] **Step 3: 구현 작성**
 
 `apps/commerce-api/src/main/kotlin/com/loopers/support/auth/AdminAuthInterceptor.kt`
 
@@ -586,7 +586,7 @@ class WebConfig(
 }
 ```
 
-- [ ] **Step 4: 테스트가 통과하는지 확인**
+- [x] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.support.auth.AdminAuthInterceptorTest"
@@ -603,7 +603,7 @@ Expected: 5개 테스트 전부 PASS, ktlint PASS
 
 Expected: 전부 PASS (Docker 필요)
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/support/auth/AdminAuthInterceptor.kt \
@@ -628,7 +628,7 @@ git commit -m "feat : 어드민 인증 인터셉터와 WebConfig 추가"
   - `BrandCommand.Register(name: BrandName, description: BrandDescription)`
   - `BrandCommand.Change(id: Long, name: BrandName, description: BrandDescription)`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `apps/commerce-api/src/test/kotlin/com/loopers/domain/brand/BrandModelTest.kt` (신규 파일 — 기존 `BrandModelPersistenceTest` 와 다른 파일이다)
 
@@ -690,7 +690,7 @@ class BrandModelTest {
 `assertThat(sut.id).isEqualTo(0L)` 같은 단언은 구현이 무엇을 하든 참이라 아무것도 고정하지 못한다.
 같은 `sut` 참조에서 변경이 보인다는 사실은 `replacesNameAndDescription` 이 이미 증명한다.
 
-- [ ] **Step 2: 테스트가 실패하는지 확인**
+- [x] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.domain.brand.BrandModelTest"
@@ -698,7 +698,7 @@ class BrandModelTest {
 
 Expected: 컴파일 실패. `change` 메서드가 없다.
 
-- [ ] **Step 3: 구현 작성**
+- [x] **Step 3: 구현 작성**
 
 `BrandModel.kt` 의 `companion object` **바로 위**에 메서드를 추가한다.
 
@@ -743,7 +743,7 @@ class BrandCommand {
 }
 ```
 
-- [ ] **Step 4: 테스트가 통과하는지 확인**
+- [x] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.domain.brand.BrandModelTest"
@@ -752,7 +752,7 @@ class BrandCommand {
 
 Expected: 3개 테스트 전부 PASS, ktlint PASS
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/domain/brand/BrandModel.kt \
@@ -783,7 +783,7 @@ git commit -m "feat : 브랜드 변경 메서드와 BrandCommand 추가"
 
 **`BrandJpaRepository` 는 수정하지 않는다.** 삭제 포함 조회 셋은 `JpaRepository` 가 이미 제공하는 `findById` / `findAllById` / `findAll(Pageable)` 로 처리된다. 소프트 삭제 필터는 기존 메서드 **이름**(`…AndDeletedAtIsNull`)에만 들어 있었기 때문이다.
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `BrandServiceIntegrationTest.kt` 의 마지막 `@Nested` 클래스(`GetBrands`) **뒤**, 클래스 닫는 괄호 앞에 추가한다.
 import 도 함께 추가한다: `com.loopers.domain.support.PageQuery`, `org.springframework.jdbc.core.JdbcTemplate`.
@@ -946,7 +946,7 @@ import 도 함께 추가한다: `com.loopers.domain.support.PageQuery`, `org.spr
     }
 ```
 
-- [ ] **Step 2: 테스트가 실패하는지 확인**
+- [x] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.domain.brand.BrandServiceIntegrationTest"
@@ -954,7 +954,7 @@ import 도 함께 추가한다: `com.loopers.domain.support.PageQuery`, `org.spr
 
 Expected: 컴파일 실패. `getBrandIncludingDeleted` 등을 찾을 수 없다.
 
-- [ ] **Step 3: 구현 작성**
+- [x] **Step 3: 구현 작성**
 
 `BrandRepository.kt` 전체를 다음으로 교체한다.
 
@@ -1089,7 +1089,7 @@ import 도 함께 추가한다: `com.loopers.domain.support.PageQuery`, `com.loo
     }
 ```
 
-- [ ] **Step 4: 테스트가 통과하는지 확인**
+- [x] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.domain.brand.BrandServiceIntegrationTest"
@@ -1098,7 +1098,7 @@ import 도 함께 추가한다: `com.loopers.domain.support.PageQuery`, `com.loo
 
 Expected: 기존 6개 + 신규 8개 전부 PASS (Docker 필요), ktlint PASS
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/domain/brand/BrandRepository.kt \
@@ -1123,7 +1123,7 @@ git commit -m "feat : 브랜드 삭제 포함 조회 경로 추가"
   - `BrandService.change(command: BrandCommand.Change): BrandModel`
   - `BrandService.delete(id: Long)`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `BrandServiceIntegrationTest.kt` 의 마지막 `@Nested` 클래스 뒤에 추가한다.
 import 도 함께 추가한다: `com.loopers.support.error.CoreException`, `com.loopers.support.error.ErrorType`, `org.assertj.core.api.Assertions.assertThatThrownBy`.
@@ -1267,7 +1267,7 @@ import 도 함께 추가한다: `com.loopers.support.error.CoreException`, `com.
     }
 ```
 
-- [ ] **Step 2: 테스트가 실패하는지 확인**
+- [x] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.domain.brand.BrandServiceIntegrationTest"
@@ -1275,7 +1275,7 @@ import 도 함께 추가한다: `com.loopers.support.error.CoreException`, `com.
 
 Expected: 컴파일 실패. `register` / `change` / `delete` 를 찾을 수 없다.
 
-- [ ] **Step 3: 구현 작성**
+- [x] **Step 3: 구현 작성**
 
 `BrandService.kt` 의 클래스 닫는 괄호 앞에 추가한다.
 import 도 함께 추가한다: `com.loopers.support.error.CoreException`, `com.loopers.support.error.ErrorType`.
@@ -1342,7 +1342,7 @@ import 도 함께 추가한다: `com.loopers.support.error.CoreException`, `com.
     }
 ```
 
-- [ ] **Step 4: 테스트가 통과하는지 확인**
+- [x] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.domain.brand.BrandServiceIntegrationTest"
@@ -1351,7 +1351,7 @@ import 도 함께 추가한다: `com.loopers.support.error.CoreException`, `com.
 
 Expected: 기존 14개 + 신규 8개 전부 PASS (Docker 필요), ktlint PASS
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/domain/brand/BrandService.kt \
@@ -1377,7 +1377,7 @@ git commit -m "feat : 브랜드 등록 / 수정 / 삭제 유스케이스 추가"
   - `ProductCommand.Change(id: Long, name: ProductName, price: Price)`
   - `ProductCriteria.AdminSearch(brandId: Long?, pageQuery: PageQuery)`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `ProductModelTest.kt` 의 마지막 `@Nested` 클래스 뒤, 클래스 닫는 괄호 앞에 추가한다.
 
@@ -1456,7 +1456,7 @@ git commit -m "feat : 브랜드 등록 / 수정 / 삭제 유스케이스 추가"
 
 `ProductModelTest.kt` 상단 import 에 `com.loopers.domain.product.LikeCount` 가 없다면 추가한다. (같은 패키지라면 불필요하다.)
 
-- [ ] **Step 2: 테스트가 실패하는지 확인**
+- [x] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.domain.product.ProductModelTest"
@@ -1464,7 +1464,7 @@ git commit -m "feat : 브랜드 등록 / 수정 / 삭제 유스케이스 추가"
 
 Expected: 컴파일 실패. `change` 메서드가 없다.
 
-- [ ] **Step 3: 구현 작성**
+- [x] **Step 3: 구현 작성**
 
 `ProductModel.kt` 의 `companion object` **바로 위**에 메서드를 추가한다.
 
@@ -1530,7 +1530,7 @@ class ProductCommand {
     )
 ```
 
-- [ ] **Step 4: 테스트가 통과하는지 확인**
+- [x] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.domain.product.ProductModelTest"
@@ -1539,7 +1539,7 @@ class ProductCommand {
 
 Expected: 기존 테스트 + 신규 4개 전부 PASS, ktlint PASS
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/domain/product/ProductModel.kt \
@@ -1569,7 +1569,7 @@ git commit -m "feat : 상품 변경 메서드와 ProductCommand / AdminSearch �
   - `ProductService.getProductPageIncludingDeleted(criteria: ProductCriteria.AdminSearch): PageResult<ProductModel>`
   - `ProductQueryDslRepository.searchIncludingDeleted(criteria: ProductCriteria.AdminSearch): PageResult<ProductModel>`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `ProductServiceIntegrationTest.kt` 의 마지막 `@Nested` 클래스 뒤에 추가한다.
 
@@ -1768,7 +1768,7 @@ git commit -m "feat : 상품 변경 메서드와 ProductCommand / AdminSearch �
     }
 ```
 
-- [ ] **Step 2: 테스트가 실패하는지 확인**
+- [x] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.domain.product.ProductServiceIntegrationTest"
@@ -1776,7 +1776,7 @@ git commit -m "feat : 상품 변경 메서드와 ProductCommand / AdminSearch �
 
 Expected: 컴파일 실패. `getProductIncludingDeleted` 등을 찾을 수 없다.
 
-- [ ] **Step 3: 구현 작성**
+- [x] **Step 3: 구현 작성**
 
 `ProductRepository.kt` 의 `findAll` 뒤, 인터페이스 닫는 괄호 앞에 추가한다.
 
@@ -1880,7 +1880,7 @@ Expected: 컴파일 실패. `getProductIncludingDeleted` 등을 찾을 수 없�
     }
 ```
 
-- [ ] **Step 4: 테스트가 통과하는지 확인**
+- [x] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.domain.product.ProductServiceIntegrationTest"
@@ -1898,7 +1898,7 @@ Expected: 기존 테스트 + 신규 8개 전부 PASS (Docker 필요)
 
 Expected: 전부 PASS
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/domain/product/ProductRepository.kt \
@@ -1929,7 +1929,7 @@ git commit -m "feat : 상품 삭제 포함 조회 추가와 QueryDSL 쿼리 본�
   - `ProductService.delete(id: Long)`
   - `ProductService.deleteAllByBrandId(brandId: Long)`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `ProductServiceIntegrationTest.kt` 의 마지막 `@Nested` 클래스 뒤에 추가한다.
 import 에 `com.loopers.support.error.CoreException`, `com.loopers.support.error.ErrorType`, `org.assertj.core.api.Assertions.assertThatThrownBy` 가 없으면 추가한다.
@@ -2131,7 +2131,7 @@ import 에 `com.loopers.support.error.CoreException`, `com.loopers.support.error
     }
 ```
 
-- [ ] **Step 2: 테스트가 실패하는지 확인**
+- [x] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.domain.product.ProductServiceIntegrationTest"
@@ -2139,7 +2139,7 @@ import 에 `com.loopers.support.error.CoreException`, `com.loopers.support.error
 
 Expected: 컴파일 실패. `register` / `change` / `delete` / `deleteAllByBrandId` 를 찾을 수 없다.
 
-- [ ] **Step 3: 구현 작성**
+- [x] **Step 3: 구현 작성**
 
 `ProductRepository.kt` 의 `saveAll` 주석을 갱신하고 `save` 를 추가한다. 기존 주석 블록
 
@@ -2267,7 +2267,7 @@ import 에 `com.loopers.support.error.CoreException`, `com.loopers.support.error
 
 `LocalDataSeeder` 는 `saveAll` 을 계속 쓰므로 수정할 필요가 없다.
 
-- [ ] **Step 4: 테스트가 통과하는지 확인**
+- [x] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.domain.product.ProductServiceIntegrationTest"
@@ -2276,7 +2276,7 @@ import 에 `com.loopers.support.error.CoreException`, `com.loopers.support.error
 
 Expected: 기존 테스트 + 신규 12개 전부 PASS (Docker 필요), ktlint PASS
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/domain/product/ProductRepository.kt \
@@ -2306,7 +2306,7 @@ git commit -m "feat : 상품 등록 / 수정 / 삭제와 브랜드별 일괄 삭
   - `BrandAdminFacade.change(command: BrandCommand.Change): BrandAdminInfo`
   - `BrandAdminFacade.delete(id: Long)`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `apps/commerce-api/src/test/kotlin/com/loopers/application/admin/brand/BrandAdminFacadeIntegrationTest.kt`
 
@@ -2565,7 +2565,7 @@ class BrandAdminFacadeIntegrationTest @Autowired constructor(
 }
 ```
 
-- [ ] **Step 2: 테스트가 실패하는지 확인**
+- [x] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.application.admin.brand.BrandAdminFacadeIntegrationTest"
@@ -2573,7 +2573,7 @@ class BrandAdminFacadeIntegrationTest @Autowired constructor(
 
 Expected: 컴파일 실패. `BrandAdminFacade` 와 `BrandAdminInfo` 를 찾을 수 없다.
 
-- [ ] **Step 3: 구현 작성**
+- [x] **Step 3: 구현 작성**
 
 `apps/commerce-api/src/main/kotlin/com/loopers/application/admin/brand/BrandAdminInfo.kt`
 
@@ -2691,7 +2691,7 @@ class BrandAdminFacade(
 }
 ```
 
-- [ ] **Step 4: 테스트가 통과하는지 확인**
+- [x] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.application.admin.brand.BrandAdminFacadeIntegrationTest"
@@ -2700,7 +2700,7 @@ class BrandAdminFacade(
 
 Expected: 11개 테스트 전부 PASS (Docker 필요), ktlint PASS
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/application/admin \
@@ -2727,7 +2727,7 @@ git commit -m "feat : BrandAdminFacade 와 브랜드 삭제 시 상품 연쇄 �
 
 **이 태스크가 `WebConfig` 의 인터셉터 등록을 처음으로 검증한다.** Task 2 에서 미룬 확인이다.
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `apps/commerce-api/src/test/kotlin/com/loopers/interfaces/api/admin/BrandAdminV1ApiE2ETest.kt`
 
@@ -3021,7 +3021,7 @@ class BrandAdminV1ApiE2ETest @Autowired constructor(
 }
 ```
 
-- [ ] **Step 2: 테스트가 실패하는지 확인**
+- [x] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.interfaces.api.admin.BrandAdminV1ApiE2ETest"
@@ -3029,7 +3029,7 @@ class BrandAdminV1ApiE2ETest @Autowired constructor(
 
 Expected: 컴파일 실패. `BrandAdminV1Dto` 를 찾을 수 없다.
 
-- [ ] **Step 3: 구현 작성**
+- [x] **Step 3: 구현 작성**
 
 `apps/commerce-api/src/main/kotlin/com/loopers/interfaces/api/admin/brand/BrandAdminV1Dto.kt`
 
@@ -3161,7 +3161,7 @@ class BrandAdminV1Controller(
 }
 ```
 
-- [ ] **Step 4: 테스트가 통과하는지 확인**
+- [x] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.interfaces.api.admin.BrandAdminV1ApiE2ETest"
@@ -3180,7 +3180,7 @@ Expected: 11개 테스트 전부 PASS (Docker 필요), ktlint PASS
 숫자 배열(`[2026,8,15,...]`)로 나오면 설계 문서 4.4 장의 예상과 다르므로, `application.yml` 에
 `spring.jackson.serialization.write-dates-as-timestamps: false` 를 추가하고 다시 확인한다.
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/interfaces/api/admin \
@@ -3205,7 +3205,7 @@ git commit -m "feat : 브랜드 어드민 목록 / 상세 조회 API 추가"
   - `BrandAdminV1Dto.ChangeRequest(name: String, description: String?)` + `toCommand(id: Long): BrandCommand.Change`
   - `BrandAdminV1Controller.register(request)` / `change(brandId, request)` / `delete(brandId)`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `BrandAdminV1ApiE2ETest.kt` 의 마지막 `@Nested` 클래스 뒤에 추가한다.
 import 에 `com.loopers.domain.product.Price`, `com.loopers.domain.product.ProductModel`, `com.loopers.domain.product.ProductName`, `com.loopers.domain.product.ProductRepository`, `com.loopers.domain.product.ProductService` 를 추가하고,
@@ -3521,7 +3521,7 @@ import 에 `com.loopers.domain.product.Price`, `com.loopers.domain.product.Produ
     }
 ```
 
-- [ ] **Step 2: 테스트가 실패하는지 확인**
+- [x] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.interfaces.api.admin.BrandAdminV1ApiE2ETest"
@@ -3529,7 +3529,7 @@ import 에 `com.loopers.domain.product.Price`, `com.loopers.domain.product.Produ
 
 Expected: `POST` / `PUT` / `DELETE` 요청이 405 Method Not Allowed 를 받아 실패한다. 핸들러가 아직 없기 때문이다.
 
-- [ ] **Step 3: 구현 작성**
+- [x] **Step 3: 구현 작성**
 
 `BrandAdminV1Dto.kt` 의 `BrandResponse` 뒤, 클래스 닫는 괄호 앞에 추가한다.
 import 에 `com.loopers.domain.brand.BrandCommand`, `com.loopers.domain.brand.BrandDescription`, `com.loopers.domain.brand.BrandName` 을 추가한다.
@@ -3639,7 +3639,7 @@ import 에 `org.springframework.web.bind.annotation.DeleteMapping`, `PostMapping
     }
 ```
 
-- [ ] **Step 4: 테스트가 통과하는지 확인**
+- [x] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.interfaces.api.admin.BrandAdminV1ApiE2ETest"
@@ -3648,7 +3648,7 @@ import 에 `org.springframework.web.bind.annotation.DeleteMapping`, `PostMapping
 
 Expected: 기존 11개 + 신규 14개 전부 PASS (Docker 필요), ktlint PASS
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/interfaces/api/admin/brand \
@@ -3676,7 +3676,7 @@ git commit -m "feat : 브랜드 어드민 등록 / 수정 / 삭제 API 추가"
   - `ProductAdminFacade.change(command: ProductCommand.Change): ProductAdminInfo`
   - `ProductAdminFacade.delete(id: Long)`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `apps/commerce-api/src/test/kotlin/com/loopers/application/admin/product/ProductAdminFacadeIntegrationTest.kt`
 
@@ -3957,7 +3957,7 @@ class ProductAdminFacadeIntegrationTest @Autowired constructor(
 }
 ```
 
-- [ ] **Step 2: 테스트가 실패하는지 확인**
+- [x] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.application.admin.product.ProductAdminFacadeIntegrationTest"
@@ -3965,7 +3965,7 @@ class ProductAdminFacadeIntegrationTest @Autowired constructor(
 
 Expected: 컴파일 실패. `ProductAdminFacade` 와 `ProductAdminInfo` 를 찾을 수 없다.
 
-- [ ] **Step 3: 구현 작성**
+- [x] **Step 3: 구현 작성**
 
 `apps/commerce-api/src/main/kotlin/com/loopers/application/admin/product/ProductAdminInfo.kt`
 
@@ -4106,7 +4106,7 @@ class ProductAdminFacade(
 }
 ```
 
-- [ ] **Step 4: 테스트가 통과하는지 확인**
+- [x] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.application.admin.product.ProductAdminFacadeIntegrationTest"
@@ -4115,7 +4115,7 @@ class ProductAdminFacade(
 
 Expected: 12개 테스트 전부 PASS (Docker 필요), ktlint PASS
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/application/admin/product \
@@ -4141,7 +4141,7 @@ git commit -m "feat : ProductAdminFacade 와 상품 등록 시 브랜드 검증 
   - `ProductAdminV1Controller.getProducts(brandId: Long?, page: Int?, size: Int?)`
   - `ProductAdminV1Controller.getProduct(productId: Long)`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `apps/commerce-api/src/test/kotlin/com/loopers/interfaces/api/admin/ProductAdminV1ApiE2ETest.kt`
 
@@ -4426,7 +4426,7 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
 }
 ```
 
-- [ ] **Step 2: 테스트가 실패하는지 확인**
+- [x] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.interfaces.api.admin.ProductAdminV1ApiE2ETest"
@@ -4434,7 +4434,7 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
 
 Expected: 컴파일 실패. `ProductAdminV1Dto` 를 찾을 수 없다.
 
-- [ ] **Step 3: 구현 작성**
+- [x] **Step 3: 구현 작성**
 
 `apps/commerce-api/src/main/kotlin/com/loopers/interfaces/api/admin/product/ProductAdminV1Dto.kt`
 
@@ -4584,7 +4584,7 @@ class ProductAdminV1Controller(
 }
 ```
 
-- [ ] **Step 4: 테스트가 통과하는지 확인**
+- [x] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.interfaces.api.admin.ProductAdminV1ApiE2ETest"
@@ -4593,7 +4593,7 @@ class ProductAdminV1Controller(
 
 Expected: 10개 테스트 전부 PASS (Docker 필요), ktlint PASS
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/interfaces/api/admin/product \
@@ -4618,7 +4618,7 @@ git commit -m "feat : 상품 어드민 목록 / 상세 조회 API 추가"
   - `ProductAdminV1Dto.ChangeRequest(name: String, price: Long)` + `toCommand(id: Long): ProductCommand.Change`
   - `ProductAdminV1Controller.register(request)` / `change(productId, request)` / `delete(productId)`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `ProductAdminV1ApiE2ETest.kt` 의 마지막 `@Nested` 클래스 뒤에 추가한다.
 
@@ -4942,7 +4942,7 @@ git commit -m "feat : 상품 어드민 목록 / 상세 조회 API 추가"
     }
 ```
 
-- [ ] **Step 2: 테스트가 실패하는지 확인**
+- [x] **Step 2: 테스트가 실패하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.interfaces.api.admin.ProductAdminV1ApiE2ETest"
@@ -4950,7 +4950,7 @@ git commit -m "feat : 상품 어드민 목록 / 상세 조회 API 추가"
 
 Expected: `POST` / `PUT` / `DELETE` 요청이 405 Method Not Allowed 를 받아 실패한다.
 
-- [ ] **Step 3: 구현 작성**
+- [x] **Step 3: 구현 작성**
 
 `ProductAdminV1Dto.kt` 의 `ProductResponse` 뒤, 클래스 닫는 괄호 앞에 추가한다.
 import 에 `com.loopers.domain.product.Price`, `com.loopers.domain.product.ProductCommand`, `com.loopers.domain.product.ProductName` 을 추가한다.
@@ -5056,7 +5056,7 @@ import 에 `org.springframework.web.bind.annotation.DeleteMapping`, `PostMapping
     }
 ```
 
-- [ ] **Step 4: 테스트가 통과하는지 확인**
+- [x] **Step 4: 테스트가 통과하는지 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.interfaces.api.admin.ProductAdminV1ApiE2ETest"
@@ -5065,7 +5065,7 @@ import 에 `org.springframework.web.bind.annotation.DeleteMapping`, `PostMapping
 
 Expected: 기존 10개 + 신규 13개 전부 PASS (Docker 필요), ktlint PASS
 
-- [ ] **Step 5: 전체 테스트 확인**
+- [x] **Step 5: 전체 테스트 확인**
 
 ```bash
 ./gradlew :apps:commerce-api:test
@@ -5073,7 +5073,7 @@ Expected: 기존 10개 + 신규 13개 전부 PASS (Docker 필요), ktlint PASS
 
 Expected: 전부 PASS. 특히 공개 API 의 E2E 와 파사드 통합 테스트가 깨지지 않아야 한다.
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/interfaces/api/admin/product \
@@ -5094,7 +5094,7 @@ git commit -m "feat : 상품 어드민 등록 / 수정 / 삭제 API 추가"
 - Consumes: 엔드포인트 10개 전부 (Task 10, 11, 13, 14)
 - Produces: 없음 (수동 확인용)
 
-- [ ] **Step 1: 환경 변수 추가**
+- [x] **Step 1: 환경 변수 추가**
 
 `http/http-client.env.json` 을 다음으로 교체한다.
 
@@ -5108,7 +5108,7 @@ git commit -m "feat : 상품 어드민 등록 / 수정 / 삭제 API 추가"
 }
 ```
 
-- [ ] **Step 2: `brand-admin-v1.http` 작성**
+- [x] **Step 2: `brand-admin-v1.http` 작성**
 
 ```
 // 조회 API 와 달리 쓰기 요청이 섞여 있어 실행 순서에 의존한다.
@@ -5217,7 +5217,7 @@ Content-Type: application/json
 }
 ```
 
-- [ ] **Step 3: `product-admin-v1.http` 작성**
+- [x] **Step 3: `product-admin-v1.http` 작성**
 
 ```
 // 쓰기 요청이 섞여 있어 실행 순서에 의존한다. 위에서부터 차례로 실행한다.
@@ -5352,7 +5352,7 @@ X-Loopers-LdapPw: {{admin-ldap-pw}}
 GET {{commerce-api}}/api-admin/v1/products
 ```
 
-- [ ] **Step 4: 수동 실행으로 확인**
+- [x] **Step 4: 수동 실행으로 확인**
 
 앱을 로컬 프로필로 띄운 상태에서 IDE 의 HTTP 클라이언트로 두 파일의 요청을 위에서부터 순서대로 실행하고, 각 주석에 적힌 상태 코드와 일치하는지 확인한다.
 
@@ -5363,7 +5363,7 @@ GET {{commerce-api}}/api-admin/v1/products
 3. `createdAt` 이 **ISO-8601 문자열**이다. 숫자 배열이면 설계 문서 4.4 장의 예상과 다르므로 Task 10 Step 4 의 지시대로 설정을 추가한다.
 4. 상품 수정 요청에 `brandId` 를 넣어도 응답의 `brand.id` 가 **바뀌지 않는다**.
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add http/commerce-api/brand-admin-v1.http http/commerce-api/product-admin-v1.http http/http-client.env.json
