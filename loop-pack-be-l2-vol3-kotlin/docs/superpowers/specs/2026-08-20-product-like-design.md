@@ -382,6 +382,10 @@ UPDATE products SET like_count = like_count - 1
  WHERE id = :productId AND deleted_at IS NULL AND like_count > 0;
 ```
 
+**여기서는 `products.updated_at` 을 갱신하지 않는다.** 6.3 장의 경고는 `product_likes` 에만 적용된다.
+그 행은 `deleted_at` 이 바뀌는 **상태 전이**를 겪지만, 상품은 편집된 것이 아니라 비정규화된 카운터가 움직였을 뿐이다.
+좋아요마다 `updated_at` 을 밀면 어드민 목록(2026-08-15 §4.4)에서 아무도 수정하지 않은 상품이 계속 "방금 수정됨" 으로 보인다.
+
 읽어서 더한 값을 쓰는 대신 **DB 안에서 증분한다.** 갱신 손실이 원리적으로 발생하지 않는다.
 2026-08-13 §10.3 이 제시한 두 후보 중 이쪽을 택한 이유는 **락 보유 구간이 가장 짧기** 때문이다.
 비관적 락(`SELECT ... FOR UPDATE`)은 트랜잭션이 끝날 때까지 행을 잡고 있지만,
