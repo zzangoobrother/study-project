@@ -175,6 +175,13 @@ class LikeFacadeConcurrencyTest @Autowired constructor(
         runConcurrently(2) { likeFacade.unlike(user.loginId, product.id) }
 
         // assert
-        assertThat(likeCountOf(product.id)).isEqualTo(BASE_LIKE_COUNT)
+        val like = productLikeJpaRepository.findByUserIdAndProductId(user.id, product.id)
+        assertAll(
+            { assertThat(likeCountOf(product.id)).isEqualTo(BASE_LIKE_COUNT) },
+            // 행 수가 아니라 deletedAt 을 보는 이유는, 취소가 소프트 삭제라 이 시나리오의 행 수는
+            // 버그가 있든 없든 항상 1 로 고정되기 때문이다. 카운트는 정확히 줄었는데 행이 되살아나 있는
+            // (restore 오발동) 회귀는 행 수로는 잡히지 않고 이 단언만이 잡는다.
+            { assertThat(like?.deletedAt).describedAs("취소된 좋아요 행은 소프트 삭제 상태로 남아 있어야 한다").isNotNull() },
+        )
     }
 }
