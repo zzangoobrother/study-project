@@ -32,4 +32,19 @@ interface ProductRepository {
      * 이미 삭제된 상품을 다시 삭제 대상으로 끌어올 이유가 없고, 이 성질이 연쇄 삭제의 멱등성을 만든다.
      */
     fun findAllByBrandId(brandId: Long): List<ProductModel>
+
+    /**
+     * 좋아요 수를 1 늘린다. 반환값은 영향 행 수다.
+     *
+     * 읽어서 더한 값을 쓰는 대신 DB 안에서 증분하므로 동시 갱신에서 손실이 발생하지 않는다. (설계 문서 6.4 장)
+     * 삭제된 상품은 대상이 아니다.
+     */
+    fun increaseLikeCount(productId: Long): Int
+
+    /**
+     * 좋아요 수를 1 줄인다. 이미 0 이면 아무것도 바꾸지 않는다. 반환값은 영향 행 수다.
+     *
+     * 0 이 반환되면 좋아요 행과 카운트가 어긋났다는 뜻이다. 그것을 어떻게 볼지는 호출자가 정한다.
+     */
+    fun decreaseLikeCount(productId: Long): Int
 }
