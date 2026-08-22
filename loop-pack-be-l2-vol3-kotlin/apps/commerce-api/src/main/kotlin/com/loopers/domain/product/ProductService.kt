@@ -3,6 +3,7 @@ package com.loopers.domain.product
 import com.loopers.domain.support.PageResult
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 
@@ -10,6 +11,8 @@ import org.springframework.transaction.annotation.Transactional
 class ProductService(
     private val productRepository: ProductRepository,
 ) {
+    private val log = LoggerFactory.getLogger(ProductService::class.java)
+
     /**
      * 상품이 없을 때 예외를 던지지 않고 null 을 반환한다.
      * 도메인 서비스는 "없다" 는 사실만 전달하고, 그것을 오류로 볼지는 유스케이스가 정한다.
@@ -114,5 +117,36 @@ class ProductService(
     @Transactional
     fun deleteAllByBrandId(brandId: Long) {
         productRepository.findAllByBrandId(brandId).forEach { it.delete() }
+    }
+
+    /**
+     * 좋아요 수를 1 늘린다.
+     *
+     * 반환값을 두지 않는 이유는 호출자가 할 수 있는 일이 없기 때문이다.
+     * 호출 직전에 상품 존재를 확인했으므로 0 행은 "확인과 갱신 사이에 상품이 삭제됐다" 는 드문 경우이고,
+     * 그것 때문에 사용자의 좋아요 요청을 실패시킬 이유가 없다. 기록만 남긴다.
+     */
+    @Transactional
+    fun increaseLikeCount(productId: Long) {
+        if (productRepository.increaseLikeCount(productId) == 0) {
+            log.warn("좋아요 수 증가 실패 : productId={} — 상품이 없거나 삭제되었습니다.", productId)
+        }
+    }
+
+    /**
+     * 좋아요 수를 1 줄인다.
+     *
+     * 0 행은 정합성 붕괴 신호다 — 좋아요 행은 살아 있었는데 카운트가 이미 0 이라는 뜻이다.
+     * 그래도 예외를 던지지 않는다. 사용자의 취소는 이미 정상 완료됐고,
+     * 어긋난 카운트를 이유로 그 요청을 실패시킬 근거가 없다. (설계 문서 6.4 장)
+     */
+    @Transactional
+    fun decreaseLikeCount(productId: Long) {
+        if (productRepository.decreaseLikeCount(productId) == 0) {
+            log.warn(
+                "좋아요 수 감소 실패 : productId={} — 카운트가 이미 0 이거나 상품이 삭제되었습니다. 정합성 확인이 필요합니다.",
+                productId,
+            )
+        }
     }
 }

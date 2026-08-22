@@ -54,6 +54,16 @@ class ProductServiceIntegrationTest @Autowired constructor(
         price: Long = 39000,
     ): ProductModel = saveProducts(product(brandId = brandId, name = name, price = price)).first()
 
+    private fun saveProduct(brandId: Long = 1L, price: Long = 10_000, likeCount: Long = 0): ProductModel =
+        productRepository.save(
+            ProductModel.create(
+                brandId = brandId,
+                name = ProductName("상품"),
+                price = Price(price),
+                likeCount = LikeCount(likeCount),
+            ),
+        )
+
     @AfterEach
     fun tearDown() {
         databaseCleanUp.truncateAllTables()
@@ -661,6 +671,75 @@ class ProductServiceIntegrationTest @Autowired constructor(
 
             // assert
             assertThat(found.map { it.id }).containsExactly(alive.id)
+        }
+    }
+
+    @DisplayName("좋아요 수를 증감할 때, ")
+    @Nested
+    inner class ChangeLikeCount {
+        @DisplayName("증가시키면, 1 늘어난다.")
+        @Test
+        fun increasesByOne() {
+            // arrange
+            val product = saveProduct(likeCount = 3)
+
+            // act
+            productService.increaseLikeCount(product.id)
+
+            // assert
+            assertThat(productService.getProduct(product.id)?.likeCount).isEqualTo(LikeCount(4))
+        }
+
+        @DisplayName("감소시키면, 1 줄어든다.")
+        @Test
+        fun decreasesByOne() {
+            // arrange
+            val product = saveProduct(likeCount = 3)
+
+            // act
+            productService.decreaseLikeCount(product.id)
+
+            // assert
+            assertThat(productService.getProduct(product.id)?.likeCount).isEqualTo(LikeCount(2))
+        }
+
+        /**
+         * WHERE 절의 like_count > 0 가드가 빠지면 이 단언이 실패한다.
+         * 음수가 저장되면 다음 조회에서 LikeCount 생성자가 터진다.
+         */
+        @DisplayName("0 인 상품을 감소시켜도, 음수가 되지 않는다.")
+        @Test
+        fun doesNotGoNegative_whenCountIsZero() {
+            // arrange
+            val product = saveProduct(likeCount = 0)
+
+            // act
+            productService.decreaseLikeCount(product.id)
+
+            // assert
+            assertThat(productService.getProduct(product.id)?.likeCount).isEqualTo(LikeCount(0))
+        }
+
+        @DisplayName("삭제된 상품이면, 증가하지 않는다.")
+        @Test
+        fun doesNotIncrease_whenProductIsSoftDeleted() {
+            // arrange
+            val product = saveProduct(likeCount = 3)
+            productService.delete(product.id)
+
+            // act
+            productService.increaseLikeCount(product.id)
+
+            // assert
+            assertThat(productService.getProductIncludingDeleted(product.id)?.likeCount).isEqualTo(LikeCount(3))
+        }
+
+        @DisplayName("존재하지 않는 상품이면, 예외 없이 아무 일도 일어나지 않는다.")
+        @Test
+        fun doesNothing_whenProductDoesNotExist() {
+            // act & assert — 예외가 나지 않는 것이 단언이다
+            productService.increaseLikeCount(99999L)
+            productService.decreaseLikeCount(99999L)
         }
     }
 }
