@@ -26,6 +26,7 @@ class ProductModel private constructor(
     name: ProductName,
     price: Price,
     likeCount: LikeCount,
+    stock: Stock,
 ) : BaseEntity() {
     @Column(name = "brand_id", nullable = false)
     var brandId: Long = brandId
@@ -46,6 +47,11 @@ class ProductModel private constructor(
     var likeCount: LikeCount = likeCount
         protected set
 
+    @Embedded
+    @AttributeOverride(name = "value", column = Column(name = "stock", nullable = false))
+    var stock: Stock = stock
+        protected set
+
     init {
         // brandId 만 값 객체가 아니라 원시 타입이므로(설계 문서 5.2 장) 이 검증만 애그리거트가 직접 한다.
         // 브랜드 ID 라는 개념은 BrandModel 쪽에 속하며, 상품이 그것을 감싸는 타입을 따로 정의하면
@@ -64,22 +70,36 @@ class ProductModel private constructor(
      *
      * 필드별 메서드로 나누지 않는 이유는 수정 API 가 PUT — 전체 교체 — 이기 때문이다.
      * 값 검증은 ProductName 과 Price 가 이미 소유한다.
+     *
+     * stock 이 매개변수에 들어온 것은 재고가 상품의 속성이기 때문이다. (설계 문서 5.6 장)
+     * PUT 은 전체 교체이므로 재고도 교체 대상이다.
+     * 주문에 의한 차감은 이 경로를 타지 않는다 — 그쪽은 조건부 UPDATE 이며 엔티티를 거치지 않는다.
      */
-    fun change(name: ProductName, price: Price) {
+    fun change(name: ProductName, price: Price, stock: Stock) {
         this.name = name
         this.price = price
+        this.stock = stock
     }
 
     companion object {
         /**
          * likeCount 는 기본값 0 이며, 인자로 받는 경로는 로컬 시드 데이터를 위해 열어둔 것이다. (설계 문서 8.1 장)
          * increase() / decrease() 를 여는 것보다 표면이 좁다.
+         *
+         * stock 도 같은 이유로 기본값 0 이다. 재고 없이 등록하고 나중에 채우는 것이 정상 흐름이다.
          */
         fun create(
             brandId: Long,
             name: ProductName,
             price: Price,
             likeCount: LikeCount = LikeCount.ZERO,
-        ): ProductModel = ProductModel(brandId = brandId, name = name, price = price, likeCount = likeCount)
+            stock: Stock = Stock.ZERO,
+        ): ProductModel = ProductModel(
+            brandId = brandId,
+            name = name,
+            price = price,
+            likeCount = likeCount,
+            stock = stock,
+        )
     }
 }

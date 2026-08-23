@@ -76,7 +76,7 @@ class ProductModelTest {
             val sut = product()
 
             // act
-            sut.change(ProductName("러닝화"), Price(59000))
+            sut.change(ProductName("러닝화"), Price(59000), Stock.ZERO)
 
             // assert
             assertAll(
@@ -96,7 +96,7 @@ class ProductModelTest {
             val sut = product()
 
             // act
-            sut.change(ProductName("러닝화"), Price(59000))
+            sut.change(ProductName("러닝화"), Price(59000), Stock.ZERO)
 
             // assert
             assertThat(sut.brandId).isEqualTo(1L)
@@ -114,7 +114,7 @@ class ProductModelTest {
             )
 
             // act
-            sut.change(ProductName("러닝화"), Price(59000))
+            sut.change(ProductName("러닝화"), Price(59000), Stock.ZERO)
 
             // assert
             assertThat(sut.likeCount).isEqualTo(LikeCount(7))
@@ -127,7 +127,7 @@ class ProductModelTest {
             val sut = product()
 
             // act
-            sut.change(ProductName("사은품"), Price(0))
+            sut.change(ProductName("사은품"), Price(0), Stock.ZERO)
 
             // assert
             assertThat(sut.price).isEqualTo(Price(0))
