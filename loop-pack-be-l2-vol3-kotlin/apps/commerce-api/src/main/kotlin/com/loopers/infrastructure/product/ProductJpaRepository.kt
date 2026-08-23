@@ -11,6 +11,8 @@ interface ProductJpaRepository : JpaRepository<ProductModel, Long> {
 
     fun findAllByBrandIdAndDeletedAtIsNull(brandId: Long): List<ProductModel>
 
+    fun findAllByIdInAndDeletedAtIsNull(ids: List<Long>): List<ProductModel>
+
     /**
      * products 의 updated_at 은 건드리지 않는다. (설계 문서 6.4 장)
      * 좋아요는 상품을 편집한 것이 아니라 비정규화된 카운터를 움직인 것이므로,

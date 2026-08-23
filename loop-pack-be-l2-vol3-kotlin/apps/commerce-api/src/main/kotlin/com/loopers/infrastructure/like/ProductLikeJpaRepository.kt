@@ -1,6 +1,7 @@
 package com.loopers.infrastructure.like
 
 import com.loopers.domain.like.ProductLikeModel
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
@@ -45,4 +46,20 @@ interface ProductLikeJpaRepository : JpaRepository<ProductLikeModel, Long> {
         @Param("productId") productId: Long,
         @Param("now") now: ZonedDateTime,
     ): Int
+
+    /**
+     * updatedAt 으로 정렬하는 이유는 취소 후 재좋아요 때문이다.
+     * createdAt 은 최초 좋아요 시점이라, 그것으로 정렬하면 방금 누른 좋아요가 목록 맨 뒤에 나타난다.
+     * id DESC 보조 정렬은 같은 시각의 행이 여럿일 때 페이지 경계에서 중복과 누락을 막는다.
+     */
+    @Query(
+        """
+        SELECT l.productId FROM ProductLikeModel l
+         WHERE l.userId = :userId AND l.deletedAt IS NULL
+         ORDER BY l.updatedAt DESC, l.id DESC
+        """,
+    )
+    fun findLikedProductIds(@Param("userId") userId: Long, pageable: Pageable): List<Long>
+
+    fun countByUserIdAndDeletedAtIsNull(userId: Long): Long
 }

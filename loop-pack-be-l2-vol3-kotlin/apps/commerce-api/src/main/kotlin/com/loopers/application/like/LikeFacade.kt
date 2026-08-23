@@ -1,7 +1,12 @@
 package com.loopers.application.like
 
+import com.loopers.application.brand.BrandInfo
+import com.loopers.application.product.ProductInfo
+import com.loopers.domain.brand.BrandService
 import com.loopers.domain.like.LikeService
 import com.loopers.domain.product.ProductService
+import com.loopers.domain.support.PageQuery
+import com.loopers.domain.support.PageResult
 import com.loopers.domain.user.LoginId
 import com.loopers.domain.user.UserModel
 import com.loopers.domain.user.UserService
@@ -29,6 +34,7 @@ class LikeFacade(
     private val userService: UserService,
     private val productService: ProductService,
     private val likeService: LikeService,
+    private val brandService: BrandService,
     private val transactionTemplate: TransactionTemplate,
 ) {
     private val log = LoggerFactory.getLogger(LikeFacade::class.java)
@@ -87,5 +93,33 @@ class LikeFacade(
                 errorType = ErrorType.NOT_FOUND,
                 customMessage = "[productId = $productId] 존재하지 않는 상품입니다.",
             )
+    }
+
+    /**
+     * 내가 좋아요한 상품 목록.
+     *
+     * 좋아요 행만으로 페이징이 끝나므로 totalElements 가 좋아요 개수와 정확히 일치한다.
+     * 상품과 브랜드는 그 뒤에 IN 절 한 번씩으로 결합한다 — ProductFacade 와 같은 조합 방식이다. (설계 문서 7.3 장)
+     */
+    fun getLikedProducts(loginId: LoginId, pageQuery: PageQuery): PageResult<ProductInfo> {
+        val user = getUserOrThrow(loginId)
+        val likedIds = likeService.getLikedProductIds(userId = user.id, pageQuery = pageQuery)
+        val products = productService.getProductsByIds(likedIds.content).associateBy { it.id }
+        val brands = brandService.getBrands(products.values.map { it.brandId }.distinct())
+            .associate { it.id to BrandInfo.from(it) }
+
+        // 좋아요 순서는 likedIds.content 가 갖고 있다. 상품 조회 결과의 순서는 보장되지 않으므로 이쪽을 기준으로 돈다.
+        // mapNotNull 인 이유는 연쇄 삭제 밖의 경로로 상품이 사라졌을 때 목록 전체를 실패시키지 않기 위해서다.
+        // Task 7 이후에는 정상 경로에서 누락이 발생하지 않는다.
+        val content = likedIds.content.mapNotNull { productId ->
+            products[productId]?.let { ProductInfo.of(it, brands[it.brandId]) }
+        }
+
+        return PageResult(
+            content = content,
+            page = likedIds.page,
+            size = likedIds.size,
+            totalElements = likedIds.totalElements,
+        )
     }
 }

@@ -1,5 +1,7 @@
 package com.loopers.domain.like
 
+import com.loopers.domain.support.PageQuery
+import com.loopers.domain.support.PageResult
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.time.ZonedDateTime
@@ -50,5 +52,11 @@ class LikeService(
     @Transactional
     fun unlike(userId: Long, productId: Long): Boolean {
         return productLikeRepository.softDelete(userId = userId, productId = productId, now = ZonedDateTime.now()) == 1
+    }
+
+    /** 상품 정보는 이 애그리거트의 것이 아니므로 ID 만 돌려준다. 상품 결합은 LikeFacade 가 한다. */
+    @Transactional(readOnly = true)
+    fun getLikedProductIds(userId: Long, pageQuery: PageQuery): PageResult<Long> {
+        return productLikeRepository.findLikedProductIds(userId = userId, pageQuery = pageQuery)
     }
 }

@@ -149,4 +149,14 @@ class ProductService(
             )
         }
     }
+
+    /**
+     * ID 집합으로 상품을 조회한다. 없거나 삭제된 ID 는 결과에 없다.
+     *
+     * 반환 순서는 보장하지 않는다. 순서가 필요한 호출자는 자기가 가진 ID 목록 순서로 재배열해야 한다.
+     */
+    @Transactional(readOnly = true)
+    fun getProductsByIds(ids: List<Long>): List<ProductModel> {
+        return productRepository.findAllByIds(ids)
+    }
 }
