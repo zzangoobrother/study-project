@@ -1,5 +1,6 @@
 package com.loopers.application.like
 
+import com.loopers.application.admin.product.ProductAdminFacade
 import com.loopers.domain.brand.BrandModel
 import com.loopers.domain.brand.BrandName
 import com.loopers.domain.brand.BrandRepository
@@ -36,6 +37,7 @@ class LikeFacadeIntegrationTest @Autowired constructor(
     private val userService: UserService,
     private val brandRepository: BrandRepository,
     private val productRepository: ProductRepository,
+    private val productAdminFacade: ProductAdminFacade,
     private val databaseCleanUp: DatabaseCleanUp,
 ) {
     @AfterEach
@@ -413,6 +415,28 @@ class LikeFacadeIntegrationTest @Autowired constructor(
 
             // assert
             assertThat(result.errorType).isEqualTo(ErrorType.NOT_FOUND)
+        }
+
+        /**
+         * 연쇄 삭제가 없으면 content 는 비는데 totalElements 는 1 로 남아 응답이 자기모순에 빠진다.
+         */
+        @DisplayName("좋아요한 상품이 삭제되면, 목록에서 빠지고 totalElements 도 함께 줄어든다.")
+        @Test
+        fun excludesDeletedProduct_andShrinksTotalElements() {
+            // arrange
+            val user = signUp()
+            val product = saveProduct()
+            likeFacade.like(user.loginId, product.id)
+
+            // act
+            productAdminFacade.delete(product.id)
+            val result = likeFacade.getLikedProducts(user.loginId, PageQuery())
+
+            // assert
+            assertAll(
+                { assertThat(result.content).isEmpty() },
+                { assertThat(result.totalElements).isEqualTo(0L) },
+            )
         }
     }
 }

@@ -34,4 +34,10 @@ interface ProductLikeRepository {
      * 이 성질이 성립하려면 상품이 삭제될 때 좋아요 행도 함께 삭제되어야 한다. Task 7 이 그것을 보장한다.
      */
     fun findLikedProductIds(userId: Long, pageQuery: PageQuery): PageResult<Long>
+
+    /**
+     * 상품 삭제의 연쇄 처리용. 살아 있는 좋아요만 취소하므로 재호출이 멱등하다.
+     * 반환값은 영향 행 수다.
+     */
+    fun deleteAllByProductIds(productIds: List<Long>, now: ZonedDateTime): Int
 }

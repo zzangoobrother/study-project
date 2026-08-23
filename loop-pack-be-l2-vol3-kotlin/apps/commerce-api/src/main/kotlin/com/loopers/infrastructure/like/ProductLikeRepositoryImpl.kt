@@ -38,4 +38,11 @@ class ProductLikeRepositoryImpl(
 
         return PageResult.of(content = productIds, pageQuery = pageQuery, totalElements = totalElements)
     }
+
+    override fun deleteAllByProductIds(productIds: List<Long>, now: ZonedDateTime): Int {
+        // IN () 은 문법 오류다. 대상이 없으면 쿼리를 보내지 않는다.
+        if (productIds.isEmpty()) return 0
+
+        return productLikeJpaRepository.deleteAllByProductIds(productIds = productIds, now = now)
+    }
 }

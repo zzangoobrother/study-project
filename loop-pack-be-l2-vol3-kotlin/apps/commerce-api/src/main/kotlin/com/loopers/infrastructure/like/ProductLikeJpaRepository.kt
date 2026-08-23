@@ -62,4 +62,22 @@ interface ProductLikeJpaRepository : JpaRepository<ProductLikeModel, Long> {
     fun findLikedProductIds(@Param("userId") userId: Long, pageable: Pageable): List<Long>
 
     fun countByUserIdAndDeletedAtIsNull(userId: Long): Long
+
+    /**
+     * 여기서는 벌크 UPDATE 를 쓴다.
+     * ProductService.deleteAllByBrandId 가 벌크를 피한 이유는 PreUpdate 타임스탬프와 1차 캐시 stale 이었는데,
+     * 좋아요 행은 updatedAt 을 SET 절에 직접 쓰고 같은 트랜잭션에서 다시 읽지도 않아 두 이유가 성립하지 않는다.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        UPDATE ProductLikeModel l
+           SET l.deletedAt = :now, l.updatedAt = :now
+         WHERE l.productId IN :productIds AND l.deletedAt IS NULL
+        """,
+    )
+    fun deleteAllByProductIds(
+        @Param("productIds") productIds: List<Long>,
+        @Param("now") now: ZonedDateTime,
+    ): Int
 }

@@ -113,10 +113,15 @@ class ProductService(
      * 둘째, 벌크 UPDATE 는 1차 캐시에 이미 올라온 상품을 stale 상태로 남긴다.
      *
      * 상품 수가 커지면 이 방식이 한계에 부딪힌다. 설계 문서 10.2 장 참고.
+     *
+     * 삭제한 상품 ID 를 반환하는 이유는 호출자가 그 상품들의 좋아요를 이어서 지워야 하기 때문이다.
+     * 좋아요는 다른 애그리거트이므로 이 서비스가 직접 건드리지 않는다.
      */
     @Transactional
-    fun deleteAllByBrandId(brandId: Long) {
-        productRepository.findAllByBrandId(brandId).forEach { it.delete() }
+    fun deleteAllByBrandId(brandId: Long): List<Long> {
+        return productRepository.findAllByBrandId(brandId)
+            .onEach { it.delete() }
+            .map { it.id }
     }
 
     /**
