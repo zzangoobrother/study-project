@@ -1,5 +1,7 @@
 package com.loopers.domain.like
 
+import com.loopers.domain.support.PageQuery
+import com.loopers.domain.support.PageResult
 import java.time.ZonedDateTime
 
 /**
@@ -24,4 +26,18 @@ interface ProductLikeRepository {
 
     /** 살아 있는 좋아요를 취소한다. 이미 취소됐거나 행이 없으면 아무것도 바꾸지 않는다. 반환값은 영향 행 수다. */
     fun softDelete(userId: Long, productId: Long, now: ZonedDateTime): Int
+
+    /**
+     * 회원이 좋아요한 상품 ID 를 최근 좋아요 순으로 페이징 조회한다.
+     *
+     * 상품 테이블을 조인하지 않으므로 totalElements 가 좋아요 개수와 정확히 일치한다. (설계 문서 7.3 장)
+     * 이 성질이 성립하려면 상품이 삭제될 때 좋아요 행도 함께 삭제되어야 한다. Task 7 이 그것을 보장한다.
+     */
+    fun findLikedProductIds(userId: Long, pageQuery: PageQuery): PageResult<Long>
+
+    /**
+     * 상품 삭제의 연쇄 처리용. 살아 있는 좋아요만 취소하므로 재호출이 멱등하다.
+     * 반환값은 영향 행 수다.
+     */
+    fun deleteAllByProductIds(productIds: List<Long>, now: ZonedDateTime): Int
 }

@@ -47,4 +47,7 @@ interface ProductRepository {
      * 0 이 반환되면 좋아요 행과 카운트가 어긋났다는 뜻이다. 그것을 어떻게 볼지는 호출자가 정한다.
      */
     fun decreaseLikeCount(productId: Long): Int
+
+    /** 소프트 삭제된 상품은 제외된다. 좋아요 목록처럼 ID 집합으로 조회하는 경로가 쓴다. */
+    fun findAllByIds(ids: List<Long>): List<ProductModel>
 }

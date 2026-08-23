@@ -2,6 +2,7 @@ package com.loopers.application.admin.product
 
 import com.loopers.application.admin.brand.BrandAdminInfo
 import com.loopers.domain.brand.BrandService
+import com.loopers.domain.like.LikeService
 import com.loopers.domain.product.ProductCommand
 import com.loopers.domain.product.ProductCriteria
 import com.loopers.domain.product.ProductModel
@@ -10,6 +11,7 @@ import com.loopers.domain.support.PageResult
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Transactional
 
 /**
  * 상품 어드민 유스케이스.
@@ -21,6 +23,7 @@ import org.springframework.stereotype.Component
 class ProductAdminFacade(
     private val productService: ProductService,
     private val brandService: BrandService,
+    private val likeService: LikeService,
 ) {
     fun getProducts(criteria: ProductCriteria.AdminSearch): PageResult<ProductAdminInfo> {
         val products = productService.getProductPageIncludingDeleted(criteria)
@@ -63,8 +66,16 @@ class ProductAdminFacade(
         return toInfo(productService.change(command))
     }
 
+    /**
+     * 상품을 삭제하고 그 상품의 좋아요도 함께 삭제한다.
+     *
+     * 연쇄하지 않으면 좋아요 목록의 totalElements 는 20 인데 content 는 17 건인 응답이 나간다. (설계 문서 7.4 장)
+     * 두 애그리거트에 걸친 변경이라 여기에 트랜잭션이 필요하다.
+     */
+    @Transactional
     fun delete(id: Long) {
         productService.delete(id)
+        likeService.deleteAllByProductIds(listOf(id))
     }
 
     private fun toInfo(product: ProductModel): ProductAdminInfo {

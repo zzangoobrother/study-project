@@ -1,5 +1,6 @@
 package com.loopers.application.admin.product
 
+import com.loopers.application.like.LikeFacade
 import com.loopers.domain.brand.BrandDescription
 import com.loopers.domain.brand.BrandModel
 import com.loopers.domain.brand.BrandName
@@ -12,6 +13,15 @@ import com.loopers.domain.product.ProductModel
 import com.loopers.domain.product.ProductName
 import com.loopers.domain.product.ProductRepository
 import com.loopers.domain.support.PageQuery
+import com.loopers.domain.user.BirthDate
+import com.loopers.domain.user.Email
+import com.loopers.domain.user.LoginId
+import com.loopers.domain.user.RawPassword
+import com.loopers.domain.user.UserCommand
+import com.loopers.domain.user.UserModel
+import com.loopers.domain.user.UserName
+import com.loopers.domain.user.UserService
+import com.loopers.infrastructure.like.ProductLikeJpaRepository
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
 import com.loopers.utils.DatabaseCleanUp
@@ -30,6 +40,9 @@ class ProductAdminFacadeIntegrationTest @Autowired constructor(
     private val productAdminFacade: ProductAdminFacade,
     private val brandRepository: BrandRepository,
     private val productRepository: ProductRepository,
+    private val likeFacade: LikeFacade,
+    private val userService: UserService,
+    private val productLikeJpaRepository: ProductLikeJpaRepository,
     private val databaseCleanUp: DatabaseCleanUp,
 ) {
     private fun saveBrand(name: String = "루퍼스"): BrandModel =
@@ -37,6 +50,17 @@ class ProductAdminFacadeIntegrationTest @Autowired constructor(
 
     private fun saveProduct(brandId: Long, name: String = "운동화"): ProductModel =
         productRepository.save(ProductModel.create(brandId = brandId, name = ProductName(name), price = Price(39000)))
+
+    private fun signUp(loginId: String = "loopers01"): UserModel =
+        userService.signUp(
+            UserCommand.SignUp(
+                loginId = LoginId(loginId),
+                password = RawPassword("Loopers1!"),
+                name = UserName("홍길동"),
+                birthDate = BirthDate.from("1990-01-01"),
+                email = Email("$loginId@loopers.com"),
+            ),
+        )
 
     @AfterEach
     fun tearDown() {
@@ -296,6 +320,21 @@ class ProductAdminFacadeIntegrationTest @Autowired constructor(
 
             // assert
             assertThat(productAdminFacade.getProduct(product.id).deleted).isTrue()
+        }
+
+        @DisplayName("상품을 삭제하면, 그 상품의 좋아요도 함께 삭제된다.")
+        @Test
+        fun softDeletesLikes_whenProductIsDeleted() {
+            // arrange
+            val user = signUp()
+            val product = saveProduct(saveBrand().id)
+            likeFacade.like(user.loginId, product.id)
+
+            // act
+            productAdminFacade.delete(product.id)
+
+            // assert — 행은 남지만 살아 있는 좋아요는 0 이다
+            assertThat(productLikeJpaRepository.findAll().single().deletedAt).isNotNull()
         }
     }
 }

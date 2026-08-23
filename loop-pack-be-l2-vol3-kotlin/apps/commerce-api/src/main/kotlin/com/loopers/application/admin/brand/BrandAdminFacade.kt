@@ -2,6 +2,7 @@ package com.loopers.application.admin.brand
 
 import com.loopers.domain.brand.BrandCommand
 import com.loopers.domain.brand.BrandService
+import com.loopers.domain.like.LikeService
 import com.loopers.domain.product.ProductService
 import com.loopers.domain.support.PageQuery
 import com.loopers.domain.support.PageResult
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional
 class BrandAdminFacade(
     private val brandService: BrandService,
     private val productService: ProductService,
+    private val likeService: LikeService,
 ) {
     fun getBrands(pageQuery: PageQuery): PageResult<BrandAdminInfo> {
         return brandService.getBrandPageIncludingDeleted(pageQuery)
@@ -53,10 +55,12 @@ class BrandAdminFacade(
      * 브랜드만 삭제되고 상품이 남으면 브랜드 없는 상품이 목록에 떠다닌다.
      *
      * deleteAllByBrandId 가 살아 있는 상품만 조회하므로 재호출은 멱등하다.
+     * 브랜드 → 상품 → 좋아요 2단계 연쇄이며, 각 단계가 살아 있는 대상만 고르므로 전체가 멱등하다.
      */
     @Transactional
     fun delete(id: Long) {
         brandService.delete(id)
-        productService.deleteAllByBrandId(id)
+        val deletedProductIds = productService.deleteAllByBrandId(id)
+        likeService.deleteAllByProductIds(deletedProductIds)
     }
 }
