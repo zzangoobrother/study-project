@@ -2,6 +2,7 @@ package com.loopers.interfaces.api.user
 
 import com.loopers.application.user.UserFacade
 import com.loopers.domain.user.LoginId
+import com.loopers.interfaces.api.ApiHeaders
 import com.loopers.interfaces.api.ApiResponse
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.http.HttpHeaders
@@ -66,7 +67,7 @@ class UserV1Controller(
     }
 
     companion object {
-        /** 조회 대상 회원을 식별하는 헤더. 애노테이션 인자로 쓰이므로 const 여야 한다. */
-        const val HEADER_LOGIN_ID = "X-Loopers-LoginId"
+        /** 조회 대상 회원을 식별하는 헤더. 실제 값은 ApiHeaders 가 소유한다. */
+        const val HEADER_LOGIN_ID = ApiHeaders.LOGIN_ID
     }
 }
