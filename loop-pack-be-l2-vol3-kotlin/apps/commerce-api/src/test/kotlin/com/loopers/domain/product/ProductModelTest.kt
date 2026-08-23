@@ -85,6 +85,19 @@ class ProductModelTest {
             )
         }
 
+        @DisplayName("재고가 교체된다.")
+        @Test
+        fun replacesStock() {
+            // arrange
+            val sut = product()
+
+            // act
+            sut.change(ProductName("러닝화"), Price(59000), Stock(10))
+
+            // assert
+            assertThat(sut.stock).isEqualTo(Stock(10))
+        }
+
         /**
          * change 의 시그니처에 brandId 가 없다는 것 자체가 "상품의 브랜드는 수정할 수 없음" 요구사항의 이행이다.
          * 런타임 검증이 아니라 컴파일 타임 차단이며, 이 테스트는 그 성질이 유지되는지 확인한다.
