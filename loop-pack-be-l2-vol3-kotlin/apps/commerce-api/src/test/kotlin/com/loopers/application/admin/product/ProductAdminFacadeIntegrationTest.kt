@@ -301,8 +301,11 @@ class ProductAdminFacadeIntegrationTest @Autowired constructor(
                 ),
             )
 
-            // assert
-            assertThat(productRepository.findById(info.id)!!.stock.value).isEqualTo(50L)
+            // assert — info.stock 은 ProductAdminInfo.of() 매핑을, 재조회는 실제 저장을 각각 검증한다
+            assertAll(
+                { assertThat(info.stock).isEqualTo(Stock(50)) },
+                { assertThat(productRepository.findById(info.id)!!.stock.value).isEqualTo(50L) },
+            )
         }
     }
 
@@ -370,7 +373,7 @@ class ProductAdminFacadeIntegrationTest @Autowired constructor(
             val product = saveProduct(brand.id)
 
             // act
-            productAdminFacade.change(
+            val info = productAdminFacade.change(
                 ProductCommand.Change(
                     id = product.id,
                     name = ProductName("운동화"),
@@ -379,8 +382,11 @@ class ProductAdminFacadeIntegrationTest @Autowired constructor(
                 ),
             )
 
-            // assert
-            assertThat(productRepository.findById(product.id)!!.stock.value).isEqualTo(7L)
+            // assert — info.stock 은 ProductAdminInfo.of() 매핑을, 재조회는 실제 저장을 각각 검증한다
+            assertAll(
+                { assertThat(info.stock).isEqualTo(Stock(7)) },
+                { assertThat(productRepository.findById(product.id)!!.stock.value).isEqualTo(7L) },
+            )
         }
     }
 }

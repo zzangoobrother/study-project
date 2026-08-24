@@ -300,6 +300,7 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
                 { assertThat(response.body?.data?.name).isEqualTo("운동화") },
                 { assertThat(response.body?.data?.price).isEqualTo(39000L) },
                 { assertThat(response.body?.data?.likeCount).isEqualTo(0L) },
+                { assertThat(response.body?.data?.stock).isEqualTo(100L) },
                 { assertThat(response.body?.data?.brand?.id).isEqualTo(brand.id) },
             )
         }
@@ -408,7 +409,7 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
     @DisplayName("PUT /api-admin/v1/products/{productId}")
     @Nested
     inner class ChangeProduct {
-        @DisplayName("상품을 수정하면, 이름과 가격이 교체된다.")
+        @DisplayName("상품을 수정하면, 이름·가격·재고가 교체된다.")
         @Test
         fun changesProduct() {
             // arrange
@@ -437,8 +438,10 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
                 { assertThat(response.statusCode).isEqualTo(HttpStatus.OK) },
                 { assertThat(response.body?.data?.name).isEqualTo("러닝화") },
                 { assertThat(response.body?.data?.price).isEqualTo(59000L) },
+                { assertThat(response.body?.data?.stock).isEqualTo(100L) },
                 { assertThat(found.body?.data?.name).isEqualTo("러닝화") },
                 { assertThat(found.body?.data?.price).isEqualTo(59000L) },
+                { assertThat(found.body?.data?.stock).isEqualTo(100L) },
             )
         }
 

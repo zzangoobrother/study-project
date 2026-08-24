@@ -32,7 +32,8 @@ interface ProductAdminV1ApiSpec {
 
     @Operation(
         summary = "상품 등록",
-        description = "상품을 등록합니다. brandId 는 이미 등록된(삭제되지 않은) 브랜드여야 하며, 아니면 400 입니다.",
+        description = "상품을 등록합니다. 재고를 함께 지정합니다. " +
+            "brandId 는 이미 등록된(삭제되지 않은) 브랜드여야 하며, 아니면 400 입니다.",
     )
     fun register(
         request: ProductAdminV1Dto.RegisterRequest,
@@ -40,7 +41,7 @@ interface ProductAdminV1ApiSpec {
 
     @Operation(
         summary = "상품 정보 수정",
-        description = "이름과 가격을 전체 교체합니다. 브랜드는 수정할 수 없습니다. 삭제된 상품은 409 Conflict 입니다.",
+        description = "이름·가격·재고를 전체 교체합니다. 브랜드는 수정할 수 없습니다. 삭제된 상품은 409 Conflict 입니다.",
     )
     fun change(
         @Schema(name = "상품 ID", description = "수정할 상품의 ID")
