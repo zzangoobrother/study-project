@@ -67,6 +67,14 @@ interface ProductLikeJpaRepository : JpaRepository<ProductLikeModel, Long> {
      * 여기서는 벌크 UPDATE 를 쓴다.
      * ProductService.deleteAllByBrandId 가 벌크를 피한 이유는 PreUpdate 타임스탬프와 1차 캐시 stale 이었는데,
      * 좋아요 행은 updatedAt 을 SET 절에 직접 쓰고 같은 트랜잭션에서 다시 읽지도 않아 두 이유가 성립하지 않는다.
+     *
+     * 그럼에도 flushAutomatically 는 반드시 필요하다. 이 메서드의 호출자(BrandAdminFacade.delete)는
+     * 브랜드와 상품을 아직 flush 되지 않은 dirty 상태로 둔 채 여기에 들어온다.
+     * flush 없이 clearAutomatically 의 em.clear() 가 돌면 그 소프트 삭제가 통째로 사라져,
+     * 좋아요만 지워지고 브랜드 · 상품은 살아남는다.
+     *
+     * 위 문단이 "두 이유가 성립하지 않는다" 고 말한 것은 벌크 UPDATE 를 쓸지 말지에 대한 판단이고,
+     * 이 문단은 그 벌크 UPDATE 에 어떤 플래그가 필요한지에 대한 판단이다. 앞을 근거로 플래그를 지우면 회귀가 난다.
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(

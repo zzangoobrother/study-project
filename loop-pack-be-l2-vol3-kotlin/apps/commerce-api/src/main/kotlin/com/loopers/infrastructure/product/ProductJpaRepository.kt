@@ -38,4 +38,21 @@ interface ProductJpaRepository : JpaRepository<ProductModel, Long> {
         """,
     )
     fun decreaseLikeCount(@Param("productId") productId: Long): Int
+
+    /**
+     * 초과 판매를 막는 것은 stock >= :quantity 조건이다.
+     * 이 조건이 없으면 재고가 음수가 되고, 영향 행 수가 항상 1 이라 호출자가 실패를 알 수 없다.
+     *
+     * like_count 증감과 마찬가지로 updated_at 을 건드리지 않는다. (설계 문서 6.3 장)
+     * 재고가 빠진 것은 상품을 편집한 것이 아니다.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        UPDATE ProductModel p
+           SET p.stock.value = p.stock.value - :quantity
+         WHERE p.id = :productId AND p.deletedAt IS NULL AND p.stock.value >= :quantity
+        """,
+    )
+    fun decreaseStock(@Param("productId") productId: Long, @Param("quantity") quantity: Int): Int
 }

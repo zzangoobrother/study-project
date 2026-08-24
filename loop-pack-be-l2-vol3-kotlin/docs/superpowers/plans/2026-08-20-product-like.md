@@ -133,7 +133,7 @@ Task 5 는 Task 4 의 회귀 테스트이므로 **건너뛰지 않는다.** 이 
 
 ---
 
-- [ ] **Step 1: 실패하는 단위 테스트를 쓴다**
+- [x] **Step 1: 실패하는 단위 테스트를 쓴다**
 
 `apps/commerce-api/src/test/kotlin/com/loopers/domain/like/ProductLikeModelTest.kt`
 
@@ -194,12 +194,12 @@ class ProductLikeModelTest {
 }
 ```
 
-- [ ] **Step 2: 실패를 확인한다**
+- [x] **Step 2: 실패를 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.domain.like.ProductLikeModelTest"`
 Expected: 컴파일 실패 — `Unresolved reference: like` / `ProductLikeModel`
 
-- [ ] **Step 3: 엔티티를 만든다**
+- [x] **Step 3: 엔티티를 만든다**
 
 `apps/commerce-api/src/main/kotlin/com/loopers/domain/like/ProductLikeModel.kt`
 
@@ -262,12 +262,12 @@ class ProductLikeModel private constructor(
 }
 ```
 
-- [ ] **Step 4: 단위 테스트 통과를 확인한다**
+- [x] **Step 4: 단위 테스트 통과를 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.domain.like.ProductLikeModelTest"`
 Expected: PASS (5건)
 
-- [ ] **Step 5: 매핑 테스트를 쓴다**
+- [x] **Step 5: 매핑 테스트를 쓴다**
 
 유니크 제약이 **소프트 삭제된 행에도 걸린다**는 것이 설계의 전제다 (설계 문서 5.4 장).
 이것이 깨지면 6장의 "부활" 설계가 통째로 무너지므로 테스트로 못 박는다.
@@ -395,14 +395,14 @@ import 에 다음 두 줄이 필요하다.
 import org.springframework.transaction.support.TransactionTemplate
 ```
 
-- [ ] **Step 6: 매핑 테스트 통과를 확인한다**
+- [x] **Step 6: 매핑 테스트 통과를 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.domain.like.ProductLikeModelPersistenceTest"`
 Expected: PASS (3건)
 
 `ddl-auto: create` 이므로 `product_likes` 테이블은 기동 시 자동 생성된다. 마이그레이션 파일은 없다.
 
-- [ ] **Step 7: 스타일 검사와 커밋**
+- [x] **Step 7: 스타일 검사와 커밋**
 
 ```bash
 ./gradlew :apps:commerce-api:ktlintCheck
@@ -443,7 +443,7 @@ git commit -m "feat : 좋아요 애그리거트 ProductLikeModel 추가
 
 ---
 
-- [ ] **Step 1: 실패하는 통합 테스트를 쓴다**
+- [x] **Step 1: 실패하는 통합 테스트를 쓴다**
 
 `apps/commerce-api/src/test/kotlin/com/loopers/domain/like/LikeServiceIntegrationTest.kt`
 
@@ -634,12 +634,12 @@ class LikeServiceIntegrationTest @Autowired constructor(
 }
 ```
 
-- [ ] **Step 2: 실패를 확인한다**
+- [x] **Step 2: 실패를 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.domain.like.LikeServiceIntegrationTest"`
 Expected: 컴파일 실패 — `Unresolved reference: LikeService`, `ProductLikeRepository`
 
-- [ ] **Step 3: 포트를 만든다**
+- [x] **Step 3: 포트를 만든다**
 
 `apps/commerce-api/src/main/kotlin/com/loopers/domain/like/ProductLikeRepository.kt`
 
@@ -673,7 +673,7 @@ interface ProductLikeRepository {
 }
 ```
 
-- [ ] **Step 4: JPA 어댑터를 만든다**
+- [x] **Step 4: JPA 어댑터를 만든다**
 
 `apps/commerce-api/src/main/kotlin/com/loopers/infrastructure/like/ProductLikeJpaRepository.kt`
 
@@ -760,7 +760,7 @@ class ProductLikeRepositoryImpl(
 }
 ```
 
-- [ ] **Step 5: 도메인 서비스를 만든다**
+- [x] **Step 5: 도메인 서비스를 만든다**
 
 `apps/commerce-api/src/main/kotlin/com/loopers/domain/like/LikeService.kt`
 
@@ -821,12 +821,12 @@ class LikeService(
 }
 ```
 
-- [ ] **Step 6: 통합 테스트 통과를 확인한다**
+- [x] **Step 6: 통합 테스트 통과를 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.domain.like.LikeServiceIntegrationTest"`
 Expected: PASS (8건). Docker 가 떠 있어야 한다.
 
-- [ ] **Step 7: 스타일 검사와 커밋**
+- [x] **Step 7: 스타일 검사와 커밋**
 
 ```bash
 ./gradlew :apps:commerce-api:ktlintCheck
@@ -867,7 +867,7 @@ Task 2 와 의존이 없으므로 병행할 수 있다.
 
 ---
 
-- [ ] **Step 1: 실패하는 통합 테스트를 쓴다**
+- [x] **Step 1: 실패하는 통합 테스트를 쓴다**
 
 `ProductServiceIntegrationTest.kt` 의 마지막 `inner class` 뒤에 다음 `@Nested` 블록을 추가한다.
 기존 클래스에 이미 있는 헬퍼(`saveProduct` 등)와 `@AfterEach` 는 그대로 쓴다.
@@ -958,12 +958,12 @@ Task 2 와 의존이 없으므로 병행할 수 있다.
         )
 ```
 
-- [ ] **Step 2: 실패를 확인한다**
+- [x] **Step 2: 실패를 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.domain.product.ProductServiceIntegrationTest"`
 Expected: 컴파일 실패 — `Unresolved reference: increaseLikeCount`
 
-- [ ] **Step 3: 포트에 계약을 추가한다**
+- [x] **Step 3: 포트에 계약을 추가한다**
 
 `ProductRepository.kt` 의 인터페이스 본문 끝에 추가한다.
 
@@ -984,7 +984,7 @@ Expected: 컴파일 실패 — `Unresolved reference: increaseLikeCount`
     fun decreaseLikeCount(productId: Long): Int
 ```
 
-- [ ] **Step 4: JPQL 조건부 UPDATE 를 추가한다**
+- [x] **Step 4: JPQL 조건부 UPDATE 를 추가한다**
 
 `ProductJpaRepository.kt` 에 추가한다. import 세 개(`Modifying`, `Query`, `Param`)가 새로 필요하다.
 
@@ -1021,7 +1021,7 @@ Expected: 컴파일 실패 — `Unresolved reference: increaseLikeCount`
 > `nativeQuery = true` 와 `UPDATE products SET like_count = like_count + 1 WHERE id = :productId AND deleted_at IS NULL`
 > 로 바꾼다. 동작과 계약은 동일하다.
 
-- [ ] **Step 5: 어댑터에 위임을 추가한다**
+- [x] **Step 5: 어댑터에 위임을 추가한다**
 
 `ProductRepositoryImpl.kt` 에 추가한다.
 
@@ -1035,7 +1035,7 @@ Expected: 컴파일 실패 — `Unresolved reference: increaseLikeCount`
     }
 ```
 
-- [ ] **Step 6: 도메인 서비스에 유스케이스를 추가한다**
+- [x] **Step 6: 도메인 서비스에 유스케이스를 추가한다**
 
 `ProductService.kt` 에 로거 필드와 두 메서드를 추가한다.
 
@@ -1076,12 +1076,12 @@ Expected: 컴파일 실패 — `Unresolved reference: increaseLikeCount`
 
 `import org.slf4j.LoggerFactory` 를 추가한다.
 
-- [ ] **Step 7: 테스트 통과를 확인한다**
+- [x] **Step 7: 테스트 통과를 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.domain.product.ProductServiceIntegrationTest"`
 Expected: PASS — 기존 케이스 전부 + 새 5건
 
-- [ ] **Step 8: `LikeCount` 의 주석을 교체한다**
+- [x] **Step 8: `LikeCount` 의 주석을 교체한다**
 
 `LikeCount.kt` 의 KDoc 을 통째로 바꾼다. 코드는 한 글자도 건드리지 않는다.
 
@@ -1103,7 +1103,7 @@ Expected: PASS — 기존 케이스 전부 + 새 5건
  */
 ```
 
-- [ ] **Step 9: 스타일 검사와 커밋**
+- [x] **Step 9: 스타일 검사와 커밋**
 
 ```bash
 ./gradlew :apps:commerce-api:ktlintCheck
@@ -1136,7 +1136,7 @@ LikeCount 의 주석을 교체한다. increase()/decrease() 를 만들지 않는
 
 ---
 
-- [ ] **Step 1: 실패하는 통합 테스트를 쓴다**
+- [x] **Step 1: 실패하는 통합 테스트를 쓴다**
 
 `apps/commerce-api/src/test/kotlin/com/loopers/application/like/LikeFacadeIntegrationTest.kt`
 
@@ -1389,12 +1389,12 @@ class LikeFacadeIntegrationTest @Autowired constructor(
 > `UserCommand.SignUp` 의 필드 이름과 타입이 위와 다르면 `domain/user/UserCommand.kt` 를 열어 실제 시그니처에 맞춘다.
 > `UserModel.loginId` 의 타입은 `LoginId` 다.
 
-- [ ] **Step 2: 실패를 확인한다**
+- [x] **Step 2: 실패를 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.application.like.LikeFacadeIntegrationTest"`
 Expected: 컴파일 실패 — `Unresolved reference: LikeFacade`
 
-- [ ] **Step 3: 파사드를 만든다**
+- [x] **Step 3: 파사드를 만든다**
 
 `apps/commerce-api/src/main/kotlin/com/loopers/application/like/LikeFacade.kt`
 
@@ -1492,14 +1492,14 @@ class LikeFacade(
 }
 ```
 
-- [ ] **Step 4: 테스트 통과를 확인한다**
+- [x] **Step 4: 테스트 통과를 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.application.like.LikeFacadeIntegrationTest"`
 Expected: PASS (11건)
 
 `TransactionTemplate` 빈이 없다는 오류가 나면 Task 1 Step 5 의 안내대로 `@Bean` 을 하나 추가한다.
 
-- [ ] **Step 5: 스타일 검사와 커밋**
+- [x] **Step 5: 스타일 검사와 커밋**
 
 ```bash
 ./gradlew :apps:commerce-api:ktlintCheck
@@ -1532,7 +1532,7 @@ LikeService 가 전이했다고 보고할 때만 수를 증감하므로 중복 �
 
 ---
 
-- [ ] **Step 1: 동시성 테스트를 쓴다**
+- [x] **Step 1: 동시성 테스트를 쓴다**
 
 ```kotlin
 package com.loopers.application.like
@@ -1717,7 +1717,7 @@ class LikeFacadeConcurrencyTest @Autowired constructor(
 }
 ```
 
-- [ ] **Step 2: 테스트가 통과하는지 확인한다**
+- [x] **Step 2: 테스트가 통과하는지 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.application.like.LikeFacadeConcurrencyTest"`
 Expected: PASS (3건)
@@ -1731,7 +1731,7 @@ Expected: PASS (3건)
 **`Exception` 까지 넓히지는 않는다** — 그러면 `CoreException` 의 404 까지 삼켜 Task 4 의 테스트가 깨진다.
 `org.springframework.dao.DataAccessException` 이 그 상한이다.
 
-- [ ] **Step 3: 설계가 실제로 검증되는지 역으로 확인한다 (권장)**
+- [x] **Step 3: 설계가 실제로 검증되는지 역으로 확인한다 (권장)**
 
 테스트가 무의미하지 않다는 것을 한 번은 눈으로 봐야 한다.
 `ProductLikeJpaRepository.softDelete` 의 `AND l.deletedAt IS NULL` 을 **잠시 지우고** 세 번째 테스트를 돌린다.
@@ -1741,7 +1741,7 @@ Expected: `decreasesOnce_whenSameUserUnlikesConcurrently` FAIL — 기대 5, 실
 
 확인했으면 조건을 **되돌린다.** 되돌린 뒤 다시 돌려 PASS 를 확인한다.
 
-- [ ] **Step 4: 커밋**
+- [x] **Step 4: 커밋**
 
 ```bash
 ./gradlew :apps:commerce-api:ktlintCheck
@@ -1780,7 +1780,7 @@ git commit -m "test : 좋아요 동시성 회귀 테스트 추가
 
 ---
 
-- [ ] **Step 1: 실패하는 통합 테스트를 쓴다**
+- [x] **Step 1: 실패하는 통합 테스트를 쓴다**
 
 `LikeFacadeIntegrationTest.kt` 에 `@Nested` 블록을 추가한다. 기존 헬퍼를 그대로 쓰되,
 브랜드를 재사용할 수 있도록 `saveProduct` 를 다음과 같이 바꾼다.
@@ -1977,12 +1977,12 @@ git commit -m "test : 좋아요 동시성 회귀 테스트 추가
 
 `import com.loopers.domain.support.PageQuery` 를 추가한다.
 
-- [ ] **Step 2: 실패를 확인한다**
+- [x] **Step 2: 실패를 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.application.like.LikeFacadeIntegrationTest"`
 Expected: 컴파일 실패 — `Unresolved reference: getLikedProducts`
 
-- [ ] **Step 3: 좋아요 목록 쿼리를 추가한다**
+- [x] **Step 3: 좋아요 목록 쿼리를 추가한다**
 
 `ProductLikeRepository.kt` 에 추가한다. `PageQuery` / `PageResult` import 가 필요하다.
 
@@ -2041,7 +2041,7 @@ Expected: 컴파일 실패 — `Unresolved reference: getLikedProducts`
     }
 ```
 
-- [ ] **Step 4: ID 집합으로 상품을 조회하는 경로를 추가한다**
+- [x] **Step 4: ID 집합으로 상품을 조회하는 경로를 추가한다**
 
 `ProductRepository.kt` 에 추가한다.
 
@@ -2081,7 +2081,7 @@ Expected: 컴파일 실패 — `Unresolved reference: getLikedProducts`
     }
 ```
 
-- [ ] **Step 5: 파사드에 목록 유스케이스를 추가한다**
+- [x] **Step 5: 파사드에 목록 유스케이스를 추가한다**
 
 `LikeFacade` 생성자에 `private val brandService: BrandService,` 를 추가하고 메서드를 넣는다.
 
@@ -2120,12 +2120,12 @@ import 에 `BrandInfo`, `BrandService`, `PageQuery`, `PageResult`, `ProductInfo`
 > 이 브랜드 결합은 `ProductFacade.loadBrands` 와 사실상 같은 코드다. 호출부가 둘뿐이라 지금은 중복을 남긴다.
 > 세 번째 호출부가 생기면 공통 조립기로 뽑는다. 「완료 확인」의 후속 과제에 적혀 있다.
 
-- [ ] **Step 6: 테스트 통과를 확인한다**
+- [x] **Step 6: 테스트 통과를 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.application.like.LikeFacadeIntegrationTest"`
 Expected: PASS (20건)
 
-- [ ] **Step 7: 스타일 검사와 커밋**
+- [x] **Step 7: 스타일 검사와 커밋**
 
 ```bash
 ./gradlew :apps:commerce-api:ktlintCheck
@@ -2163,7 +2163,7 @@ created_at 순이면 방금 누른 좋아요가 목록 맨 뒤에 나타난다."
 
 ---
 
-- [ ] **Step 1: 실패하는 테스트를 쓴다**
+- [x] **Step 1: 실패하는 테스트를 쓴다**
 
 `ProductAdminFacadeIntegrationTest.kt` 의 삭제 관련 `@Nested` 블록에 추가한다.
 `likeFacade` 와 `productLikeJpaRepository` 를 생성자 주입에 더한다.
@@ -2208,12 +2208,12 @@ created_at 순이면 방금 누른 좋아요가 목록 맨 뒤에 나타난다."
 > 두 테스트가 쓰는 `signUp` / `saveProduct` / `saveBrand` 헬퍼가 해당 파일에 없으면
 > `LikeFacadeIntegrationTest` 의 것을 그대로 복사해 넣는다.
 
-- [ ] **Step 2: 실패를 확인한다**
+- [x] **Step 2: 실패를 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.application.admin.*"`
 Expected: 두 새 테스트가 FAIL — `deletedAt` 이 `null`
 
-- [ ] **Step 3: 연쇄 삭제 쿼리를 추가한다**
+- [x] **Step 3: 연쇄 삭제 쿼리를 추가한다**
 
 `ProductLikeRepository.kt`
 
@@ -2273,7 +2273,7 @@ Expected: 두 새 테스트가 FAIL — `deletedAt` 이 `null`
     }
 ```
 
-- [ ] **Step 4: `deleteAllByBrandId` 가 삭제한 상품 ID 를 돌려주게 한다**
+- [x] **Step 4: `deleteAllByBrandId` 가 삭제한 상품 ID 를 돌려주게 한다**
 
 `ProductService.kt` 의 `deleteAllByBrandId` 를 바꾼다. 기존 KDoc 은 그대로 두고 한 문단만 덧붙인다.
 
@@ -2294,7 +2294,7 @@ Expected: 두 새 테스트가 FAIL — `deletedAt` 이 `null`
 
 기존 호출부는 반환값을 무시해도 컴파일되므로 다른 곳은 깨지지 않는다.
 
-- [ ] **Step 5: 어드민 파사드 두 곳을 잇는다**
+- [x] **Step 5: 어드민 파사드 두 곳을 잇는다**
 
 `ProductAdminFacade.kt` — 생성자에 `private val likeService: LikeService,` 를 추가한다.
 
@@ -2327,12 +2327,12 @@ Expected: 두 새 테스트가 FAIL — `deletedAt` 이 `null`
 
 기존 KDoc 에 한 줄을 덧붙인다: `브랜드 → 상품 → 좋아요 2단계 연쇄이며, 각 단계가 살아 있는 대상만 고르므로 전체가 멱등하다.`
 
-- [ ] **Step 6: 테스트 통과를 확인한다**
+- [x] **Step 6: 테스트 통과를 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.application.admin.*"`
 Expected: PASS — 기존 케이스 전부 + 새 2건
 
-- [ ] **Step 7: 목록에서 삭제된 상품이 사라지는지 확인한다**
+- [x] **Step 7: 목록에서 삭제된 상품이 사라지는지 확인한다**
 
 `LikeFacadeIntegrationTest` 의 `GetLikedProducts` 에 추가한다.
 `productAdminFacade` 를 생성자 주입에 더한다.
@@ -2364,7 +2364,7 @@ Expected: PASS — 기존 케이스 전부 + 새 2건
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.application.like.LikeFacadeIntegrationTest"`
 Expected: PASS (21건)
 
-- [ ] **Step 8: 스타일 검사와 커밋**
+- [x] **Step 8: 스타일 검사와 커밋**
 
 ```bash
 ./gradlew :apps:commerce-api:ktlintCheck
@@ -2398,7 +2398,7 @@ like_count 는 조정하지 않는다. 삭제된 상품의 카운트는 노출�
 
 ---
 
-- [ ] **Step 1: 실패하는 E2E 테스트를 쓴다**
+- [x] **Step 1: 실패하는 E2E 테스트를 쓴다**
 
 `apps/commerce-api/src/test/kotlin/com/loopers/interfaces/api/ProductLikeV1ApiE2ETest.kt`
 
@@ -2663,12 +2663,12 @@ class ProductLikeV1ApiE2ETest @Autowired constructor(
 }
 ```
 
-- [ ] **Step 2: 실패를 확인한다**
+- [x] **Step 2: 실패를 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.interfaces.api.ProductLikeV1ApiE2ETest"`
 Expected: 컴파일 실패 — `Unresolved reference: ApiHeaders`
 
-- [ ] **Step 3: 헤더 상수를 한 곳으로 모은다**
+- [x] **Step 3: 헤더 상수를 한 곳으로 모은다**
 
 `apps/commerce-api/src/main/kotlin/com/loopers/interfaces/api/ApiHeaders.kt`
 
@@ -2698,7 +2698,7 @@ object ApiHeaders {
 
 `import com.loopers.interfaces.api.ApiHeaders` 를 추가한다.
 
-- [ ] **Step 4: API 스펙과 컨트롤러를 만든다**
+- [x] **Step 4: API 스펙과 컨트롤러를 만든다**
 
 `apps/commerce-api/src/main/kotlin/com/loopers/interfaces/api/like/ProductLikeV1ApiSpec.kt`
 
@@ -2795,17 +2795,17 @@ class ProductLikeV1Controller(
 }
 ```
 
-- [ ] **Step 5: 테스트 통과를 확인한다**
+- [x] **Step 5: 테스트 통과를 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.interfaces.api.ProductLikeV1ApiE2ETest"`
 Expected: PASS (11건)
 
-- [ ] **Step 6: 회원 API 가 깨지지 않았는지 확인한다**
+- [x] **Step 6: 회원 API 가 깨지지 않았는지 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.interfaces.api.UserV1ApiE2ETest"`
 Expected: PASS (기존 그대로)
 
-- [ ] **Step 7: 스타일 검사와 커밋**
+- [x] **Step 7: 스타일 검사와 커밋**
 
 ```bash
 ./gradlew :apps:commerce-api:ktlintCheck
@@ -2835,7 +2835,7 @@ X-Loopers-LoginId 리터럴을 ApiHeaders 로 모은다.
 
 ---
 
-- [ ] **Step 1: 실패하는 E2E 테스트를 쓴다**
+- [x] **Step 1: 실패하는 E2E 테스트를 쓴다**
 
 `apps/commerce-api/src/test/kotlin/com/loopers/interfaces/api/UserLikeV1ApiE2ETest.kt`
 
@@ -3045,12 +3045,12 @@ class UserLikeV1ApiE2ETest @Autowired constructor(
     }
 ```
 
-- [ ] **Step 2: 실패를 확인한다**
+- [x] **Step 2: 실패를 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.interfaces.api.UserLikeV1ApiE2ETest"`
 Expected: 404 응답으로 FAIL — 아직 엔드포인트가 없다
 
-- [ ] **Step 3: API 스펙과 컨트롤러를 만든다**
+- [x] **Step 3: API 스펙과 컨트롤러를 만든다**
 
 `apps/commerce-api/src/main/kotlin/com/loopers/interfaces/api/like/UserLikeV1ApiSpec.kt`
 
@@ -3140,7 +3140,7 @@ class UserLikeV1Controller(
 }
 ```
 
-- [ ] **Step 4: 캐시 헤더 테스트를 추가한다**
+- [x] **Step 4: 캐시 헤더 테스트를 추가한다**
 
 `UserLikeV1ApiE2ETest` 의 `GetLikedProducts` 에 추가한다.
 
@@ -3166,12 +3166,12 @@ class UserLikeV1Controller(
         }
 ```
 
-- [ ] **Step 5: 테스트 통과를 확인한다**
+- [x] **Step 5: 테스트 통과를 확인한다**
 
 Run: `./gradlew :apps:commerce-api:test --tests "com.loopers.interfaces.api.UserLikeV1ApiE2ETest"`
 Expected: PASS (10건)
 
-- [ ] **Step 6: 스타일 검사와 커밋**
+- [x] **Step 6: 스타일 검사와 커밋**
 
 ```bash
 ./gradlew :apps:commerce-api:ktlintCheck
@@ -3196,7 +3196,7 @@ MeResponse 가 id 를 노출하지 않아 클라이언트가 자기 userId 를 �
 
 ---
 
-- [ ] **Step 1: 시더에 회원을 추가한다**
+- [x] **Step 1: 시더에 회원을 추가한다**
 
 `LocalDataSeeder.kt` 의 생성자에 `private val userService: UserService,` 를 추가하고, `run` 의 맨 앞에 넣는다.
 
@@ -3242,7 +3242,7 @@ companion object 에 추가한다.
  * 좋아요 API 는 상대 증감만 하므로 출발값이 무엇이든 정확하게 동작한다. (설계 문서 9.2 장)
 ```
 
-- [ ] **Step 2: 시더가 뜨는지 확인한다**
+- [x] **Step 2: 시더가 뜨는지 확인한다**
 
 ```bash
 docker-compose -f ./docker/infra-compose.yml up -d
@@ -3251,7 +3251,7 @@ docker-compose -f ./docker/infra-compose.yml up -d
 
 Expected: 로그에 `로컬 시드 데이터 생성 완료 : 회원 3명, 브랜드 5개, 상품 137개`
 
-- [ ] **Step 3: `.http` 파일을 만든다**
+- [x] **Step 3: `.http` 파일을 만든다**
 
 `http/commerce-api/like-v1.http`
 
@@ -3380,12 +3380,12 @@ GET {{commerce-api}}/api/v1/users/me/likes
 X-Loopers-LoginId: seeduser01
 ```
 
-- [ ] **Step 4: `.http` 를 위에서 아래로 실행해 확인한다**
+- [x] **Step 4: `.http` 를 위에서 아래로 실행해 확인한다**
 
 애플리케이션이 `local` 프로필로 떠 있는 상태에서 IntelliJ HTTP Client 로 순서대로 실행한다.
 각 요청의 주석에 적힌 기대 상태 코드와 좋아요 수 변화를 눈으로 확인한다.
 
-- [ ] **Step 5: 전체 테스트와 커밋**
+- [x] **Step 5: 전체 테스트와 커밋**
 
 ```bash
 ./gradlew :apps:commerce-api:test
@@ -3406,11 +3406,19 @@ loginId 를 seeduser01~03 으로 두어 user-v1.http 의 loopers01 과 겹치지
 
 ## 완료 확인
 
-- [ ] `./gradlew :apps:commerce-api:test` 전체 통과
-- [ ] `./gradlew :apps:commerce-api:ktlintCheck` 통과
-- [ ] `LikeFacadeConcurrencyTest` 3건 통과 — **이 셋이 설계 문서 6장의 유일한 방어선이다**
-- [ ] `like-v1.http` 를 위에서 아래로 실행해 좋아요 수가 정확히 ±1 만 움직이는 것을 눈으로 확인
-- [ ] `UserV1ApiE2ETest` / `ProductV1ApiE2ETest` / 어드민 E2E 가 모두 그대로 통과 (기존 계약 무손상)
+- [x] `./gradlew :apps:commerce-api:test` 전체 통과
+- [x] `./gradlew :apps:commerce-api:ktlintCheck` 통과
+- [x] `LikeFacadeConcurrencyTest` 3건 통과 — **이 셋이 설계 문서 6장의 유일한 방어선이다**
+- [x] `like-v1.http` 를 위에서 아래로 실행해 좋아요 수가 정확히 ±1 만 움직이는 것을 눈으로 확인
+- [x] `UserV1ApiE2ETest` / `ProductV1ApiE2ETest` / 어드민 E2E 가 모두 그대로 통과 (기존 계약 무손상)
+
+> **실행 결과 (2026-08-23 완료)** — 전체 472건 통과. 위 체크리스트가 `LikeFacadeConcurrencyTest` 를 3건으로 적었으나
+> 최종 브랜치 리뷰가 동시성 결함 두 건을 찾아 4번째 테스트가 추가됐다.
+>
+> - **I-1** `LikeFacade.getLikedProducts` 가 트랜잭션 없이 세 스냅샷에서 실행되어 `totalElements` 와 `content` 가 어긋날 수 있었다 → `@Transactional(readOnly = true)`.
+> - **I-2** 존재 확인을 통과한 좋아요가 연쇄 삭제 뒤에 커밋되면 삭제된 상품을 가리키는 행이 영구히 남았다 → 증가 `UPDATE` 가 0행이면 롤백하고 404. 설계 문서 6.4 / 6.6 / 7.4 / 11.7 을 함께 갱신했다.
+>
+> 두 결함 모두 태스크 단위 리뷰는 통과했다. **각 태스크의 diff 안에서는 결함이 아니고 둘이 만나는 지점에서만 결함이 되기 때문이다.**
 
 ### 설계 문서와 대조
 

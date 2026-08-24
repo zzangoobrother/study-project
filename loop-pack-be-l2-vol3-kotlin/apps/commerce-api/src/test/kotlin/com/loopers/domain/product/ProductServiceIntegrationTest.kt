@@ -30,11 +30,13 @@ class ProductServiceIntegrationTest @Autowired constructor(
         name: String = "상품",
         price: Long = 10_000,
         likeCount: Long = 0,
+        stock: Long = 0,
     ) = ProductModel.create(
         brandId = brandId,
         name = ProductName(name),
         price = Price(price),
         likeCount = LikeCount(likeCount),
+        stock = Stock(stock),
     )
 
     private fun search(
@@ -45,24 +47,20 @@ class ProductServiceIntegrationTest @Autowired constructor(
     ) = ProductCriteria.Search(brandId = brandId, sort = sort, pageQuery = PageQuery(page, size))
 
     /**
-     * 단건 저장 단축 헬퍼. Task 8 에서 ProductRepository.save 가 생기지만
-     * 이 시점에는 없으므로 기존 saveProducts(= saveAll) 를 그대로 쓴다.
+     * 단건 저장 단축 헬퍼. 목록 · 페이징 테스트가 이름으로 상품을 구분하므로 name 을 인자로 받는다.
+     *
+     * 여러 건이 필요할 때만 saveProducts(= saveAll) 를 쓴다. 한 건을 넣으려고 vararg 를 거치면
+     * 호출부에 .first() 가 붙어 읽기 나빠진다.
      */
-    private fun saveProductFor(
-        brandId: Long,
+    private fun saveProduct(
+        brandId: Long = 1L,
         name: String = "운동화",
-        price: Long = 39000,
-    ): ProductModel = saveProducts(product(brandId = brandId, name = name, price = price)).first()
-
-    private fun saveProduct(brandId: Long = 1L, price: Long = 10_000, likeCount: Long = 0): ProductModel =
-        productRepository.save(
-            ProductModel.create(
-                brandId = brandId,
-                name = ProductName("상품"),
-                price = Price(price),
-                likeCount = LikeCount(likeCount),
-            ),
-        )
+        price: Long = 39_000,
+        likeCount: Long = 0,
+        stock: Long = 0,
+    ): ProductModel = productRepository.save(
+        product(brandId = brandId, name = name, price = price, likeCount = likeCount, stock = stock),
+    )
 
     @AfterEach
     fun tearDown() {
@@ -291,7 +289,7 @@ class ProductServiceIntegrationTest @Autowired constructor(
         @Test
         fun returnsAliveProduct() {
             // arrange
-            val saved = saveProductFor(brandId = 1L)
+            val saved = saveProduct(brandId = 1L)
 
             // act
             val found = productService.getProductIncludingDeleted(saved.id)
@@ -304,7 +302,7 @@ class ProductServiceIntegrationTest @Autowired constructor(
         @Test
         fun returnsSoftDeletedProduct() {
             // arrange
-            val saved = saveProductFor(brandId = 1L)
+            val saved = saveProduct(brandId = 1L)
             saved.delete()
             productRepository.saveAll(listOf(saved))
 
@@ -336,8 +334,8 @@ class ProductServiceIntegrationTest @Autowired constructor(
         @Test
         fun includesSoftDeletedProducts() {
             // arrange
-            saveProductFor(brandId = 1L, name = "운동화")
-            val deleted = saveProductFor(brandId = 1L, name = "러닝화")
+            saveProduct(brandId = 1L, name = "운동화")
+            val deleted = saveProduct(brandId = 1L, name = "러닝화")
             deleted.delete()
             productRepository.saveAll(listOf(deleted))
 
@@ -357,8 +355,8 @@ class ProductServiceIntegrationTest @Autowired constructor(
         @Test
         fun filtersByBrandId() {
             // arrange
-            val target = saveProductFor(brandId = 1L, name = "운동화")
-            saveProductFor(brandId = 2L, name = "러닝화")
+            val target = saveProduct(brandId = 1L, name = "운동화")
+            saveProduct(brandId = 2L, name = "러닝화")
 
             // act
             val page = productService.getProductPageIncludingDeleted(
@@ -373,8 +371,8 @@ class ProductServiceIntegrationTest @Autowired constructor(
         @Test
         fun sortsByLatest() {
             // arrange
-            val first = saveProductFor(brandId = 1L, name = "운동화")
-            val second = saveProductFor(brandId = 1L, name = "러닝화")
+            val first = saveProduct(brandId = 1L, name = "운동화")
+            val second = saveProduct(brandId = 1L, name = "러닝화")
 
             // act
             val page = productService.getProductPageIncludingDeleted(
@@ -395,9 +393,9 @@ class ProductServiceIntegrationTest @Autowired constructor(
         @Test
         fun breaksCreatedAtTieByIdDesc() {
             // arrange
-            val first = saveProductFor(brandId = 1L, name = "A")
-            val second = saveProductFor(brandId = 1L, name = "B")
-            val third = saveProductFor(brandId = 1L, name = "C")
+            val first = saveProduct(brandId = 1L, name = "A")
+            val second = saveProduct(brandId = 1L, name = "B")
+            val third = saveProduct(brandId = 1L, name = "C")
             jdbcTemplate.update("UPDATE products SET created_at = ?", java.sql.Timestamp.valueOf("2026-01-01 00:00:00"))
 
             // act
@@ -413,7 +411,7 @@ class ProductServiceIntegrationTest @Autowired constructor(
         @Test
         fun returnsEmpty_whenBrandIdMatchesNothing() {
             // arrange
-            saveProductFor(brandId = 1L)
+            saveProduct(brandId = 1L)
 
             // act
             val page = productService.getProductPageIncludingDeleted(
@@ -439,8 +437,8 @@ class ProductServiceIntegrationTest @Autowired constructor(
         @Test
         fun stillExcludesSoftDeletedProducts() {
             // arrange
-            saveProductFor(brandId = 1L, name = "운동화")
-            val deleted = saveProductFor(brandId = 1L, name = "러닝화")
+            saveProduct(brandId = 1L, name = "운동화")
+            val deleted = saveProduct(brandId = 1L, name = "러닝화")
             deleted.delete()
             productRepository.saveAll(listOf(deleted))
 
@@ -496,7 +494,7 @@ class ProductServiceIntegrationTest @Autowired constructor(
         @Test
         fun changesNameAndPriceOnly() {
             // arrange
-            val saved = saveProductFor(brandId = 1L)
+            val saved = saveProduct(brandId = 1L)
 
             // act
             productService.change(ProductCommand.Change(saved.id, ProductName("러닝화"), Price(59000)))
@@ -526,7 +524,7 @@ class ProductServiceIntegrationTest @Autowired constructor(
         @Test
         fun throwsConflict_whenProductIsSoftDeleted() {
             // arrange
-            val saved = saveProductFor(brandId = 1L)
+            val saved = saveProduct(brandId = 1L)
             saved.delete()
             productRepository.saveAll(listOf(saved))
 
@@ -547,7 +545,7 @@ class ProductServiceIntegrationTest @Autowired constructor(
         @Test
         fun softDeletesProduct() {
             // arrange
-            val saved = saveProductFor(brandId = 1L)
+            val saved = saveProduct(brandId = 1L)
 
             // act
             productService.delete(saved.id)
@@ -573,7 +571,7 @@ class ProductServiceIntegrationTest @Autowired constructor(
         @Test
         fun isIdempotent() {
             // arrange
-            val saved = saveProductFor(brandId = 1L)
+            val saved = saveProduct(brandId = 1L)
             productService.delete(saved.id)
             val firstDeletedAt = productService.getProductIncludingDeleted(saved.id)?.deletedAt
 
@@ -592,8 +590,8 @@ class ProductServiceIntegrationTest @Autowired constructor(
         @Test
         fun softDeletesAllProductsOfBrand() {
             // arrange
-            val first = saveProductFor(brandId = 1L, name = "운동화")
-            val second = saveProductFor(brandId = 1L, name = "러닝화")
+            val first = saveProduct(brandId = 1L, name = "운동화")
+            val second = saveProduct(brandId = 1L, name = "러닝화")
 
             // act
             productService.deleteAllByBrandId(1L)
@@ -615,8 +613,8 @@ class ProductServiceIntegrationTest @Autowired constructor(
         @Test
         fun doesNotTouchOtherBrandsProducts() {
             // arrange
-            val target = saveProductFor(brandId = 1L, name = "운동화")
-            val untouched = saveProductFor(brandId = 2L, name = "러닝화")
+            val target = saveProduct(brandId = 1L, name = "운동화")
+            val untouched = saveProduct(brandId = 2L, name = "러닝화")
 
             // act
             productService.deleteAllByBrandId(1L)
@@ -639,7 +637,7 @@ class ProductServiceIntegrationTest @Autowired constructor(
         @Test
         fun keepsDeletedAtOfAlreadyDeletedProducts() {
             // arrange
-            val alreadyDeleted = saveProductFor(brandId = 1L, name = "운동화")
+            val alreadyDeleted = saveProduct(brandId = 1L, name = "운동화")
             alreadyDeleted.delete()
             productRepository.saveAll(listOf(alreadyDeleted))
             val firstDeletedAt = productService.getProductIncludingDeleted(alreadyDeleted.id)?.deletedAt
@@ -661,8 +659,8 @@ class ProductServiceIntegrationTest @Autowired constructor(
         @Test
         fun findAllByBrandIdExcludesSoftDeletedProducts() {
             // arrange
-            val alive = saveProductFor(brandId = 1L, name = "운동화")
-            val deleted = saveProductFor(brandId = 1L, name = "러닝화")
+            val alive = saveProduct(brandId = 1L, name = "운동화")
+            val deleted = saveProduct(brandId = 1L, name = "러닝화")
             deleted.delete()
             productRepository.saveAll(listOf(deleted))
 
@@ -677,17 +675,20 @@ class ProductServiceIntegrationTest @Autowired constructor(
     @DisplayName("좋아요 수를 증감할 때, ")
     @Nested
     inner class ChangeLikeCount {
-        @DisplayName("증가시키면, 1 늘어난다.")
+        @DisplayName("증가시키면, 1 늘어나고 true 가 반환된다.")
         @Test
         fun increasesByOne() {
             // arrange
             val product = saveProduct(likeCount = 3)
 
             // act
-            productService.increaseLikeCount(product.id)
+            val increased = productService.increaseLikeCount(product.id)
 
             // assert
-            assertThat(productService.getProduct(product.id)?.likeCount).isEqualTo(LikeCount(4))
+            assertAll(
+                { assertThat(increased).isTrue() },
+                { assertThat(productService.getProduct(product.id)?.likeCount).isEqualTo(LikeCount(4)) },
+            )
         }
 
         @DisplayName("감소시키면, 1 줄어든다.")
@@ -720,7 +721,11 @@ class ProductServiceIntegrationTest @Autowired constructor(
             assertThat(productService.getProduct(product.id)?.likeCount).isEqualTo(LikeCount(0))
         }
 
-        @DisplayName("삭제된 상품이면, 증가하지 않는다.")
+        /**
+         * false 반환이 LikeFacade 의 롤백 분기를 여는 신호다. 여기서 true 가 나오면
+         * 삭제된 상품을 가리키는 좋아요 행이 커밋된다. (설계 문서 6.4 장)
+         */
+        @DisplayName("삭제된 상품이면, 증가하지 않고 false 가 반환된다.")
         @Test
         fun doesNotIncrease_whenProductIsSoftDeleted() {
             // arrange
@@ -728,18 +733,107 @@ class ProductServiceIntegrationTest @Autowired constructor(
             productService.delete(product.id)
 
             // act
-            productService.increaseLikeCount(product.id)
+            val increased = productService.increaseLikeCount(product.id)
 
             // assert
-            assertThat(productService.getProductIncludingDeleted(product.id)?.likeCount).isEqualTo(LikeCount(3))
+            assertAll(
+                { assertThat(increased).isFalse() },
+                {
+                    assertThat(productService.getProductIncludingDeleted(product.id)?.likeCount)
+                        .isEqualTo(LikeCount(3))
+                },
+            )
         }
 
-        @DisplayName("존재하지 않는 상품이면, 예외 없이 아무 일도 일어나지 않는다.")
+        @DisplayName("존재하지 않는 상품이면, 예외 없이 증가는 false 를 반환하고 감소는 아무 일도 하지 않는다.")
         @Test
         fun doesNothing_whenProductDoesNotExist() {
-            // act & assert — 예외가 나지 않는 것이 단언이다
-            productService.increaseLikeCount(99999L)
+            // act
+            val increased = productService.increaseLikeCount(99999L)
+
+            // assert — 감소는 반환값이 없으므로 예외가 나지 않는 것이 단언이다
             productService.decreaseLikeCount(99999L)
+            assertThat(increased).isFalse()
+        }
+    }
+
+    @DisplayName("재고를 차감할 때, ")
+    @Nested
+    inner class DecreaseStock {
+        @DisplayName("재고가 넉넉하면, 정확히 요청 수량만큼 줄고 true 를 반환한다.")
+        @Test
+        fun decreasesByQuantity_whenStockIsSufficient() {
+            // arrange
+            val product = saveProduct(stock = 10)
+
+            // act
+            val decreased = productService.decreaseStock(product.id, 3)
+
+            // assert
+            assertAll(
+                { assertThat(decreased).isTrue() },
+                { assertThat(productRepository.findById(product.id)!!.stock.value).isEqualTo(7L) },
+            )
+        }
+
+        @DisplayName("재고와 요청 수량이 같으면, 0 이 되고 true 를 반환한다.")
+        @Test
+        fun decreasesToZero_whenStockEqualsQuantity() {
+            // arrange
+            val product = saveProduct(stock = 5)
+
+            // act
+            val decreased = productService.decreaseStock(product.id, 5)
+
+            // assert
+            assertAll(
+                { assertThat(decreased).isTrue() },
+                { assertThat(productRepository.findById(product.id)!!.stock.value).isEqualTo(0L) },
+            )
+        }
+
+        /**
+         * 이 단언이 초과 판매 방지의 본체다.
+         * WHERE stock >= :quantity 를 빼면 재고가 음수가 되고 true 가 반환된다.
+         */
+        @DisplayName("재고가 모자라면, 아무것도 바꾸지 않고 false 를 반환한다.")
+        @Test
+        fun doesNothing_whenStockIsInsufficient() {
+            // arrange
+            val product = saveProduct(stock = 2)
+
+            // act
+            val decreased = productService.decreaseStock(product.id, 3)
+
+            // assert
+            assertAll(
+                { assertThat(decreased).isFalse() },
+                { assertThat(productRepository.findById(product.id)!!.stock.value).isEqualTo(2L) },
+            )
+        }
+
+        @DisplayName("삭제된 상품이면, false 를 반환한다.")
+        @Test
+        fun returnsFalse_whenProductIsSoftDeleted() {
+            // arrange
+            val product = saveProduct(stock = 10)
+            productService.delete(product.id)
+
+            // act
+            val decreased = productService.decreaseStock(product.id, 1)
+
+            // assert
+            assertThat(decreased).isFalse()
+        }
+
+        @DisplayName("존재하지 않는 상품이면, false 를 반환한다.")
+        @Test
+        fun returnsFalse_whenProductDoesNotExist() {
+            // act
+            val decreased = productService.decreaseStock(99999L, 1)
+
+            // assert
+            assertThat(decreased).isFalse()
         }
     }
 }

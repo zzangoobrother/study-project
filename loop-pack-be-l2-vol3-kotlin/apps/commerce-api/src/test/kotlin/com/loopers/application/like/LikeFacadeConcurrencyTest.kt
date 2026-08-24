@@ -1,5 +1,6 @@
 package com.loopers.application.like
 
+import com.loopers.application.admin.product.ProductAdminFacade
 import com.loopers.domain.brand.BrandModel
 import com.loopers.domain.brand.BrandName
 import com.loopers.domain.brand.BrandRepository
@@ -8,6 +9,7 @@ import com.loopers.domain.product.Price
 import com.loopers.domain.product.ProductModel
 import com.loopers.domain.product.ProductName
 import com.loopers.domain.product.ProductRepository
+import com.loopers.domain.product.ProductService
 import com.loopers.domain.user.BirthDate
 import com.loopers.domain.user.Email
 import com.loopers.domain.user.LoginId
@@ -17,14 +19,19 @@ import com.loopers.domain.user.UserModel
 import com.loopers.domain.user.UserName
 import com.loopers.domain.user.UserService
 import com.loopers.infrastructure.like.ProductLikeJpaRepository
+import com.loopers.support.error.CoreException
+import com.loopers.support.error.ErrorType
 import com.loopers.utils.DatabaseCleanUp
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
+import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -46,8 +53,16 @@ class LikeFacadeConcurrencyTest @Autowired constructor(
     private val brandRepository: BrandRepository,
     private val productRepository: ProductRepository,
     private val productLikeJpaRepository: ProductLikeJpaRepository,
+    private val productAdminFacade: ProductAdminFacade,
     private val databaseCleanUp: DatabaseCleanUp,
 ) {
+    /**
+     * 목이 아니라 스파이다. 스텁하지 않은 호출은 전부 실제 구현으로 내려가므로 DB 상태는 그대로 두고,
+     * 마지막 테스트가 딱 한 지점(getProduct)에서 다른 트랜잭션을 끼워 넣는 데에만 쓴다.
+     */
+    @MockitoSpyBean
+    private lateinit var productService: ProductService
+
     companion object {
         private const val CONCURRENT_USERS = 10
         private const val BASE_LIKE_COUNT = 5L
@@ -183,5 +198,63 @@ class LikeFacadeConcurrencyTest @Autowired constructor(
             // (restore 오발동) 회귀는 행 수로는 잡히지 않고 이 단언만이 잡는다.
             { assertThat(like?.deletedAt).describedAs("취소된 좋아요 행은 소프트 삭제 상태로 남아 있어야 한다").isNotNull() },
         )
+    }
+
+    /**
+     * 좋아요 등록과 어드민 상품 삭제가 겹치는 인터리빙이다.
+     * 존재 확인(6.6 장 2단계)을 통과한 뒤 연쇄 삭제가 지나가버리면, 그 뒤에 커밋되는 좋아요 행은
+     * 삭제된 상품을 가리키는 채로 영구히 남는다 — 연쇄 삭제는 다시 오지 않기 때문이다.
+     *
+     * 이 창은 스레드 두 개를 같이 출발시켜 잡을 수 있는 크기가 아니다. 그래서 여기서만 다른 방법을 쓴다.
+     * ProductService.getProduct 를 스파이해 "존재 확인이 끝난 바로 그 지점" 에서 삭제 트랜잭션을 통째로 커밋시킨다.
+     * 삭제는 다른 스레드에서 돌고 Future.get 이 커밋까지 기다리므로, 좋아요 트랜잭션이 재개될 때 삭제는 이미 끝나 있다.
+     * DB 는 실제 상태 그대로 두고 두 트랜잭션의 순서만 고정하는 용도라, 도메인 동작을 대신하는 목과는 성격이 다르다.
+     *
+     * increaseLikeCount 의 0 행을 흘려보내면 이 단언이 실패한다.
+     * 예외가 나지 않아 좋아요 행이 커밋되고, 그 회원의 목록은 totalElements 만 1 높은 채로 굳는다. (설계 문서 6.4, 7.4 장)
+     */
+    @DisplayName("존재 확인 뒤 상품이 삭제되면, 404 가 나고 삭제된 상품을 가리키는 좋아요 행이 남지 않는다.")
+    @Test
+    fun leavesNoOrphanLike_whenProductIsDeletedAfterExistenceCheck() {
+        // arrange
+        val user = signUp("loopers01")
+        val product = saveProduct()
+        doAnswer { invocation ->
+            val found = invocation.callRealMethod()
+            deleteProductInAnotherTransaction(product.id)
+            found
+        }.whenever(productService).getProduct(product.id)
+
+        // act — assertThrows 를 쓰지 않는 이유는, 예외가 나지 않는 회귀에서 아래의 행 단언까지 함께 보고 싶기 때문이다.
+        val thrown = runCatching { likeFacade.like(user.loginId, product.id) }.exceptionOrNull()
+
+        // assert
+        assertAll(
+            { assertThat(thrown).describedAs("삭제된 상품에 대한 좋아요는 404 여야 한다").isInstanceOf(CoreException::class.java) },
+            { assertThat((thrown as? CoreException)?.errorType).isEqualTo(ErrorType.NOT_FOUND) },
+            {
+                assertThat(productLikeJpaRepository.count())
+                    .describedAs("삭제된 상품을 가리키는 좋아요 행이 커밋되면 안 된다")
+                    .isEqualTo(0L)
+            },
+            {
+                assertThat(productRepository.findByIdIncludingDeleted(product.id)?.likeCount?.value)
+                    .describedAs("삭제된 상품의 좋아요 수는 움직이지 않아야 한다")
+                    .isEqualTo(BASE_LIKE_COUNT)
+            },
+        )
+    }
+
+    /**
+     * 좋아요 트랜잭션이 열려 있는 동안 삭제를 완결시키려면 다른 스레드의 트랜잭션이어야 한다.
+     * 같은 스레드에서 부르면 진행 중인 트랜잭션에 합류해버려 커밋 시점이 뒤로 밀린다.
+     */
+    private fun deleteProductInAnotherTransaction(productId: Long) {
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            executor.submit { productAdminFacade.delete(productId) }.get(10, TimeUnit.SECONDS)
+        } finally {
+            executor.shutdown()
+        }
     }
 }

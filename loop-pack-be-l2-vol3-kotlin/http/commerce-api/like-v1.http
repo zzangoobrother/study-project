@@ -112,7 +112,7 @@ X-Loopers-LoginId: seeduser01
 DELETE {{commerce-api}}/api/v1/products/1/likes
 X-Loopers-LoginId: seeduser01
 
-###
+### 정렬 확인 - 다시 좋아요
 POST {{commerce-api}}/api/v1/products/1/likes
 X-Loopers-LoginId: seeduser01
 
