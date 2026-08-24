@@ -4,6 +4,7 @@ import com.loopers.application.admin.product.ProductAdminInfo
 import com.loopers.domain.product.Price
 import com.loopers.domain.product.ProductCommand
 import com.loopers.domain.product.ProductName
+import com.loopers.domain.product.Stock
 import java.time.ZonedDateTime
 
 class ProductAdminV1Dto {
@@ -22,6 +23,7 @@ class ProductAdminV1Dto {
         val name: String,
         val price: Long,
         val likeCount: Long,
+        val stock: Long,
         val brand: BrandSummary?,
         val deleted: Boolean,
         val deletedAt: ZonedDateTime?,
@@ -41,6 +43,7 @@ class ProductAdminV1Dto {
                     name = info.name.value,
                     price = info.price.value,
                     likeCount = info.likeCount.value,
+                    stock = info.stock.value,
                     brand = info.brand?.let {
                         BrandSummary(id = it.id, name = it.name.value, deleted = it.deleted)
                     },
@@ -63,11 +66,13 @@ class ProductAdminV1Dto {
         val brandId: Long,
         val name: String,
         val price: Long,
+        val stock: Long,
     ) {
         fun toCommand(): ProductCommand.Register = ProductCommand.Register(
             brandId = brandId,
             name = ProductName(name),
             price = Price(price),
+            stock = Stock(stock),
         )
     }
 
@@ -81,11 +86,13 @@ class ProductAdminV1Dto {
     data class ChangeRequest(
         val name: String,
         val price: Long,
+        val stock: Long,
     ) {
         fun toCommand(id: Long): ProductCommand.Change = ProductCommand.Change(
             id = id,
             name = ProductName(name),
             price = Price(price),
+            stock = Stock(stock),
         )
     }
 }

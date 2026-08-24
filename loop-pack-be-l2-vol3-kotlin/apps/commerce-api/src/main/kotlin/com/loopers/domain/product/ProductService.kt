@@ -63,6 +63,7 @@ class ProductService(
             brandId = command.brandId,
             name = command.name,
             price = command.price,
+            stock = command.stock,
         )
         return productRepository.save(product)
     }
@@ -88,10 +89,7 @@ class ProductService(
             )
         }
 
-        // stock 은 임시로 현재 값을 그대로 넘긴다 — ProductCommand.Change 에 stock 이 없기 때문이다.
-        // Task 3 에서 command.stock 으로 교체하며 걷어낸다. 그 전까지 수정이 재고를 바꾸지 않는 것은
-        // 기존 동작과 같으므로 회귀가 아니다.
-        product.change(name = command.name, price = command.price, stock = product.stock)
+        product.change(name = command.name, price = command.price, stock = command.stock)
         // 영속 상태의 엔티티이므로 커밋 시점에 변경 감지로 UPDATE 된다.
         return product
     }

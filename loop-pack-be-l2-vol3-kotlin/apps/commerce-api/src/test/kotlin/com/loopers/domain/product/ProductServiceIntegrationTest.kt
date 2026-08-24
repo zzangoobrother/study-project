@@ -463,7 +463,7 @@ class ProductServiceIntegrationTest @Autowired constructor(
         fun savesProductWithZeroLikeCount() {
             // act
             val registered = productService.register(
-                ProductCommand.Register(brandId = 1L, name = ProductName("운동화"), price = Price(39000)),
+                ProductCommand.Register(brandId = 1L, name = ProductName("운동화"), price = Price(39000), stock = Stock.ZERO),
             )
 
             // assert
@@ -479,7 +479,7 @@ class ProductServiceIntegrationTest @Autowired constructor(
         fun registeredProductIsRetrievable() {
             // act
             val registered = productService.register(
-                ProductCommand.Register(brandId = 1L, name = ProductName("운동화"), price = Price(39000)),
+                ProductCommand.Register(brandId = 1L, name = ProductName("운동화"), price = Price(39000), stock = Stock.ZERO),
             )
 
             // assert
@@ -497,7 +497,7 @@ class ProductServiceIntegrationTest @Autowired constructor(
             val saved = saveProduct(brandId = 1L)
 
             // act
-            productService.change(ProductCommand.Change(saved.id, ProductName("러닝화"), Price(59000)))
+            productService.change(ProductCommand.Change(saved.id, ProductName("러닝화"), Price(59000), Stock.ZERO))
 
             // assert
             val found = productService.getProduct(saved.id)
@@ -513,7 +513,7 @@ class ProductServiceIntegrationTest @Autowired constructor(
         fun throwsNotFound_whenProductDoesNotExist() {
             // act & assert
             assertThatThrownBy {
-                productService.change(ProductCommand.Change(99999L, ProductName("러닝화"), Price(59000)))
+                productService.change(ProductCommand.Change(99999L, ProductName("러닝화"), Price(59000), Stock.ZERO))
             }
                 .isInstanceOf(CoreException::class.java)
                 .extracting { (it as CoreException).errorType }
@@ -530,7 +530,7 @@ class ProductServiceIntegrationTest @Autowired constructor(
 
             // act & assert
             assertThatThrownBy {
-                productService.change(ProductCommand.Change(saved.id, ProductName("러닝화"), Price(59000)))
+                productService.change(ProductCommand.Change(saved.id, ProductName("러닝화"), Price(59000), Stock.ZERO))
             }
                 .isInstanceOf(CoreException::class.java)
                 .extracting { (it as CoreException).errorType }
