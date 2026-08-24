@@ -48,6 +48,14 @@ interface ProductRepository {
      */
     fun decreaseLikeCount(productId: Long): Int
 
+    /**
+     * 재고를 요청 수량만큼 줄인다. 재고가 모자라면 아무것도 바꾸지 않는다. 반환값은 영향 행 수다.
+     *
+     * 확인과 차감이 한 문장 안에서 원자적으로 일어나는 것이 이 계약의 핵심이다. (설계 문서 6.3 장)
+     * 읽어서 뺀 값을 쓰면 동시 주문 두 건이 같은 재고를 읽고 같은 값을 써서 초과 판매가 된다.
+     */
+    fun decreaseStock(productId: Long, quantity: Int): Int
+
     /** 소프트 삭제된 상품은 제외된다. 좋아요 목록처럼 ID 집합으로 조회하는 경로가 쓴다. */
     fun findAllByIds(ids: List<Long>): List<ProductModel>
 }

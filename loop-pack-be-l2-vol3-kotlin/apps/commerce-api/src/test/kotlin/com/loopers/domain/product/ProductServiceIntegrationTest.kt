@@ -30,11 +30,13 @@ class ProductServiceIntegrationTest @Autowired constructor(
         name: String = "상품",
         price: Long = 10_000,
         likeCount: Long = 0,
+        stock: Long = 0,
     ) = ProductModel.create(
         brandId = brandId,
         name = ProductName(name),
         price = Price(price),
         likeCount = LikeCount(likeCount),
+        stock = Stock(stock),
     )
 
     private fun search(
@@ -55,8 +57,9 @@ class ProductServiceIntegrationTest @Autowired constructor(
         name: String = "운동화",
         price: Long = 39_000,
         likeCount: Long = 0,
+        stock: Long = 0,
     ): ProductModel = productRepository.save(
-        product(brandId = brandId, name = name, price = price, likeCount = likeCount),
+        product(brandId = brandId, name = name, price = price, likeCount = likeCount, stock = stock),
     )
 
     @AfterEach
@@ -751,6 +754,86 @@ class ProductServiceIntegrationTest @Autowired constructor(
             // assert — 감소는 반환값이 없으므로 예외가 나지 않는 것이 단언이다
             productService.decreaseLikeCount(99999L)
             assertThat(increased).isFalse()
+        }
+    }
+
+    @DisplayName("재고를 차감할 때, ")
+    @Nested
+    inner class DecreaseStock {
+        @DisplayName("재고가 넉넉하면, 정확히 요청 수량만큼 줄고 true 를 반환한다.")
+        @Test
+        fun decreasesByQuantity_whenStockIsSufficient() {
+            // arrange
+            val product = saveProduct(stock = 10)
+
+            // act
+            val decreased = productService.decreaseStock(product.id, 3)
+
+            // assert
+            assertAll(
+                { assertThat(decreased).isTrue() },
+                { assertThat(productRepository.findById(product.id)!!.stock.value).isEqualTo(7L) },
+            )
+        }
+
+        @DisplayName("재고와 요청 수량이 같으면, 0 이 되고 true 를 반환한다.")
+        @Test
+        fun decreasesToZero_whenStockEqualsQuantity() {
+            // arrange
+            val product = saveProduct(stock = 5)
+
+            // act
+            val decreased = productService.decreaseStock(product.id, 5)
+
+            // assert
+            assertAll(
+                { assertThat(decreased).isTrue() },
+                { assertThat(productRepository.findById(product.id)!!.stock.value).isEqualTo(0L) },
+            )
+        }
+
+        /**
+         * 이 단언이 초과 판매 방지의 본체다.
+         * WHERE stock >= :quantity 를 빼면 재고가 음수가 되고 true 가 반환된다.
+         */
+        @DisplayName("재고가 모자라면, 아무것도 바꾸지 않고 false 를 반환한다.")
+        @Test
+        fun doesNothing_whenStockIsInsufficient() {
+            // arrange
+            val product = saveProduct(stock = 2)
+
+            // act
+            val decreased = productService.decreaseStock(product.id, 3)
+
+            // assert
+            assertAll(
+                { assertThat(decreased).isFalse() },
+                { assertThat(productRepository.findById(product.id)!!.stock.value).isEqualTo(2L) },
+            )
+        }
+
+        @DisplayName("삭제된 상품이면, false 를 반환한다.")
+        @Test
+        fun returnsFalse_whenProductIsSoftDeleted() {
+            // arrange
+            val product = saveProduct(stock = 10)
+            productService.delete(product.id)
+
+            // act
+            val decreased = productService.decreaseStock(product.id, 1)
+
+            // assert
+            assertThat(decreased).isFalse()
+        }
+
+        @DisplayName("존재하지 않는 상품이면, false 를 반환한다.")
+        @Test
+        fun returnsFalse_whenProductDoesNotExist() {
+            // act
+            val decreased = productService.decreaseStock(99999L, 1)
+
+            // assert
+            assertThat(decreased).isFalse()
         }
     }
 }

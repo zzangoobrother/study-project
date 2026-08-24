@@ -166,6 +166,21 @@ class ProductService(
     }
 
     /**
+     * 재고를 차감한다. 반환값은 "이 호출이 재고를 실제로 줄였는가" 다.
+     *
+     * false 는 두 가지를 뜻한다 — 재고가 모자랐거나, 그 사이 상품이 삭제됐거나.
+     * 구분하지 않는 이유는 호출자가 두 경우에 할 수 있는 일이 같기 때문이다. (설계 문서 6.4 장)
+     * 재조회로 원인을 알아내려 해도 그 시점의 상태는 차감 시점과 또 다르다.
+     *
+     * increaseLikeCount 와 달리 로그만 남기고 넘어가지 않는다. 여기서 false 를 흘려보내면
+     * 재고가 없는데 주문이 성사된다 — 초과 판매다. 호출자는 반드시 이 값을 보고 롤백해야 한다.
+     */
+    @Transactional
+    fun decreaseStock(productId: Long, quantity: Int): Boolean {
+        return productRepository.decreaseStock(productId = productId, quantity = quantity) == 1
+    }
+
+    /**
      * ID 집합으로 상품을 조회한다. 없거나 삭제된 ID 는 결과에 없다.
      *
      * 반환 순서는 보장하지 않는다. 순서가 필요한 호출자는 자기가 가진 ID 목록 순서로 재배열해야 한다.
