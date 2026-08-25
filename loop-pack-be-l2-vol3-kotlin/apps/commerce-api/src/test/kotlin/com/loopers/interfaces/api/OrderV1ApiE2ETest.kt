@@ -310,6 +310,24 @@ class OrderV1ApiE2ETest @Autowired constructor(
             )
         }
 
+        @DisplayName("응답에 no-store 와 Vary 헤더가 실린다.")
+        @Test
+        fun setsCacheHeaders() {
+            // arrange
+            signUp()
+            val product = saveProduct()
+            val placed = order(product.id to 1).body!!.data!!
+
+            // act
+            val response = getOrder(placed.id)
+
+            // assert
+            assertAll(
+                { assertThat(response.headers.getFirst("Cache-Control")).isEqualTo("no-store") },
+                { assertThat(response.headers.getFirst("Vary")).isEqualTo("X-Loopers-LoginId") },
+            )
+        }
+
         @DisplayName("다른 회원의 주문이면, 404 NOT_FOUND 를 반환한다.")
         @Test
         fun returnsNotFound_whenOrderBelongsToAnotherUser() {
