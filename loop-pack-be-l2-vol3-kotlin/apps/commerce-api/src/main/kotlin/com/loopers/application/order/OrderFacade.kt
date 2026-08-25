@@ -1,15 +1,19 @@
 package com.loopers.application.order
 
 import com.loopers.domain.order.OrderCommand
+import com.loopers.domain.order.OrderCriteria
 import com.loopers.domain.order.OrderItemModel
 import com.loopers.domain.order.OrderService
 import com.loopers.domain.product.ProductModel
 import com.loopers.domain.product.ProductService
+import com.loopers.domain.support.PageQuery
+import com.loopers.domain.support.PageResult
 import com.loopers.domain.user.LoginId
 import com.loopers.domain.user.UserModel
 import com.loopers.domain.user.UserService
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
+import java.time.LocalDate
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 
@@ -65,14 +69,54 @@ class OrderFacade(
     }
 
     /**
-     * 주문 상세 조회. 실제 구현은 Task 8 의 몫이다.
+     * 내 주문 상세.
      *
-     * keepsSnapshot_whenProductChangesLater 테스트가 @Disabled 상태로 이 메서드를 참조하는데,
-     * Kotlin 은 @Disabled 여부와 무관하게 테스트 본문도 컴파일하므로, 시그니처가 없으면
-     * Task 6 자체가 빌드되지 않는다. 컴파일을 통과시킬 최소한의 자리만 만들어 둔다.
+     * 소유자가 아니면 404 다. 403 이 아닌 이유는 존재 자체를 숨기기 위해서다 —
+     * 403 은 "그 주문은 존재한다" 를 알려주므로 ID 를 1 부터 훑으면 주문량과 증가 속도가 드러난다.
+     * 인증이 없는 현 상태에서는 남의 loginId 를 아는 사람이 그 사람의 주문 존재를 확인할 수 있다.
+     * (설계 문서 4.5 장)
+     *
+     * OrderQueryDslRepository.findById 가 fetch join 으로 항목을 미리 초기화해 반환하므로,
+     * 이 readOnly 트랜잭션이 LAZY 로딩 때문에 필요한 것은 아니다. 플러시와 더티 체크를 꺼서
+     * 조회 전용 호출의 부담을 줄이는 것이 목적이다.
      */
+    @Transactional(readOnly = true)
     fun getOrder(loginId: LoginId, orderId: Long): OrderInfo {
-        TODO("Task 8 에서 구현한다.")
+        val user = getUserOrThrow(loginId)
+        val order = orderService.getOrder(orderId)
+
+        if (order == null || order.userId != user.id) {
+            throw CoreException(
+                errorType = ErrorType.NOT_FOUND,
+                customMessage = "[orderId = $orderId] 존재하지 않는 주문입니다.",
+            )
+        }
+
+        return OrderInfo.of(order)
+    }
+
+    /**
+     * 내 주문 목록.
+     *
+     * summaryOf 를 쓰는 것이 N+1 방어의 실체다. of 로 바꾸면 주문 수만큼 order_items 조회가 나간다.
+     * (설계 문서 4.2 장)
+     */
+    @Transactional(readOnly = true)
+    fun getOrders(
+        loginId: LoginId,
+        startAt: LocalDate?,
+        endAt: LocalDate?,
+        pageQuery: PageQuery,
+    ): PageResult<OrderInfo> {
+        val user = getUserOrThrow(loginId)
+        val criteria = OrderCriteria.Search(
+            userId = user.id,
+            startAt = startAt,
+            endAt = endAt,
+            pageQuery = pageQuery,
+        )
+
+        return orderService.getOrders(criteria).map { OrderInfo.summaryOf(it) }
     }
 
     private fun getUserOrThrow(loginId: LoginId): UserModel =
