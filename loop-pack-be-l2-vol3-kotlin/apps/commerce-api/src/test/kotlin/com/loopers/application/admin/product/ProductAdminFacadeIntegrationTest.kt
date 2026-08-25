@@ -12,6 +12,7 @@ import com.loopers.domain.product.ProductCriteria
 import com.loopers.domain.product.ProductModel
 import com.loopers.domain.product.ProductName
 import com.loopers.domain.product.ProductRepository
+import com.loopers.domain.product.Stock
 import com.loopers.domain.support.PageQuery
 import com.loopers.domain.user.BirthDate
 import com.loopers.domain.user.Email
@@ -235,7 +236,7 @@ class ProductAdminFacadeIntegrationTest @Autowired constructor(
 
             // act
             val info = productAdminFacade.register(
-                ProductCommand.Register(brandId = brand.id, name = ProductName("운동화"), price = Price(39000)),
+                ProductCommand.Register(brandId = brand.id, name = ProductName("운동화"), price = Price(39000), stock = Stock.ZERO),
             )
 
             // assert
@@ -257,7 +258,7 @@ class ProductAdminFacadeIntegrationTest @Autowired constructor(
             // act & assert
             assertThatThrownBy {
                 productAdminFacade.register(
-                    ProductCommand.Register(brandId = 99999L, name = ProductName("운동화"), price = Price(39000)),
+                    ProductCommand.Register(brandId = 99999L, name = ProductName("운동화"), price = Price(39000), stock = Stock.ZERO),
                 )
             }
                 .isInstanceOf(CoreException::class.java)
@@ -276,12 +277,35 @@ class ProductAdminFacadeIntegrationTest @Autowired constructor(
             // act & assert
             assertThatThrownBy {
                 productAdminFacade.register(
-                    ProductCommand.Register(brandId = brand.id, name = ProductName("운동화"), price = Price(39000)),
+                    ProductCommand.Register(brandId = brand.id, name = ProductName("운동화"), price = Price(39000), stock = Stock.ZERO),
                 )
             }
                 .isInstanceOf(CoreException::class.java)
                 .extracting { (it as CoreException).errorType }
                 .isEqualTo(ErrorType.BAD_REQUEST)
+        }
+
+        @DisplayName("재고와 함께 등록하면, 그 재고가 저장된다.")
+        @Test
+        fun savesStock_whenRegistered() {
+            // arrange
+            val brand = saveBrand()
+
+            // act
+            val info = productAdminFacade.register(
+                ProductCommand.Register(
+                    brandId = brand.id,
+                    name = ProductName("운동화"),
+                    price = Price(39_000),
+                    stock = Stock(50),
+                ),
+            )
+
+            // assert — info.stock 은 ProductAdminInfo.of() 매핑을, 재조회는 실제 저장을 각각 검증한다
+            assertAll(
+                { assertThat(info.stock).isEqualTo(Stock(50)) },
+                { assertThat(productRepository.findById(info.id)!!.stock.value).isEqualTo(50L) },
+            )
         }
     }
 
@@ -297,7 +321,7 @@ class ProductAdminFacadeIntegrationTest @Autowired constructor(
 
             // act
             val info = productAdminFacade.change(
-                ProductCommand.Change(id = product.id, name = ProductName("러닝화"), price = Price(59000)),
+                ProductCommand.Change(id = product.id, name = ProductName("러닝화"), price = Price(59000), stock = Stock.ZERO),
             )
 
             // assert
@@ -335,6 +359,34 @@ class ProductAdminFacadeIntegrationTest @Autowired constructor(
 
             // assert — 행은 남지만 살아 있는 좋아요는 0 이다
             assertThat(productLikeJpaRepository.findAll().single().deletedAt).isNotNull()
+        }
+
+        /**
+         * PUT 은 전체 교체이므로 재고도 교체 대상이다. (설계 문서 5.6 장)
+         * 주문에 의한 차감은 이 경로를 타지 않는다 — 그쪽은 조건부 UPDATE 다.
+         */
+        @DisplayName("수정하면, 재고도 함께 교체된다.")
+        @Test
+        fun replacesStock_whenChanged() {
+            // arrange
+            val brand = saveBrand()
+            val product = saveProduct(brand.id)
+
+            // act
+            val info = productAdminFacade.change(
+                ProductCommand.Change(
+                    id = product.id,
+                    name = ProductName("운동화"),
+                    price = Price(39_000),
+                    stock = Stock(7),
+                ),
+            )
+
+            // assert — info.stock 은 ProductAdminInfo.of() 매핑을, 재조회는 실제 저장을 각각 검증한다
+            assertAll(
+                { assertThat(info.stock).isEqualTo(Stock(7)) },
+                { assertThat(productRepository.findById(product.id)!!.stock.value).isEqualTo(7L) },
+            )
         }
     }
 }

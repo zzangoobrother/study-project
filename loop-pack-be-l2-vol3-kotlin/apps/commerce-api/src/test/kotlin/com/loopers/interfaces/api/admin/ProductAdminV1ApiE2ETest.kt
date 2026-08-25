@@ -284,7 +284,7 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
         fun registersProduct() {
             // arrange
             val brand = saveBrand()
-            val body = mapOf("brandId" to brand.id, "name" to "운동화", "price" to 39000)
+            val body = mapOf("brandId" to brand.id, "name" to "운동화", "price" to 39000, "stock" to 100)
 
             // act
             val response = testRestTemplate.exchange(
@@ -300,6 +300,7 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
                 { assertThat(response.body?.data?.name).isEqualTo("운동화") },
                 { assertThat(response.body?.data?.price).isEqualTo(39000L) },
                 { assertThat(response.body?.data?.likeCount).isEqualTo(0L) },
+                { assertThat(response.body?.data?.stock).isEqualTo(100L) },
                 { assertThat(response.body?.data?.brand?.id).isEqualTo(brand.id) },
             )
         }
@@ -309,7 +310,7 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
         fun registersFreeProduct() {
             // arrange
             val brand = saveBrand()
-            val body = mapOf("brandId" to brand.id, "name" to "사은품", "price" to 0)
+            val body = mapOf("brandId" to brand.id, "name" to "사은품", "price" to 0, "stock" to 100)
 
             // act
             val response = testRestTemplate.exchange(
@@ -327,7 +328,7 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
         @Test
         fun returnsBadRequest_whenBrandDoesNotExist() {
             // arrange
-            val body = mapOf("brandId" to 99999, "name" to "운동화", "price" to 39000)
+            val body = mapOf("brandId" to 99999, "name" to "운동화", "price" to 39000, "stock" to 100)
 
             // act
             val response = testRestTemplate.exchange(
@@ -352,7 +353,7 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
             val brand = saveBrand()
             brand.delete()
             brandRepository.save(brand)
-            val body = mapOf("brandId" to brand.id, "name" to "운동화", "price" to 39000)
+            val body = mapOf("brandId" to brand.id, "name" to "운동화", "price" to 39000, "stock" to 100)
 
             // act
             val response = testRestTemplate.exchange(
@@ -371,7 +372,7 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
         fun returnsBadRequest_whenPriceIsNegative() {
             // arrange
             val brand = saveBrand()
-            val body = mapOf("brandId" to brand.id, "name" to "운동화", "price" to -1)
+            val body = mapOf("brandId" to brand.id, "name" to "운동화", "price" to -1, "stock" to 100)
 
             // act
             val response = testRestTemplate.exchange(
@@ -390,7 +391,7 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
         fun returnsBadRequest_whenNameIsBlank() {
             // arrange
             val brand = saveBrand()
-            val body = mapOf("brandId" to brand.id, "name" to "", "price" to 39000)
+            val body = mapOf("brandId" to brand.id, "name" to "", "price" to 39000, "stock" to 100)
 
             // act
             val response = testRestTemplate.exchange(
@@ -408,13 +409,13 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
     @DisplayName("PUT /api-admin/v1/products/{productId}")
     @Nested
     inner class ChangeProduct {
-        @DisplayName("상품을 수정하면, 이름과 가격이 교체된다.")
+        @DisplayName("상품을 수정하면, 이름·가격·재고가 교체된다.")
         @Test
         fun changesProduct() {
             // arrange
             val brand = saveBrand()
             val product = saveProduct(brand.id)
-            val body = mapOf("name" to "러닝화", "price" to 59000)
+            val body = mapOf("name" to "러닝화", "price" to 59000, "stock" to 100)
 
             // act
             val response = testRestTemplate.exchange(
@@ -437,8 +438,10 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
                 { assertThat(response.statusCode).isEqualTo(HttpStatus.OK) },
                 { assertThat(response.body?.data?.name).isEqualTo("러닝화") },
                 { assertThat(response.body?.data?.price).isEqualTo(59000L) },
+                { assertThat(response.body?.data?.stock).isEqualTo(100L) },
                 { assertThat(found.body?.data?.name).isEqualTo("러닝화") },
                 { assertThat(found.body?.data?.price).isEqualTo(59000L) },
+                { assertThat(found.body?.data?.stock).isEqualTo(100L) },
             )
         }
 
@@ -454,7 +457,7 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
             val brand = saveBrand(name = "루퍼스")
             val other = saveBrand(name = "몬드리안")
             val product = saveProduct(brand.id)
-            val body = mapOf("name" to "러닝화", "price" to 59000, "brandId" to other.id)
+            val body = mapOf("name" to "러닝화", "price" to 59000, "brandId" to other.id, "stock" to 100)
 
             // act
             val response = testRestTemplate.exchange(
@@ -477,7 +480,7 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
             // arrange
             val brand = saveBrand()
             val product = saveProduct(brand.id)
-            val body = mapOf("name" to "러닝화", "price" to 59000, "likeCount" to 999)
+            val body = mapOf("name" to "러닝화", "price" to 59000, "likeCount" to 999, "stock" to 100)
 
             // act
             val response = testRestTemplate.exchange(
@@ -495,7 +498,7 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
         @Test
         fun returnsNotFound_whenProductDoesNotExist() {
             // arrange
-            val body = mapOf("name" to "러닝화", "price" to 59000)
+            val body = mapOf("name" to "러닝화", "price" to 59000, "stock" to 100)
 
             // act
             val response = testRestTemplate.exchange(
@@ -517,7 +520,7 @@ class ProductAdminV1ApiE2ETest @Autowired constructor(
             val product = saveProduct(brand.id)
             product.delete()
             productRepository.save(product)
-            val body = mapOf("name" to "러닝화", "price" to 59000)
+            val body = mapOf("name" to "러닝화", "price" to 59000, "stock" to 100)
 
             // act
             val response = testRestTemplate.exchange(

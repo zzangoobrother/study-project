@@ -5,6 +5,7 @@ import com.loopers.domain.product.LikeCount
 import com.loopers.domain.product.Price
 import com.loopers.domain.product.ProductModel
 import com.loopers.domain.product.ProductName
+import com.loopers.domain.product.Stock
 import java.time.ZonedDateTime
 
 /**
@@ -19,6 +20,7 @@ data class ProductAdminInfo(
     val name: ProductName,
     val price: Price,
     val likeCount: LikeCount,
+    val stock: Stock,
     val brand: BrandAdminInfo?,
     val deletedAt: ZonedDateTime?,
     val createdAt: ZonedDateTime,
@@ -34,6 +36,7 @@ data class ProductAdminInfo(
                 name = model.name,
                 price = model.price,
                 likeCount = model.likeCount,
+                stock = model.stock,
                 brand = brand,
                 deletedAt = model.deletedAt,
                 createdAt = model.createdAt,
