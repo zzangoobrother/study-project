@@ -9,6 +9,7 @@ import com.loopers.domain.product.Price
 import com.loopers.domain.product.ProductModel
 import com.loopers.domain.product.ProductName
 import com.loopers.domain.product.ProductRepository
+import com.loopers.domain.product.Stock
 import com.loopers.domain.user.BirthDate
 import com.loopers.domain.user.Email
 import com.loopers.domain.user.LoginId
@@ -77,6 +78,11 @@ class LocalDataSeeder(
                 price = Price(((index % 20) + 1) * 1_000L),
                 // 난수가 아니라 인덱스 기반 결정적 값이라, 다시 돌려도 같은 정렬 결과가 나온다.
                 likeCount = LikeCount(((index * 7) % 50).toLong()),
+                // 11 개마다 한 번씩 재고 0 이 나온다. 나머지는 10 ~ 100.
+                // 품절 상품이 섞여 있어야 order-v1.http 로 409 를 확인할 수 있다.
+                // 전부 재고가 있으면 품절 응답을 보려고 재고를 소진시키는 요청을 먼저 보내야 하고,
+                // 그러면 그 .http 는 한 번 실행한 뒤 상태가 달라져 재실행이 불가능해진다. (설계 문서 9 장)
+                stock = Stock(if (index % 11 == 10) 0L else ((index % 10) + 1) * 10L),
             )
         }
         productRepository.saveAll(products)
