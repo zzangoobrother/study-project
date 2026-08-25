@@ -8,7 +8,7 @@ import java.time.ZonedDateTime
  *
  * 값 객체가 아니라 원시 타입으로 펼쳐서 내보내는 이유는, 이 타입을 소비하는 곳이
  * 컨트롤러 하나뿐이고 거기서 다시 값 객체를 풀어야 하기 때문이다.
- * items 가 nullable 인 것은 목록 조회가 항목을 읽지 않기 때문이다. (설계 문서 4.2 장)
+ * items 가 목록 조회에서 빈 배열인 것은 목록 조회가 항목을 읽지 않기 때문이다. (설계 문서 4.2 장)
  */
 data class OrderInfo(
     val id: Long,

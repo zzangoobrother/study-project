@@ -76,8 +76,9 @@ class OrderFacade(
      * 인증이 없는 현 상태에서는 남의 loginId 를 아는 사람이 그 사람의 주문 존재를 확인할 수 있다.
      * (설계 문서 4.5 장)
      *
-     * 읽기 트랜잭션으로 감싸는 이유는 항목이 지연 로딩이기 때문이다.
-     * 트랜잭션 밖에서 items 를 읽으면 LazyInitializationException 이 난다.
+     * OrderQueryDslRepository.findById 가 fetch join 으로 항목을 미리 초기화해 반환하므로,
+     * 이 readOnly 트랜잭션이 LAZY 로딩 때문에 필요한 것은 아니다. 플러시와 더티 체크를 꺼서
+     * 조회 전용 호출의 부담을 줄이는 것이 목적이다.
      */
     @Transactional(readOnly = true)
     fun getOrder(loginId: LoginId, orderId: Long): OrderInfo {
