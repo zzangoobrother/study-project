@@ -11,6 +11,7 @@ import com.loopers.domain.product.ProductName
 import com.loopers.domain.product.ProductRepository
 import com.loopers.domain.product.ProductService
 import com.loopers.domain.product.Stock
+import com.loopers.domain.support.PageQuery
 import com.loopers.domain.user.BirthDate
 import com.loopers.domain.user.Email
 import com.loopers.domain.user.LoginId
@@ -24,7 +25,6 @@ import com.loopers.support.error.ErrorType
 import com.loopers.utils.DatabaseCleanUp
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -122,7 +122,6 @@ class OrderFacadeIntegrationTest @Autowired constructor(
          * 주문 후 상품을 바꿔도 주문서는 그대로여야 한다.
          */
         @DisplayName("주문 뒤 상품 가격이 바뀌어도, 주문의 단가는 그대로다.")
-        @Disabled("Task 8 에서 getOrder 가 생기면 활성화한다")
         @Test
         fun keepsSnapshot_whenProductChangesLater() {
             // arrange
@@ -275,6 +274,135 @@ class OrderFacadeIntegrationTest @Autowired constructor(
 
             // assert
             assertThat(result.errorType).isEqualTo(ErrorType.BAD_REQUEST)
+        }
+    }
+
+    @DisplayName("주문을 단건 조회할 때, ")
+    @Nested
+    inner class GetOrder {
+        @DisplayName("항목까지 채워서 반환된다.")
+        @Test
+        fun returnsOrderWithItems() {
+            // arrange
+            val user = signUp()
+            val product = saveProduct(name = "운동화", price = 39_000, stock = 5)
+            val placed = place(user.loginId, product.id to 2)
+
+            // act
+            val found = orderFacade.getOrder(user.loginId, placed.id)
+
+            // assert
+            assertAll(
+                { assertThat(found.id).isEqualTo(placed.id) },
+                { assertThat(found.items).hasSize(1) },
+                { assertThat(found.items.first().productName).isEqualTo("운동화") },
+                { assertThat(found.items.first().subtotal).isEqualTo(78_000L) },
+                { assertThat(found.totalPrice).isEqualTo(78_000L) },
+            )
+        }
+
+        /**
+         * 남의 주문을 403 이 아니라 404 로 막는다. (설계 문서 4.5 장)
+         * 403 은 "그 주문은 존재한다" 를 알려주므로, ID 를 훑으면 주문량이 노출된다.
+         */
+        @DisplayName("다른 회원의 주문이면, NOT_FOUND 예외가 발생한다.")
+        @Test
+        fun throwsNotFound_whenOrderBelongsToAnotherUser() {
+            // arrange
+            val mine = signUp("loopers01")
+            val other = signUp("loopers02")
+            val product = saveProduct(stock = 5)
+            val placed = place(other.loginId, product.id to 1)
+
+            // act
+            val result = assertThrows<CoreException> { orderFacade.getOrder(mine.loginId, placed.id) }
+
+            // assert
+            assertThat(result.errorType).isEqualTo(ErrorType.NOT_FOUND)
+        }
+
+        @DisplayName("없는 주문이면, NOT_FOUND 예외가 발생한다.")
+        @Test
+        fun throwsNotFound_whenOrderDoesNotExist() {
+            // arrange
+            val user = signUp()
+
+            // act
+            val result = assertThrows<CoreException> { orderFacade.getOrder(user.loginId, 99999L) }
+
+            // assert
+            assertThat(result.errorType).isEqualTo(ErrorType.NOT_FOUND)
+        }
+
+        @DisplayName("가입되지 않은 로그인 ID 면, NOT_FOUND 예외가 발생한다.")
+        @Test
+        fun throwsNotFound_whenUserDoesNotExist() {
+            // act
+            val result = assertThrows<CoreException> { orderFacade.getOrder(LoginId("nobody"), 1L) }
+
+            // assert
+            assertThat(result.errorType).isEqualTo(ErrorType.NOT_FOUND)
+        }
+    }
+
+    @DisplayName("주문 목록을 조회할 때, ")
+    @Nested
+    inner class GetOrders {
+        @DisplayName("최근 주문이 앞에 오고, 항목은 담기지 않는다.")
+        @Test
+        fun ordersByMostRecent_withoutItems() {
+            // arrange
+            val user = signUp()
+            val product = saveProduct(stock = 10)
+            val first = place(user.loginId, product.id to 1)
+            val second = place(user.loginId, product.id to 1)
+
+            // act
+            val result = orderFacade.getOrders(user.loginId, null, null, PageQuery())
+
+            // assert
+            assertAll(
+                { assertThat(result.content.map { it.id }).containsExactly(second.id, first.id) },
+                { assertThat(result.content).allSatisfy { assertThat(it.items).isEmpty() } },
+                { assertThat(result.content.first().itemCount).isEqualTo(1) },
+            )
+        }
+
+        @DisplayName("다른 회원의 주문은 섞이지 않는다.")
+        @Test
+        fun doesNotMixOtherUsersOrders() {
+            // arrange
+            val mine = signUp("loopers01")
+            val other = signUp("loopers02")
+            val product = saveProduct(stock = 10)
+            val myOrder = place(mine.loginId, product.id to 1)
+            place(other.loginId, product.id to 1)
+
+            // act
+            val result = orderFacade.getOrders(mine.loginId, null, null, PageQuery())
+
+            // assert
+            assertAll(
+                { assertThat(result.content.map { it.id }).containsExactly(myOrder.id) },
+                { assertThat(result.totalElements).isEqualTo(1L) },
+            )
+        }
+
+        @DisplayName("주문이 없으면, 빈 목록과 totalElements 0 이 반환된다.")
+        @Test
+        fun returnsEmptyPage_whenNoOrders() {
+            // arrange
+            val user = signUp()
+
+            // act
+            val result = orderFacade.getOrders(user.loginId, null, null, PageQuery())
+
+            // assert
+            assertAll(
+                { assertThat(result.content).isEmpty() },
+                { assertThat(result.totalElements).isEqualTo(0L) },
+                { assertThat(result.totalPages).isEqualTo(0) },
+            )
         }
     }
 }
