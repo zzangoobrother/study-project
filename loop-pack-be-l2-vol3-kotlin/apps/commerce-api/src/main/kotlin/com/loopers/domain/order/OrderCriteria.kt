@@ -32,4 +32,14 @@ class OrderCriteria {
             }
         }
     }
+
+    /**
+     * 어드민 주문 목록의 조회 조건.
+     *
+     * userId 가 없는 것이 Search 와의 차이다. 어드민은 전체 회원의 주문을 본다.
+     * 기간·정렬 파라미터가 없는 것은 요구사항에 없기 때문이다. 정렬은 최신순 고정이다.
+     */
+    data class AdminSearch(
+        val pageQuery: PageQuery,
+    )
 }

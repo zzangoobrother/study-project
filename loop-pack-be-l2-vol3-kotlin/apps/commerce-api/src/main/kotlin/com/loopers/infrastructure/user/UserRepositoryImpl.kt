@@ -21,4 +21,11 @@ class UserRepositoryImpl(
     override fun findByLoginId(loginId: LoginId): UserModel? {
         return userJpaRepository.findByLoginIdAndDeletedAtIsNull(loginId)
     }
+
+    override fun findAllByIdsIncludingDeleted(ids: List<Long>): List<UserModel> {
+        // IN () 은 문법 오류이고, 조회할 대상도 없으므로 쿼리 자체를 보내지 않는다.
+        if (ids.isEmpty()) return emptyList()
+
+        return userJpaRepository.findAllByIdIn(ids)
+    }
 }

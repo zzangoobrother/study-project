@@ -32,4 +32,9 @@ class OrderService(
     fun getOrders(criteria: OrderCriteria.Search): PageResult<OrderModel> {
         return orderRepository.findAll(criteria)
     }
+
+    @Transactional(readOnly = true)
+    fun getOrdersForAdmin(criteria: OrderCriteria.AdminSearch): PageResult<OrderModel> {
+        return orderRepository.findAllForAdmin(criteria)
+    }
 }

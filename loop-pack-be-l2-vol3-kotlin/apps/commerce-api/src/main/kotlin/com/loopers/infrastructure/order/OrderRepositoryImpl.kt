@@ -22,4 +22,8 @@ class OrderRepositoryImpl(
     override fun findAll(criteria: OrderCriteria.Search): PageResult<OrderModel> {
         return orderQueryDslRepository.search(criteria)
     }
+
+    override fun findAllForAdmin(criteria: OrderCriteria.AdminSearch): PageResult<OrderModel> {
+        return orderQueryDslRepository.searchForAdmin(criteria)
+    }
 }

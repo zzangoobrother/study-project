@@ -8,4 +8,6 @@ interface UserJpaRepository : JpaRepository<UserModel, Long> {
     fun existsByLoginId(loginId: LoginId): Boolean
 
     fun findByLoginIdAndDeletedAtIsNull(loginId: LoginId): UserModel?
+
+    fun findAllByIdIn(ids: List<Long>): List<UserModel>
 }

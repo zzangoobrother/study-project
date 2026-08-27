@@ -248,4 +248,68 @@ class UserServiceIntegrationTest @Autowired constructor(
             assertThat(unknownLoginId.customMessage).isEqualTo(wrongPassword.customMessage)
         }
     }
+
+    @DisplayName("삭제 포함으로 회원을 여러 건 조회할 때, ")
+    @Nested
+    inner class GetUsersIncludingDeleted {
+        @DisplayName("여러 ID 를 IN 절 한 번으로 조회한다.")
+        @Test
+        fun returnsMultipleUsers() {
+            // arrange
+            val first = userService.signUp(signUpCommand(loginId = "loopers01", email = "loopers01@loopers.com"))
+            val second = userService.signUp(signUpCommand(loginId = "loopers02", email = "loopers02@loopers.com"))
+
+            // act
+            val found = userService.getUsersIncludingDeleted(listOf(first.id, second.id))
+
+            // assert
+            assertThat(found.map { it.id }).containsExactlyInAnyOrder(first.id, second.id)
+        }
+
+        /**
+         * getUser(loginId) 는 소프트 삭제된 회원을 제외하지만, 이 메서드는 정반대다.
+         * 어드민 주문 목록에서 탈퇴 회원을 결과에서 빼면 "탈퇴한 회원의 주문" 과 "알 수 없는 회원의 주문" 이
+         * 둘 다 user = null 로 뭉개지므로, 이 메서드의 존재 이유가 곧 이 테스트다.
+         */
+        @DisplayName("소프트 삭제된 회원도 결과에 포함된다.")
+        @Test
+        fun includesSoftDeletedUsers() {
+            // arrange
+            val saved = userService.signUp(signUpCommand())
+            saved.delete()
+            userRepository.save(saved)
+
+            // act
+            val found = userService.getUsersIncludingDeleted(listOf(saved.id))
+
+            // assert
+            assertAll(
+                { assertThat(found.map { it.id }).containsExactly(saved.id) },
+                { assertThat(found.first().deletedAt).isNotNull() },
+            )
+        }
+
+        @DisplayName("ID 목록이 비어 있으면, 빈 목록이 반환된다.")
+        @Test
+        fun returnsEmptyList_whenIdsAreEmpty() {
+            // act
+            val found = userService.getUsersIncludingDeleted(emptyList())
+
+            // assert
+            assertThat(found).isEmpty()
+        }
+
+        @DisplayName("존재하지 않는 ID 가 섞여 있으면, 그 ID 만 결과에서 빠진다.")
+        @Test
+        fun excludesOnlyNonExistentIds() {
+            // arrange
+            val saved = userService.signUp(signUpCommand())
+
+            // act
+            val found = userService.getUsersIncludingDeleted(listOf(saved.id, 99999L))
+
+            // assert
+            assertThat(found.map { it.id }).containsExactly(saved.id)
+        }
+    }
 }
