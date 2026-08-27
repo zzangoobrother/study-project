@@ -4,6 +4,7 @@ import com.loopers.domain.order.OrderCriteria
 import com.loopers.domain.order.OrderModel
 import com.loopers.domain.order.QOrderItemModel.orderItemModel
 import com.loopers.domain.order.QOrderModel.orderModel
+import com.loopers.domain.support.PageQuery
 import com.loopers.domain.support.PageResult
 import com.querydsl.core.types.dsl.BooleanExpression
 import com.querydsl.jpa.impl.JPAQueryFactory
@@ -15,8 +16,8 @@ import java.time.ZonedDateTime
 /**
  * 주문의 동적 조회를 담당한다.
  *
- * 목록 조회(search)는 항목과 조인하지 않는다. 단건 조회(findById)는 조인한다 — 이유는 각 메서드의
- * KDoc 을 따로 참고한다.
+ * 목록 조회(search, searchForAdmin)는 항목과 조인하지 않는다. 단건 조회(findById)는 조인한다 — 이유는
+ * 각 메서드의 KDoc 을 따로 참고한다.
  *
  * 날짜를 시각 경계로 바꾸는 일이 여기 있는 이유는, 도메인 계약이 날짜 범위만 알고
  * created_at 이 시각이라는 사실은 몰라야 하기 때문이다. (설계 문서 4.4 장)
@@ -50,30 +51,46 @@ class OrderQueryDslRepository(
     }
 
     fun search(criteria: OrderCriteria.Search): PageResult<OrderModel> {
-        val conditions = arrayOf(
+        return fetchPage(
+            criteria.pageQuery,
             orderModel.deletedAt.isNull,
             orderModel.userId.eq(criteria.userId),
             createdAtGoe(criteria.startAt),
             createdAtLt(criteria.endAt),
         )
+    }
 
+    /**
+     * 어드민 목록 조회다. search() 와 달리 userId 조건이 없어 전체 회원의 주문이 보인다.
+     * 항목과 조인하지 않는 이유는 [findById] KDoc 을 참고한다 — 목록 응답은 항목을 담지 않으므로
+     * 조인은 기여할 것이 없고, 조인하면 항목 수만큼 주문이 중복되어 페이징이 깨진다.
+     */
+    fun searchForAdmin(criteria: OrderCriteria.AdminSearch): PageResult<OrderModel> {
+        return fetchPage(criteria.pageQuery, orderModel.deletedAt.isNull)
+    }
+
+    /**
+     * search() 와 searchForAdmin() 이 공유하는 조회·카운트 로직이다.
+     * content 가 비어도 count 는 세야 하므로(마지막 페이지를 넘어선 요청에서도 totalElements 는 유지되어야 한다)
+     * where 조건을 한 곳에 두고 두 쿼리에 그대로 재사용한다.
+     */
+    private fun fetchPage(pageQuery: PageQuery, vararg conditions: BooleanExpression?): PageResult<OrderModel> {
         val content = queryFactory
             .selectFrom(orderModel)
             .where(*conditions)
             // id DESC 보조 정렬은 같은 시각의 주문이 여럿일 때 페이지 경계에서 중복과 누락을 막는다.
             .orderBy(orderModel.createdAt.desc(), orderModel.id.desc())
-            .offset(criteria.pageQuery.offset)
-            .limit(criteria.pageQuery.size.toLong())
+            .offset(pageQuery.offset)
+            .limit(pageQuery.size.toLong())
             .fetch()
 
-        // 마지막 페이지를 넘어선 요청에서도 totalElements 는 유지되어야 하므로, content 가 비어도 count 는 센다.
         val totalElements = queryFactory
             .select(orderModel.count())
             .from(orderModel)
             .where(*conditions)
             .fetchOne() ?: 0L
 
-        return PageResult.of(content = content, pageQuery = criteria.pageQuery, totalElements = totalElements)
+        return PageResult.of(content = content, pageQuery = pageQuery, totalElements = totalElements)
     }
 
     private fun createdAtGoe(startAt: LocalDate?): BooleanExpression? =

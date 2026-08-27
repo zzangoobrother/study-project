@@ -38,6 +38,9 @@ class OrderServiceIntegrationTest @Autowired constructor(
     private fun search(userId: Long = 1L, startAt: LocalDate? = null, endAt: LocalDate? = null, size: Int = 20) =
         OrderCriteria.Search(userId = userId, startAt = startAt, endAt = endAt, pageQuery = PageQuery(size = size))
 
+    private fun adminSearch(page: Int = 0, size: Int = 20) =
+        OrderCriteria.AdminSearch(pageQuery = PageQuery(page = page, size = size))
+
     /**
      * 이 클래스의 두 테스트는 `orderService.getOrder(...)!!.items` 를 트랜잭션 밖(테스트 메서드 본문)에서
      * 읽는다. 우연이 아니라 의도다 — getOrder 는 호출자에게 별도 트랜잭션 없이도 완결된 애그리거트를
@@ -190,6 +193,73 @@ class OrderServiceIntegrationTest @Autowired constructor(
                 { assertThat(result.size).isEqualTo(2) },
                 { assertThat(result.totalElements).isEqualTo(5L) },
                 { assertThat(result.totalPages).isEqualTo(3) },
+            )
+        }
+    }
+
+    @DisplayName("어드민이 주문 목록을 조회할 때, ")
+    @Nested
+    inner class GetOrdersForAdmin {
+        @DisplayName("여러 회원의 주문이 모두 조회된다.")
+        @Test
+        fun includesOrdersFromMultipleUsers() {
+            // arrange
+            val mine = place(userId = 1L, items = arrayOf(item(productId = 1)))
+            val others = place(userId = 2L, items = arrayOf(item(productId = 2)))
+
+            // act
+            val result = orderService.getOrdersForAdmin(adminSearch())
+
+            // assert
+            assertThat(result.content.map { it.id }).containsExactlyInAnyOrder(mine.id, others.id)
+        }
+
+        @DisplayName("최근 주문이 앞에 온다.")
+        @Test
+        fun ordersByMostRecent() {
+            // arrange
+            val first = place(userId = 1L, items = arrayOf(item(productId = 1)))
+            val second = place(userId = 2L, items = arrayOf(item(productId = 2)))
+
+            // act
+            val result = orderService.getOrdersForAdmin(adminSearch())
+
+            // assert
+            assertThat(result.content.map { it.id }).containsExactly(second.id, first.id)
+        }
+
+        @DisplayName("페이징 메타가 전체 회원의 주문 개수를 기준으로 채워진다.")
+        @Test
+        fun fillsPagingMetadata() {
+            // arrange
+            repeat(5) { index -> place(userId = (index % 2 + 1).toLong(), items = arrayOf(item(productId = (index + 1).toLong()))) }
+
+            // act
+            val result = orderService.getOrdersForAdmin(adminSearch(page = 1, size = 2))
+
+            // assert
+            assertAll(
+                { assertThat(result.content).hasSize(2) },
+                { assertThat(result.page).isEqualTo(1) },
+                { assertThat(result.size).isEqualTo(2) },
+                { assertThat(result.totalElements).isEqualTo(5L) },
+                { assertThat(result.totalPages).isEqualTo(3) },
+            )
+        }
+
+        @DisplayName("마지막 페이지를 넘어선 요청이면, content 는 비고 totalElements 는 유지된다.")
+        @Test
+        fun returnsEmptyContent_whenPageIsBeyondLast() {
+            // arrange
+            place(userId = 1L, items = arrayOf(item(productId = 1)))
+
+            // act
+            val result = orderService.getOrdersForAdmin(adminSearch(page = 100, size = 20))
+
+            // assert
+            assertAll(
+                { assertThat(result.content).isEmpty() },
+                { assertThat(result.totalElements).isEqualTo(1L) },
             )
         }
     }

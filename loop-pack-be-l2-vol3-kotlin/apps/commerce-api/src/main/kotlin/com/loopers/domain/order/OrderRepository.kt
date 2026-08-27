@@ -14,4 +14,7 @@ interface OrderRepository {
 
     /** 회원 본인의 주문만, 최근순으로 페이징 조회한다. 기간이 null 이면 그 방향의 제한이 없다. */
     fun findAll(criteria: OrderCriteria.Search): PageResult<OrderModel>
+
+    /** 회원을 가리지 않고 최근순으로 페이징 조회한다. 소프트 삭제된 주문은 제외된다. */
+    fun findAllForAdmin(criteria: OrderCriteria.AdminSearch): PageResult<OrderModel>
 }

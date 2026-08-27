@@ -73,4 +73,15 @@ class UserService(
         )
         // 영속 상태의 엔티티이므로 커밋 시점에 변경 감지로 UPDATE 된다. save() 는 no-op 이라 호출하지 않는다.
     }
+
+    /**
+     * 삭제 여부와 무관하게 여러 회원을 한 번에 조회한다.
+     *
+     * 어드민 주문 목록이 userId 로 loginId 를 채울 때 쓴다. 탈퇴 회원을 결과에서 빼면
+     * "탈퇴한 회원의 주문" 과 "알 수 없는 회원의 주문" 이 같은 표현(user = null)으로 뭉개진다.
+     */
+    @Transactional(readOnly = true)
+    fun getUsersIncludingDeleted(ids: List<Long>): List<UserModel> {
+        return userRepository.findAllByIdsIncludingDeleted(ids)
+    }
 }
