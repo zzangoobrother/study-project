@@ -9,18 +9,33 @@ import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
 import jakarta.persistence.Index
 import jakarta.persistence.Table
+import org.hibernate.annotations.Check
 
 /**
  * 상품 엔티티.
  *
  * 브랜드를 객체가 아닌 brandId 로 참조한다. (설계 문서 5.3 장)
  * 애그리거트 경계를 도메인 타입으로 강제하고, 목록 조회에서 N+1 이 생길 경로를 문법적으로 차단한다.
+ *
+ * stock 과 like_count 의 CHECK 제약은 최후 방어선이다.
+ * 음수를 실제로 막는 것은 각 차감 쿼리의 WHERE 절(`stock >= :quantity`, `like_count > 0`)이며
+ * 이 제약이 그것을 대신하지 않는다. 이것이 있는 이유는 그 방어선이 사라지는 경우를 위해서다 —
+ * WHERE 조건을 빠뜨린 벌크 UPDATE 가 새로 추가되면 애플리케이션은 조용히 통과시키지만 DB 는 거부한다.
+ * 코드는 잘못될 수 있어도 저장된 값이 음수가 되는 일만은 없게 한다.
+ *
+ * 두 컬럼이 같은 제약을 갖는 것은 우연이 아니다. 둘 다 값 객체에 증감 메서드를 두지 않고
+ * 원자적 UPDATE 에 맡긴 값이며(설계 문서 5.4 장·6.4 장), 그래서 방어가 SQL 한 줄에 걸려 있다는 약점도 같다.
+ *
+ * 주의 — 이 제약은 Hibernate 가 DDL 을 생성하는 환경(local·test)에만 적용된다.
+ * dev·qa·prd 는 ddl-auto 가 none 이므로 스키마에 ALTER TABLE 을 직접 적용해야 한다.
  */
 @Entity
 @Table(
     name = "products",
     indexes = [Index(name = "idx_products_brand_id", columnList = "brand_id")],
 )
+@Check(name = "ck_products_stock_non_negative", constraints = "stock >= 0")
+@Check(name = "ck_products_like_count_non_negative", constraints = "like_count >= 0")
 class ProductModel private constructor(
     brandId: Long,
     name: ProductName,
