@@ -1,8 +1,13 @@
 package com.loopers.interfaces.api
 
+import com.loopers.application.coupon.CouponFacade
+import com.loopers.application.coupon.CouponInfo
 import com.loopers.domain.brand.BrandModel
 import com.loopers.domain.brand.BrandName
 import com.loopers.domain.brand.BrandRepository
+import com.loopers.domain.coupon.CouponModel
+import com.loopers.domain.coupon.CouponName
+import com.loopers.domain.coupon.DiscountType
 import com.loopers.domain.product.Price
 import com.loopers.domain.product.ProductModel
 import com.loopers.domain.product.ProductName
@@ -15,6 +20,7 @@ import com.loopers.domain.user.RawPassword
 import com.loopers.domain.user.UserCommand
 import com.loopers.domain.user.UserName
 import com.loopers.domain.user.UserService
+import com.loopers.infrastructure.coupon.CouponJpaRepository
 import com.loopers.interfaces.api.order.OrderV1Dto
 import com.loopers.utils.DatabaseCleanUp
 import org.assertj.core.api.Assertions.assertThat
@@ -33,6 +39,7 @@ import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
+import java.time.ZonedDateTime
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class OrderV1ApiE2ETest @Autowired constructor(
@@ -40,6 +47,8 @@ class OrderV1ApiE2ETest @Autowired constructor(
     private val userService: UserService,
     private val brandRepository: BrandRepository,
     private val productRepository: ProductRepository,
+    private val couponFacade: CouponFacade,
+    private val couponJpaRepository: CouponJpaRepository,
     private val databaseCleanUp: DatabaseCleanUp,
 ) {
     companion object {
@@ -82,16 +91,42 @@ class OrderV1ApiE2ETest @Autowired constructor(
     private fun headers(loginId: String? = LOGIN_ID) =
         HttpHeaders().apply { loginId?.let { set(ApiHeaders.LOGIN_ID, it) } }
 
-    private fun order(vararg items: Pair<Long, Int>, loginId: String? = LOGIN_ID) =
+    private fun order(vararg items: Pair<Long, Int>, loginId: String? = LOGIN_ID, userCouponId: Long? = null) =
         testRestTemplate.exchange(
             ENDPOINT,
             HttpMethod.POST,
             HttpEntity(
-                OrderV1Dto.PlaceRequest(items.map { OrderV1Dto.PlaceRequest.Item(it.first, it.second) }),
+                OrderV1Dto.PlaceRequest(
+                    items = items.map { OrderV1Dto.PlaceRequest.Item(it.first, it.second) },
+                    userCouponId = userCouponId,
+                ),
                 headers(loginId),
             ),
             detailResponseType,
         )
+
+    /**
+     * 정책을 저장하고 발급까지 마쳐 CouponInfo 를 돌려준다.
+     *
+     * 만료된 쿠폰과 정률 쿠폰도 만들 수 있도록 인자를 열어 둔다 — 케이스 표의 "만료된 쿠폰이면" 항목이
+     * expiresAt 을 과거로 넘기는 것만으로 만들어진다.
+     */
+    private fun issueCoupon(
+        discountType: DiscountType = DiscountType.FIXED_AMOUNT,
+        discountValue: Long = 5_000,
+        expiresAt: ZonedDateTime = ZonedDateTime.now().plusDays(30),
+        loginId: String = LOGIN_ID,
+    ): CouponInfo {
+        val policy = couponJpaRepository.save(
+            CouponModel.create(
+                name = CouponName("테스트 쿠폰"),
+                discountType = discountType,
+                discountValue = discountValue,
+                expiresAt = expiresAt,
+            ),
+        )
+        return couponFacade.issue(LoginId(loginId), policy.id)
+    }
 
     private fun getOrders(query: String = "", loginId: String? = LOGIN_ID) =
         testRestTemplate.exchange(
@@ -230,6 +265,114 @@ class OrderV1ApiE2ETest @Autowired constructor(
 
             // assert
             assertThat(response.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
+        }
+
+        @DisplayName("쿠폰을 적용해 주문하면, 200 과 함께 결제액이 줄어든다.")
+        @Test
+        fun returnsOk_andReducedPaidAmount() {
+            // arrange
+            signUp()
+            val product = saveProduct(price = 10_000, stock = 10)
+            val coupon = issueCoupon(discountValue = 5_000)
+
+            // act
+            val response = order(product.id to 2, userCouponId = coupon.id)
+
+            // assert
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.OK) },
+                { assertThat(response.body?.data?.totalPrice).isEqualTo(20_000L) },
+                { assertThat(response.body?.data?.discountAmount).isEqualTo(5_000L) },
+                { assertThat(response.body?.data?.paidAmount).isEqualTo(15_000L) },
+            )
+        }
+
+        @DisplayName("쿠폰 없이 주문하면, discountAmount 가 0 이고 paidAmount 가 totalPrice 와 같다.")
+        @Test
+        fun returnsOk_andPaidAmountEqualsTotalPrice_whenNoCoupon() {
+            // arrange
+            signUp()
+            val product = saveProduct(price = 10_000, stock = 10)
+
+            // act
+            val response = order(product.id to 2)
+
+            // assert
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.OK) },
+                { assertThat(response.body?.data?.discountAmount).isEqualTo(0L) },
+                { assertThat(response.body?.data?.paidAmount).isEqualTo(response.body?.data?.totalPrice) },
+            )
+        }
+
+        @DisplayName("남의 쿠폰이면, 404 NOT_FOUND 를 반환한다.")
+        @Test
+        fun returnsNotFound_whenCouponBelongsToAnotherUser() {
+            // arrange
+            signUp()
+            signUp("loopers02")
+            val product = saveProduct(stock = 10)
+            val coupon = issueCoupon(loginId = "loopers02")
+
+            // act
+            val response = order(product.id to 1, userCouponId = coupon.id)
+
+            // assert
+            assertThat(response.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
+        }
+
+        @DisplayName("이미 사용한 쿠폰이면, 409 CONFLICT 를 반환한다.")
+        @Test
+        fun returnsConflict_whenCouponAlreadyUsed() {
+            // arrange
+            signUp()
+            val product = saveProduct(stock = 10)
+            val coupon = issueCoupon()
+            order(product.id to 1, userCouponId = coupon.id)
+
+            // act
+            val response = order(product.id to 1, userCouponId = coupon.id)
+
+            // assert
+            assertThat(response.statusCode).isEqualTo(HttpStatus.CONFLICT)
+        }
+
+        @DisplayName("만료된 쿠폰이면, 409 CONFLICT 를 반환한다.")
+        @Test
+        fun returnsConflict_whenCouponExpired() {
+            // arrange
+            signUp()
+            val product = saveProduct(stock = 10)
+            val coupon = issueCoupon(expiresAt = ZonedDateTime.now().minusDays(1))
+
+            // act
+            val response = order(product.id to 1, userCouponId = coupon.id)
+
+            // assert
+            assertThat(response.statusCode).isEqualTo(HttpStatus.CONFLICT)
+        }
+
+        @DisplayName("userCouponId 가 숫자가 아니면, 400 BAD_REQUEST 를 반환한다.")
+        @Test
+        fun returnsBadRequest_whenUserCouponIdIsNotNumeric() {
+            // arrange
+            signUp()
+            val product = saveProduct()
+            val body = mapOf(
+                "items" to listOf(mapOf("productId" to product.id, "quantity" to 1)),
+                "userCouponId" to "abc",
+            )
+
+            // act
+            val response = testRestTemplate.exchange(
+                ENDPOINT,
+                HttpMethod.POST,
+                HttpEntity(body, headers()),
+                detailResponseType,
+            )
+
+            // assert
+            assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
         }
     }
 

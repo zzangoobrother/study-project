@@ -10,11 +10,15 @@ class OrderV1Dto {
     /**
      * 주문 요청.
      *
-     * quantity 를 Int 로 받고 Quantity 로 감싸는 것만으로 "1 이상" 검증이 수행된다.
-     * 위반 시 Quantity 생성자가 CoreException(BAD_REQUEST) 를 던지므로 별도 검증 코드를 두지 않는다.
+     * userCouponId 는 발급된 쿠폰의 ID(user_coupons.id)이며 정책 ID 가 아니다.
+     * 발급 URL 의 {couponId} 가 정책을 가리키므로, 둘에 같은 이름을 쓰면 한 이름이 두 가지를 뜻하게 된다.
+     * (설계 문서 4.1 장)
+     *
+     * 생략 가능하다. 없으면 할인 없는 주문이 되어 기존 요청이 그대로 동작한다.
      */
     data class PlaceRequest(
         val items: List<Item>,
+        val userCouponId: Long? = null,
     ) {
         data class Item(
             val productId: Long,
@@ -24,6 +28,7 @@ class OrderV1Dto {
         fun toCommand(loginId: LoginId): OrderCommand.Place = OrderCommand.Place(
             loginId = loginId,
             items = items.map { OrderCommand.Item(productId = it.productId, quantity = Quantity(it.quantity)) },
+            userCouponId = userCouponId,
         )
     }
 
@@ -36,6 +41,8 @@ class OrderV1Dto {
     data class OrderResponse(
         val id: Long,
         val totalPrice: Long,
+        val discountAmount: Long,
+        val paidAmount: Long,
         val itemCount: Int,
         val orderedAt: ZonedDateTime,
         val items: List<Item>,
@@ -52,6 +59,8 @@ class OrderV1Dto {
             fun from(info: OrderInfo): OrderResponse = OrderResponse(
                 id = info.id,
                 totalPrice = info.totalPrice,
+                discountAmount = info.discountAmount,
+                paidAmount = info.paidAmount,
                 itemCount = info.itemCount,
                 orderedAt = info.orderedAt,
                 items = info.items.map {
@@ -76,6 +85,8 @@ class OrderV1Dto {
     data class OrderSummaryResponse(
         val id: Long,
         val totalPrice: Long,
+        val discountAmount: Long,
+        val paidAmount: Long,
         val itemCount: Int,
         val orderedAt: ZonedDateTime,
     ) {
@@ -83,6 +94,8 @@ class OrderV1Dto {
             fun from(info: OrderInfo): OrderSummaryResponse = OrderSummaryResponse(
                 id = info.id,
                 totalPrice = info.totalPrice,
+                discountAmount = info.discountAmount,
+                paidAmount = info.paidAmount,
                 itemCount = info.itemCount,
                 orderedAt = info.orderedAt,
             )
