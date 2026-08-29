@@ -18,4 +18,8 @@ data class Price(val value: Long) {
     }
 
     override fun toString(): String = value.toString()
+
+    companion object {
+        val ZERO = Price(0)
+    }
 }
