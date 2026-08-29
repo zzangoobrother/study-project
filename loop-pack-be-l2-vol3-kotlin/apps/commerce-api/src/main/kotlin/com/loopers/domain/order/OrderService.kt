@@ -1,5 +1,6 @@
 package com.loopers.domain.order
 
+import com.loopers.domain.product.Price
 import com.loopers.domain.support.PageResult
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
@@ -18,8 +19,20 @@ class OrderService(
     private val orderRepository: OrderRepository,
 ) {
     @Transactional
-    fun place(userId: Long, items: List<OrderItemModel>): OrderModel {
-        return orderRepository.save(OrderModel.create(userId = userId, items = items))
+    fun place(
+        userId: Long,
+        items: List<OrderItemModel>,
+        discountAmount: Price = Price.ZERO,
+        usedCouponId: Long? = null,
+    ): OrderModel {
+        return orderRepository.save(
+            OrderModel.create(
+                userId = userId,
+                items = items,
+                discountAmount = discountAmount,
+                usedCouponId = usedCouponId,
+            ),
+        )
     }
 
     /** 없으면 null 이다. 남의 주문인지 판정하는 것은 이 계층의 일이 아니다. */

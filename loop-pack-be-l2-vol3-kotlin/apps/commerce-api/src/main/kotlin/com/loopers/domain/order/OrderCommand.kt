@@ -14,6 +14,7 @@ class OrderCommand {
     data class Place(
         val loginId: LoginId,
         val items: List<Item>,
+        val userCouponId: Long? = null,
     ) {
         init {
             if (items.isEmpty()) {

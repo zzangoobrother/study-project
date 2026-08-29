@@ -1,9 +1,11 @@
 package com.loopers.application.order
 
+import com.loopers.domain.coupon.CouponService
 import com.loopers.domain.order.OrderCommand
 import com.loopers.domain.order.OrderCriteria
 import com.loopers.domain.order.OrderItemModel
 import com.loopers.domain.order.OrderService
+import com.loopers.domain.product.Price
 import com.loopers.domain.product.ProductModel
 import com.loopers.domain.product.ProductService
 import com.loopers.domain.support.PageQuery
@@ -29,32 +31,28 @@ import org.springframework.transaction.annotation.Transactional
  * 로그인 ID 를 아는 누구나 타인 명의로 주문할 수 있다. 좋아요와 같은 구조지만 결과의 무게가 다르다 —
  * 좋아요는 취소하면 원상복구되지만 주문은 재고를 소모시키고 되돌릴 경로가 이번 범위에 없다.
  * 자격 증명 검증이 추가되기 전까지 외부에 공개해서는 안 된다. (설계 문서 11.1 장)
+ *
+ * 쿠폰이 더해지며 이 파사드가 네 애그리거트를 잇는 지점이 되었다.
+ * 조율 로직은 useCouponOrThrow 같은 private 메서드로 분리해 place 가 흐름만 읽히도록 유지한다. (설계 문서 7.2 장)
  */
 @Component
 class OrderFacade(
     private val userService: UserService,
     private val productService: ProductService,
     private val orderService: OrderService,
+    private val couponService: CouponService,
 ) {
     @Transactional
     fun place(command: OrderCommand.Place): OrderInfo {
         val user = getUserOrThrow(command.loginId)
 
-        // 정렬이 데드락을 막는다. 모든 트랜잭션이 같은 순서로 락을 잡으면 서로를 기다리는 고리가 생기지 않는다.
-        // 저장되는 항목의 순서는 요청 순서를 그대로 따르므로, 정렬한 것은 차감 순서뿐이다. (설계 문서 6.5 장)
+        // 정렬이 데드락을 막는다. 저장되는 항목의 순서는 요청 순서 그대로이므로 정렬한 것은 차감 순서뿐이다.
         val sorted = command.items.sortedBy { it.productId }
         val products = loadProductsOrThrow(sorted.map { it.productId })
 
-        sorted.forEach { item ->
-            if (!productService.decreaseStock(productId = item.productId, quantity = item.quantity.value)) {
-                // 0 행은 재고 부족과 상품 소멸을 함께 뜻한다. 구분하지 않는다. (설계 문서 6.4 장)
-                throw CoreException(
-                    errorType = ErrorType.CONFLICT,
-                    customMessage = "[productId = ${item.productId}] 재고가 부족하거나 주문할 수 없는 상품입니다.",
-                )
-            }
-        }
-
+        // 항목 조립을 차감보다 앞에 둔다. 정률 쿠폰이 총액을 기준으로 계산되므로
+        // 할인 전에 totalPrice 가 확정되어야 한다. 조립은 이미 읽은 상품으로 하는 순수 계산이라
+        // 차감 전후 어느 쪽에 두어도 결과가 같다. (설계 문서 6.5 장)
         val items = command.items.map { item ->
             val product = products.getValue(item.productId)
             OrderItemModel.create(
@@ -64,8 +62,61 @@ class OrderFacade(
                 quantity = item.quantity,
             )
         }
+        val totalPrice = items.sumOf { it.subtotal.value }
 
-        return OrderInfo.of(orderService.place(userId = user.id, items = items))
+        // 쿠폰을 재고보다 먼저 소모한다 (설계 문서 6.4 장).
+        // 사용 불가능한 쿠폰이면 재고를 건드리기 전에 실패하고, 경합이 심한 products 락을 더 짧게 잡는다.
+        val discountAmount = command.userCouponId
+            ?.let { useCouponOrThrow(userId = user.id, userCouponId = it, totalPrice = totalPrice) }
+            ?: Price.ZERO
+
+        sorted.forEach { item ->
+            if (!productService.decreaseStock(productId = item.productId, quantity = item.quantity.value)) {
+                throw CoreException(
+                    errorType = ErrorType.CONFLICT,
+                    customMessage = "[productId = ${item.productId}] 재고가 부족하거나 주문할 수 없는 상품입니다.",
+                )
+            }
+        }
+
+        return OrderInfo.of(
+            orderService.place(
+                userId = user.id,
+                items = items,
+                discountAmount = discountAmount,
+                usedCouponId = command.userCouponId,
+            ),
+        )
+    }
+
+    /**
+     * 쿠폰을 조회해 할인을 계산하고 소모한다.
+     *
+     * 조회와 소모가 두 단계인 것은 조건부 UPDATE 가 영향 행 수만 돌려주고 행의 내용을 주지 않기 때문이다.
+     * 할인 계산에 쿠폰 내용이 필요하므로 조회는 선택이 아니라 필수이며,
+     * 그 조회가 자연스럽게 404 판정을 겸한다. (설계 문서 6.3 장)
+     *
+     * 조회와 UPDATE 사이에 다른 요청이 그 쿠폰을 써 버릴 수 있다. 그때 use 가 false 를 돌려주고 409 가 나간다.
+     * 틈이 없는 것이 아니라, 틈에서 벌어진 일이 WHERE 절에 걸려 정확한 결과로 이어진다.
+     */
+    private fun useCouponOrThrow(userId: Long, userCouponId: Long, totalPrice: Long): Price {
+        val coupon = couponService.getUserCoupon(userCouponId = userCouponId, userId = userId)
+            ?: throw CoreException(
+                errorType = ErrorType.NOT_FOUND,
+                customMessage = "[userCouponId = $userCouponId] 존재하지 않는 쿠폰입니다.",
+            )
+
+        val discountAmount = Price(coupon.discountFor(totalPrice))
+
+        // 이미 썼는지·만료됐는지를 구분하지 않는다. 호출자가 두 경우에 할 수 있는 일이 같다. (설계 문서 8.2 장)
+        if (!couponService.use(userCouponId = userCouponId, userId = userId)) {
+            throw CoreException(
+                errorType = ErrorType.CONFLICT,
+                customMessage = "[userCouponId = $userCouponId] 이미 사용했거나 만료된 쿠폰입니다.",
+            )
+        }
+
+        return discountAmount
     }
 
     /**

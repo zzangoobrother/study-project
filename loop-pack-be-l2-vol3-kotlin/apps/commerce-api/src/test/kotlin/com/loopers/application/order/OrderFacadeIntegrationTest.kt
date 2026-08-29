@@ -1,8 +1,14 @@
 package com.loopers.application.order
 
+import com.loopers.application.coupon.CouponFacade
+import com.loopers.application.coupon.CouponInfo
 import com.loopers.domain.brand.BrandModel
 import com.loopers.domain.brand.BrandName
 import com.loopers.domain.brand.BrandRepository
+import com.loopers.domain.coupon.CouponModel
+import com.loopers.domain.coupon.CouponName
+import com.loopers.domain.coupon.CouponStatus
+import com.loopers.domain.coupon.DiscountType
 import com.loopers.domain.order.OrderCommand
 import com.loopers.domain.order.Quantity
 import com.loopers.domain.product.Price
@@ -20,9 +26,11 @@ import com.loopers.domain.user.UserCommand
 import com.loopers.domain.user.UserModel
 import com.loopers.domain.user.UserName
 import com.loopers.domain.user.UserService
+import com.loopers.infrastructure.coupon.CouponJpaRepository
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
 import com.loopers.utils.DatabaseCleanUp
+import java.time.ZonedDateTime
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
@@ -40,6 +48,8 @@ class OrderFacadeIntegrationTest @Autowired constructor(
     private val productService: ProductService,
     private val brandRepository: BrandRepository,
     private val productRepository: ProductRepository,
+    private val couponFacade: CouponFacade,
+    private val couponJpaRepository: CouponJpaRepository,
     private val databaseCleanUp: DatabaseCleanUp,
 ) {
     @AfterEach
@@ -70,15 +80,37 @@ class OrderFacadeIntegrationTest @Autowired constructor(
         )
     }
 
-    private fun place(loginId: LoginId, vararg items: Pair<Long, Int>) =
+    private fun place(loginId: LoginId, vararg items: Pair<Long, Int>, userCouponId: Long? = null) =
         orderFacade.place(
             OrderCommand.Place(
                 loginId = loginId,
                 items = items.map { OrderCommand.Item(productId = it.first, quantity = Quantity(it.second)) },
+                userCouponId = userCouponId,
             ),
         )
 
     private fun stockOf(productId: Long): Long = productRepository.findById(productId)!!.stock.value
+
+    private fun issuedCoupon(
+        loginId: LoginId,
+        type: DiscountType = DiscountType.FIXED_AMOUNT,
+        value: Long = 5_000,
+        expiresAt: ZonedDateTime = ZonedDateTime.now().plusDays(30),
+    ): CouponInfo {
+        val policy = couponJpaRepository.save(
+            CouponModel.create(
+                name = CouponName("테스트 쿠폰"),
+                discountType = type,
+                discountValue = value,
+                expiresAt = expiresAt,
+            ),
+        )
+        return couponFacade.issue(loginId, policy.id)
+    }
+
+    private fun statusOf(loginId: LoginId, userCouponId: Long): CouponStatus =
+        couponFacade.getUserCoupons(loginId, PageQuery(page = 0, size = 20))
+            .content.first { it.id == userCouponId }.status
 
     @DisplayName("주문할 때, ")
     @Nested
@@ -402,6 +434,170 @@ class OrderFacadeIntegrationTest @Autowired constructor(
                 { assertThat(result.content).isEmpty() },
                 { assertThat(result.totalElements).isEqualTo(0L) },
                 { assertThat(result.totalPages).isEqualTo(0) },
+            )
+        }
+    }
+
+    @DisplayName("쿠폰을 적용해 주문할 때, ")
+    @Nested
+    inner class PlaceWithCoupon {
+        @DisplayName("정액 쿠폰만큼 결제액이 줄고 쿠폰이 USED 가 된다.")
+        @Test
+        fun appliesFixedAmountDiscount() {
+            // arrange
+            val user = signUp()
+            val product = saveProduct(price = 10_000, stock = 10)
+            val coupon = issuedCoupon(user.loginId, value = 5_000)
+
+            // act
+            val info = place(user.loginId, product.id to 2, userCouponId = coupon.id)
+
+            // assert
+            assertAll(
+                { assertThat(info.totalPrice).describedAs("총액은 할인 전 합계다").isEqualTo(20_000L) },
+                { assertThat(info.discountAmount).isEqualTo(5_000L) },
+                { assertThat(info.paidAmount).isEqualTo(15_000L) },
+                { assertThat(statusOf(user.loginId, coupon.id)).isEqualTo(CouponStatus.USED) },
+            )
+        }
+
+        @DisplayName("할인이 총액보다 크면, 결제액이 0 원이 된다.")
+        @Test
+        fun paysZero_whenDiscountExceedsTotal() {
+            // arrange
+            // 총액 3,000 원에 5,000 원 쿠폰을 쓴다. 초과분은 소멸하며 잔액으로 이월되지 않는다.
+            val user = signUp()
+            val product = saveProduct(price = 3_000, stock = 10)
+            val coupon = issuedCoupon(user.loginId, value = 5_000)
+
+            // act
+            val info = place(user.loginId, product.id to 1, userCouponId = coupon.id)
+
+            // assert
+            assertAll(
+                { assertThat(info.discountAmount).isEqualTo(3_000L) },
+                { assertThat(info.paidAmount).isEqualTo(0L) },
+            )
+        }
+
+        /**
+         * 설계 문서 6.1 장의 두 번째 보장이다.
+         * 쿠폰을 소모한 뒤 재고 부족으로 예외가 나면 트랜잭션이 롤백되어 쿠폰이 돌아와야 한다.
+         * 이것이 깨지면 사용자는 주문도 못 하고 쿠폰도 잃는다.
+         */
+        @DisplayName("재고가 부족하면, 쿠폰이 미사용 상태로 돌아온다.")
+        @Test
+        fun restoresCoupon_whenStockIsInsufficient() {
+            // arrange
+            val user = signUp()
+            val product = saveProduct(price = 10_000, stock = 0)
+            val coupon = issuedCoupon(user.loginId)
+
+            // act
+            val result = assertThrows<CoreException> {
+                place(user.loginId, product.id to 1, userCouponId = coupon.id)
+            }
+
+            // assert
+            assertAll(
+                { assertThat(result.errorType).isEqualTo(ErrorType.CONFLICT) },
+                { assertThat(statusOf(user.loginId, coupon.id)).isEqualTo(CouponStatus.AVAILABLE) },
+            )
+        }
+
+        @DisplayName("정률 쿠폰이 총액 기준으로 계산된다.")
+        @Test
+        fun appliesPercentageDiscount_basedOnTotalPrice() {
+            // arrange
+            val user = signUp()
+            val product = saveProduct(price = 10_000, stock = 10)
+            val coupon = issuedCoupon(user.loginId, type = DiscountType.PERCENTAGE, value = 10)
+
+            // act
+            val info = place(user.loginId, product.id to 2, userCouponId = coupon.id)
+
+            // assert
+            assertAll(
+                { assertThat(info.discountAmount).isEqualTo(2_000L) },
+                { assertThat(info.paidAmount).isEqualTo(18_000L) },
+            )
+        }
+
+        @DisplayName("같은 쿠폰을 두 번 쓰면, 두 번째는 CONFLICT 다.")
+        @Test
+        fun throwsConflict_whenCouponReused() {
+            // arrange
+            val user = signUp()
+            val product = saveProduct(price = 10_000, stock = 10)
+            val coupon = issuedCoupon(user.loginId)
+            place(user.loginId, product.id to 1, userCouponId = coupon.id)
+
+            // act
+            val result = assertThrows<CoreException> {
+                place(user.loginId, product.id to 1, userCouponId = coupon.id)
+            }
+
+            // assert
+            assertThat(result.errorType).isEqualTo(ErrorType.CONFLICT)
+        }
+
+        @DisplayName("만료된 쿠폰이면, CONFLICT 이고 재고가 줄지 않는다.")
+        @Test
+        fun throwsConflict_whenCouponExpired() {
+            // arrange
+            // 쿠폰 판정이 재고 차감보다 앞이라는 설계 문서 6.4 장의 순서 계약이 결과로 드러나는 지점이다.
+            val user = signUp()
+            val product = saveProduct(price = 10_000, stock = 10)
+            val coupon = issuedCoupon(user.loginId, expiresAt = ZonedDateTime.now().minusDays(1))
+
+            // act
+            val result = assertThrows<CoreException> {
+                place(user.loginId, product.id to 1, userCouponId = coupon.id)
+            }
+
+            // assert
+            assertAll(
+                { assertThat(result.errorType).isEqualTo(ErrorType.CONFLICT) },
+                { assertThat(stockOf(product.id)).isEqualTo(10L) },
+            )
+        }
+
+        @DisplayName("남의 쿠폰이면, NOT_FOUND 이고 재고가 줄지 않는다.")
+        @Test
+        fun throwsNotFound_whenCouponBelongsToAnotherUser() {
+            // arrange
+            // 쿠폰 판정이 재고 차감보다 앞이라는 설계 문서 6.4 장의 순서 계약이 결과로 드러나는 지점이다.
+            val owner = signUp("loopers01")
+            val other = signUp("loopers02")
+            val product = saveProduct(price = 10_000, stock = 10)
+            val coupon = issuedCoupon(owner.loginId)
+
+            // act
+            val result = assertThrows<CoreException> {
+                place(other.loginId, product.id to 1, userCouponId = coupon.id)
+            }
+
+            // assert
+            assertAll(
+                { assertThat(result.errorType).isEqualTo(ErrorType.NOT_FOUND) },
+                { assertThat(stockOf(product.id)).isEqualTo(10L) },
+            )
+        }
+
+        @DisplayName("쿠폰 없이 주문하면, 기존과 동일하다.")
+        @Test
+        fun behavesAsBeforeCoupons_whenNoCouponSpecified() {
+            // arrange
+            val user = signUp()
+            val product = saveProduct(price = 10_000, stock = 10)
+
+            // act
+            val info = place(user.loginId, product.id to 1)
+
+            // assert
+            assertAll(
+                { assertThat(info.discountAmount).isEqualTo(0L) },
+                { assertThat(info.paidAmount).isEqualTo(info.totalPrice) },
             )
         }
     }

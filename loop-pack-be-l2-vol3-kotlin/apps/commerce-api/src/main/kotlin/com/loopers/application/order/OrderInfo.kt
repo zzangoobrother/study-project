@@ -13,6 +13,8 @@ import java.time.ZonedDateTime
 data class OrderInfo(
     val id: Long,
     val totalPrice: Long,
+    val discountAmount: Long,
+    val paidAmount: Long,
     val itemCount: Int,
     val orderedAt: ZonedDateTime,
     val items: List<Item>,
@@ -30,6 +32,8 @@ data class OrderInfo(
         fun of(model: OrderModel): OrderInfo = OrderInfo(
             id = model.id,
             totalPrice = model.totalPrice.value,
+            discountAmount = model.discountAmount.value,
+            paidAmount = model.paidAmount.value,
             itemCount = model.itemCount,
             orderedAt = model.createdAt,
             items = model.items.map {
@@ -50,6 +54,8 @@ data class OrderInfo(
         fun summaryOf(model: OrderModel): OrderInfo = OrderInfo(
             id = model.id,
             totalPrice = model.totalPrice.value,
+            discountAmount = model.discountAmount.value,
+            paidAmount = model.paidAmount.value,
             itemCount = model.itemCount,
             orderedAt = model.createdAt,
             items = emptyList(),

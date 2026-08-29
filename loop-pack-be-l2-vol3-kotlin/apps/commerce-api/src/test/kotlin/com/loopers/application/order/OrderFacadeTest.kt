@@ -1,5 +1,10 @@
 package com.loopers.application.order
 
+import com.loopers.domain.coupon.CouponModel
+import com.loopers.domain.coupon.CouponName
+import com.loopers.domain.coupon.CouponService
+import com.loopers.domain.coupon.DiscountType
+import com.loopers.domain.coupon.UserCouponModel
 import com.loopers.domain.order.OrderCommand
 import com.loopers.domain.order.OrderItemModel
 import com.loopers.domain.order.OrderModel
@@ -29,6 +34,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.inOrder
@@ -54,7 +60,8 @@ class OrderFacadeTest {
     private val userService = mock<UserService>()
     private val productService = mock<ProductService>()
     private val orderService = mock<OrderService>()
-    private val orderFacade = OrderFacade(userService, productService, orderService)
+    private val couponService = mock<CouponService>()
+    private val orderFacade = OrderFacade(userService, productService, orderService, couponService)
 
     /**
      * BaseEntity.id 는 `val id: Long = 0` 이라 영속화하지 않은 엔티티는 전부 id 가 0 이다.
@@ -130,7 +137,7 @@ class OrderFacadeTest {
             whenever(productService.getProductsByIds(any()))
                 .thenReturn(listOf(product(1L), product(2L), product(3L)))
             whenever(productService.decreaseStock(any(), any())).thenReturn(true)
-            whenever(orderService.place(any(), any()))
+            whenever(orderService.place(any(), any(), any(), anyOrNull()))
                 .thenReturn(order(items = listOf(orderItem(3L), orderItem(1L), orderItem(2L))))
 
             val command = OrderCommand.Place(
@@ -166,7 +173,7 @@ class OrderFacadeTest {
             whenever(productService.getProductsByIds(any()))
                 .thenReturn(listOf(product(1L), product(2L), product(3L)))
             whenever(productService.decreaseStock(any(), any())).thenReturn(true)
-            whenever(orderService.place(any(), any()))
+            whenever(orderService.place(any(), any(), any(), anyOrNull()))
                 .thenReturn(order(items = listOf(orderItem(3L), orderItem(1L), orderItem(2L))))
 
             val command = OrderCommand.Place(
@@ -185,7 +192,7 @@ class OrderFacadeTest {
             // assert
             // OrderFacade.kt:44 의 "정렬한 것은 차감 순서뿐이다" 계약. 위 차감 순서 케이스와 짝을 이뤄
             // 정렬이 차감에만 쓰이고 저장 순서에는 영향을 주지 않음을 함께 고정한다.
-            verify(orderService).place(userId = any(), items = captor.capture())
+            verify(orderService).place(userId = any(), items = captor.capture(), discountAmount = any(), usedCouponId = anyOrNull())
             assertThat(captor.firstValue.map { it.productId }).containsExactly(3L, 1L, 2L)
         }
 
@@ -198,7 +205,7 @@ class OrderFacadeTest {
             whenever(userService.getUser(LOGIN_ID)).thenReturn(loggedInUser)
             whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L), product(2L)))
             whenever(productService.decreaseStock(any(), any())).thenReturn(true)
-            whenever(orderService.place(any(), any()))
+            whenever(orderService.place(any(), any(), any(), anyOrNull()))
                 .thenReturn(order(items = listOf(orderItem(1L, 2), orderItem(2L, 5))))
 
             val command = OrderCommand.Place(
@@ -229,7 +236,7 @@ class OrderFacadeTest {
             val snapshotProduct = product(id = 1L, name = "운동화", price = 39_000L)
             whenever(productService.getProductsByIds(any())).thenReturn(listOf(snapshotProduct))
             whenever(productService.decreaseStock(any(), any())).thenReturn(true)
-            whenever(orderService.place(any(), any())).thenReturn(order(items = listOf(orderItem(1L, 2))))
+            whenever(orderService.place(any(), any(), any(), anyOrNull())).thenReturn(order(items = listOf(orderItem(1L, 2))))
 
             val command = OrderCommand.Place(
                 loginId = LOGIN_ID,
@@ -241,7 +248,7 @@ class OrderFacadeTest {
             orderFacade.place(command)
 
             // assert
-            verify(orderService).place(userId = any(), items = captor.capture())
+            verify(orderService).place(userId = any(), items = captor.capture(), discountAmount = any(), usedCouponId = anyOrNull())
             val savedItem = captor.firstValue.first()
             assertAll(
                 { assertThat(savedItem.productName).isEqualTo(snapshotProduct.name) },
@@ -257,7 +264,7 @@ class OrderFacadeTest {
             whenever(userService.getUser(LOGIN_ID)).thenReturn(queriedUser)
             whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L)))
             whenever(productService.decreaseStock(any(), any())).thenReturn(true)
-            whenever(orderService.place(any(), any())).thenReturn(order(userId = 42L))
+            whenever(orderService.place(any(), any(), any(), anyOrNull())).thenReturn(order(userId = 42L))
 
             val command = OrderCommand.Place(
                 loginId = LOGIN_ID,
@@ -268,7 +275,7 @@ class OrderFacadeTest {
             orderFacade.place(command)
 
             // assert
-            verify(orderService).place(userId = eq(42L), items = any())
+            verify(orderService).place(userId = eq(42L), items = any(), discountAmount = any(), usedCouponId = anyOrNull())
         }
     }
 
@@ -316,7 +323,7 @@ class OrderFacadeTest {
             assertThrows<CoreException> { orderFacade.place(command) }
 
             // assert
-            verify(orderService, never()).place(any(), any())
+            verify(orderService, never()).place(any(), any(), any(), anyOrNull())
         }
 
         @DisplayName("앞 항목의 차감이 실패하면 뒤 항목은 차감하지 않는다.")
@@ -432,6 +439,145 @@ class OrderFacadeTest {
 
             // assert
             assertThat(result.errorType).isEqualTo(ErrorType.NOT_FOUND)
+        }
+    }
+
+    @DisplayName("쿠폰을 적용해 주문할 때, ")
+    @Nested
+    inner class PlaceWithCoupon {
+        private val userCouponId = 7L
+
+        private fun availableCoupon(discountValue: Long = 5_000L): UserCouponModel =
+            UserCouponModel.issue(
+                userId = USER_ID,
+                coupon = CouponModel.create(
+                    name = CouponName("테스트 쿠폰"),
+                    discountType = DiscountType.FIXED_AMOUNT,
+                    discountValue = discountValue,
+                    expiresAt = ZonedDateTime.now().plusDays(30),
+                ).withId(10L),
+            ).withId(userCouponId)
+
+        private fun singleItemCommand() = OrderCommand.Place(
+            loginId = LOGIN_ID,
+            items = listOf(OrderCommand.Item(productId = 1L, quantity = Quantity(2))),
+            userCouponId = userCouponId,
+        )
+
+        @DisplayName("쿠폰을 재고보다 먼저 소모한다.")
+        @Test
+        fun usesCouponBeforeDecreasingStock() {
+            // arrange
+            // 설계 문서 6.4 장의 잠금 순서 계약이다. 경합이 적은 user_coupons 락을 먼저 잡고
+            // 경합이 심한 products 락을 나중에 잡아야 심한 쪽의 보유 시간이 짧아진다.
+            // 통합 테스트로는 실제 락 경합 없이 이 순서를 관찰할 수 없다.
+            val loggedInUser = user()
+            whenever(userService.getUser(LOGIN_ID)).thenReturn(loggedInUser)
+            whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L)))
+            whenever(couponService.getUserCoupon(eq(userCouponId), eq(USER_ID))).thenReturn(availableCoupon())
+            whenever(couponService.use(eq(userCouponId), eq(USER_ID))).thenReturn(true)
+            whenever(productService.decreaseStock(any(), any())).thenReturn(true)
+            whenever(orderService.place(any(), any(), any(), anyOrNull())).thenReturn(order())
+
+            // act
+            orderFacade.place(singleItemCommand())
+
+            // assert
+            val ordered = inOrder(couponService, productService)
+            ordered.verify(couponService).use(eq(userCouponId), eq(USER_ID))
+            ordered.verify(productService).decreaseStock(productId = any(), quantity = any())
+        }
+
+        @DisplayName("할인 금액이 주문 저장에 그대로 전달된다.")
+        @Test
+        fun passesDiscountToOrderService() {
+            // arrange
+            // 상품 단가 1,000 원 × 2 개 = 2,000 원. 정액 5,000 원 쿠폰이므로 총액까지만 깎여 2,000 원이다.
+            val loggedInUser = user()
+            whenever(userService.getUser(LOGIN_ID)).thenReturn(loggedInUser)
+            whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L)))
+            whenever(couponService.getUserCoupon(eq(userCouponId), eq(USER_ID))).thenReturn(availableCoupon())
+            whenever(couponService.use(eq(userCouponId), eq(USER_ID))).thenReturn(true)
+            whenever(productService.decreaseStock(any(), any())).thenReturn(true)
+            whenever(orderService.place(any(), any(), any(), anyOrNull())).thenReturn(order())
+
+            // act
+            orderFacade.place(singleItemCommand())
+
+            // assert
+            verify(orderService).place(
+                userId = eq(USER_ID),
+                items = any(),
+                discountAmount = eq(Price(2_000)),
+                usedCouponId = eq(userCouponId),
+            )
+        }
+
+        @DisplayName("쿠폰을 지정하지 않으면, 쿠폰 서비스를 호출하지 않는다.")
+        @Test
+        fun doesNotTouchCouponService_whenNotSpecified() {
+            // arrange
+            val loggedInUser = user()
+            whenever(userService.getUser(LOGIN_ID)).thenReturn(loggedInUser)
+            whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L)))
+            whenever(productService.decreaseStock(any(), any())).thenReturn(true)
+            whenever(orderService.place(any(), any(), any(), anyOrNull())).thenReturn(order())
+
+            val command = OrderCommand.Place(
+                loginId = LOGIN_ID,
+                items = listOf(OrderCommand.Item(productId = 1L, quantity = Quantity(1))),
+            )
+
+            // act
+            orderFacade.place(command)
+
+            // assert
+            assertAll(
+                { verify(couponService, never()).getUserCoupon(any(), any()) },
+                { verify(couponService, never()).use(any(), any()) },
+            )
+        }
+
+        @DisplayName("쿠폰 조회가 비면, use 를 호출하지 않고 NOT_FOUND 를 던진다.")
+        @Test
+        fun throwsNotFound_whenCouponMissing() {
+            // arrange
+            // 설계 문서 6.3 장의 2 단계 구조 — 조회가 404 를, 조건부 UPDATE 가 409 를 판정한다.
+            val loggedInUser = user()
+            whenever(userService.getUser(LOGIN_ID)).thenReturn(loggedInUser)
+            whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L)))
+            whenever(couponService.getUserCoupon(eq(userCouponId), eq(USER_ID))).thenReturn(null)
+
+            // act
+            val result = assertThrows<CoreException> { orderFacade.place(singleItemCommand()) }
+
+            // assert
+            assertAll(
+                { assertThat(result.errorType).isEqualTo(ErrorType.NOT_FOUND) },
+                { verify(couponService, never()).use(any(), any()) },
+                { verify(productService, never()).decreaseStock(any(), any()) },
+            )
+        }
+
+        @DisplayName("쿠폰 소모가 실패하면, CONFLICT 를 던지고 재고를 건드리지 않는다.")
+        @Test
+        fun throwsConflict_whenCouponAlreadyUsedOrExpired() {
+            // arrange
+            val loggedInUser = user()
+            whenever(userService.getUser(LOGIN_ID)).thenReturn(loggedInUser)
+            whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L)))
+            whenever(couponService.getUserCoupon(eq(userCouponId), eq(USER_ID))).thenReturn(availableCoupon())
+            whenever(couponService.use(eq(userCouponId), eq(USER_ID))).thenReturn(false)
+
+            // act
+            val result = assertThrows<CoreException> { orderFacade.place(singleItemCommand()) }
+
+            // assert
+            assertAll(
+                { assertThat(result.errorType).isEqualTo(ErrorType.CONFLICT) },
+                { verify(productService, never()).decreaseStock(any(), any()) },
+                { verify(orderService, never()).place(any(), any(), any(), anyOrNull()) },
+            )
         }
     }
 }
