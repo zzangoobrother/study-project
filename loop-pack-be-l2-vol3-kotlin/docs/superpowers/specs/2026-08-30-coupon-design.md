@@ -157,10 +157,14 @@ API 계약 관점에서 중요한 것은 이 사실이 **밖으로 드러나지 
 | --- | --- | --- |
 | `userId` | `Long` | 식별자 참조 |
 | `couponId` | `Long` | 식별자 참조 (추적용) |
+| `name` | `CouponName` | **발급 시점 스냅샷** |
 | `discountType` | `DiscountType` | **발급 시점 스냅샷** |
 | `discountValue` | `Long` | **발급 시점 스냅샷** |
 | `expiresAt` | `ZonedDateTime` | **발급 시점 스냅샷** |
 | `usedAt` | `ZonedDateTime?` | `null` 이면 미사용 |
+
+`name` 까지 복사하는 이유는 **목록 응답이 쿠폰 이름을 내려주기 때문**이다. 스냅샷에 없으면 목록 조회가
+정책 테이블을 다시 읽어야 하고, 그러면 스냅샷을 둔 이유가 목록 경로에서 무너진다.
 
 `ProductLikeModel` 과 마찬가지로 회원과 정책을 객체가 아닌 식별자로 참조한다.
 
@@ -304,6 +308,7 @@ CREATE TABLE user_coupons (
     id              BIGINT       NOT NULL AUTO_INCREMENT,
     user_id         BIGINT       NOT NULL,
     coupon_id       BIGINT       NOT NULL,
+    name            VARCHAR(100) NOT NULL,
     discount_type   VARCHAR(20)  NOT NULL,
     discount_value  BIGINT       NOT NULL,
     expires_at      DATETIME(6)  NOT NULL,
