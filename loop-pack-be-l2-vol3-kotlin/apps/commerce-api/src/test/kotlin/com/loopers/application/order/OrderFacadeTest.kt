@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.inOrder
@@ -130,7 +131,7 @@ class OrderFacadeTest {
             whenever(productService.getProductsByIds(any()))
                 .thenReturn(listOf(product(1L), product(2L), product(3L)))
             whenever(productService.decreaseStock(any(), any())).thenReturn(true)
-            whenever(orderService.place(any(), any()))
+            whenever(orderService.place(any(), any(), any(), anyOrNull()))
                 .thenReturn(order(items = listOf(orderItem(3L), orderItem(1L), orderItem(2L))))
 
             val command = OrderCommand.Place(
@@ -166,7 +167,7 @@ class OrderFacadeTest {
             whenever(productService.getProductsByIds(any()))
                 .thenReturn(listOf(product(1L), product(2L), product(3L)))
             whenever(productService.decreaseStock(any(), any())).thenReturn(true)
-            whenever(orderService.place(any(), any()))
+            whenever(orderService.place(any(), any(), any(), anyOrNull()))
                 .thenReturn(order(items = listOf(orderItem(3L), orderItem(1L), orderItem(2L))))
 
             val command = OrderCommand.Place(
@@ -185,7 +186,7 @@ class OrderFacadeTest {
             // assert
             // OrderFacade.kt:44 의 "정렬한 것은 차감 순서뿐이다" 계약. 위 차감 순서 케이스와 짝을 이뤄
             // 정렬이 차감에만 쓰이고 저장 순서에는 영향을 주지 않음을 함께 고정한다.
-            verify(orderService).place(userId = any(), items = captor.capture())
+            verify(orderService).place(userId = any(), items = captor.capture(), discountAmount = any(), usedCouponId = anyOrNull())
             assertThat(captor.firstValue.map { it.productId }).containsExactly(3L, 1L, 2L)
         }
 
@@ -198,7 +199,7 @@ class OrderFacadeTest {
             whenever(userService.getUser(LOGIN_ID)).thenReturn(loggedInUser)
             whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L), product(2L)))
             whenever(productService.decreaseStock(any(), any())).thenReturn(true)
-            whenever(orderService.place(any(), any()))
+            whenever(orderService.place(any(), any(), any(), anyOrNull()))
                 .thenReturn(order(items = listOf(orderItem(1L, 2), orderItem(2L, 5))))
 
             val command = OrderCommand.Place(
@@ -229,7 +230,7 @@ class OrderFacadeTest {
             val snapshotProduct = product(id = 1L, name = "운동화", price = 39_000L)
             whenever(productService.getProductsByIds(any())).thenReturn(listOf(snapshotProduct))
             whenever(productService.decreaseStock(any(), any())).thenReturn(true)
-            whenever(orderService.place(any(), any())).thenReturn(order(items = listOf(orderItem(1L, 2))))
+            whenever(orderService.place(any(), any(), any(), anyOrNull())).thenReturn(order(items = listOf(orderItem(1L, 2))))
 
             val command = OrderCommand.Place(
                 loginId = LOGIN_ID,
@@ -241,7 +242,7 @@ class OrderFacadeTest {
             orderFacade.place(command)
 
             // assert
-            verify(orderService).place(userId = any(), items = captor.capture())
+            verify(orderService).place(userId = any(), items = captor.capture(), discountAmount = any(), usedCouponId = anyOrNull())
             val savedItem = captor.firstValue.first()
             assertAll(
                 { assertThat(savedItem.productName).isEqualTo(snapshotProduct.name) },
@@ -257,7 +258,7 @@ class OrderFacadeTest {
             whenever(userService.getUser(LOGIN_ID)).thenReturn(queriedUser)
             whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L)))
             whenever(productService.decreaseStock(any(), any())).thenReturn(true)
-            whenever(orderService.place(any(), any())).thenReturn(order(userId = 42L))
+            whenever(orderService.place(any(), any(), any(), anyOrNull())).thenReturn(order(userId = 42L))
 
             val command = OrderCommand.Place(
                 loginId = LOGIN_ID,
@@ -268,7 +269,7 @@ class OrderFacadeTest {
             orderFacade.place(command)
 
             // assert
-            verify(orderService).place(userId = eq(42L), items = any())
+            verify(orderService).place(userId = eq(42L), items = any(), discountAmount = any(), usedCouponId = anyOrNull())
         }
     }
 
@@ -316,7 +317,7 @@ class OrderFacadeTest {
             assertThrows<CoreException> { orderFacade.place(command) }
 
             // assert
-            verify(orderService, never()).place(any(), any())
+            verify(orderService, never()).place(any(), any(), any(), anyOrNull())
         }
 
         @DisplayName("앞 항목의 차감이 실패하면 뒤 항목은 차감하지 않는다.")

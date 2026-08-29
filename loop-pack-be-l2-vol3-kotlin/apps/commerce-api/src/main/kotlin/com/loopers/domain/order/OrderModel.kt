@@ -37,6 +37,8 @@ import jakarta.persistence.Table
 class OrderModel private constructor(
     userId: Long,
     items: List<OrderItemModel>,
+    discountAmount: Price,
+    usedCouponId: Long?,
 ) : BaseEntity() {
     @Column(name = "user_id", nullable = false)
     var userId: Long = userId
@@ -65,12 +67,39 @@ class OrderModel private constructor(
     var itemCount: Int = items.size
         protected set
 
+    /**
+     * 쿠폰으로 깎인 금액. 쿠폰 없는 주문이면 0 원이다.
+     *
+     * totalPrice 는 할인 전 항목 소계의 합이며 의미를 바꾸지 않는다.
+     * "상품값이 얼마였는지" 와 "얼마를 냈는지" 는 다른 질문이다. (설계 문서 5.8 장)
+     */
+    @Embedded
+    @AttributeOverride(name = "value", column = Column(name = "discount_amount", nullable = false))
+    var discountAmount: Price = discountAmount
+        protected set
+
+    /** 어떤 쿠폰을 썼는지 추적한다. 쿠폰 없는 주문이 정상이라 nullable 이다. */
+    @Column(name = "used_coupon_id")
+    var usedCouponId: Long? = usedCouponId
+        protected set
+
+    /**
+     * 최종 결제액. 저장하지 않고 계산한다.
+     * 두 값이 주문 시점에 확정되고 이후 갱신되지 않아 어긋날 자리가 없다. subtotal 과 같은 기준이다.
+     */
+    val paidAmount: Price get() = Price(totalPrice.value - discountAmount.value)
+
     init {
         if (userId <= 0) {
             throw CoreException(ErrorType.BAD_REQUEST, "회원 ID 는 양수여야 합니다.")
         }
         if (items.isEmpty()) {
             throw CoreException(ErrorType.BAD_REQUEST, "주문 항목은 최소 1개 이상이어야 합니다.")
+        }
+        // DiscountType.calculate 가 이미 총액까지로 자르지만, 애그리거트도 스스로 막는다.
+        // 이 불변식이 없으면 paidAmount 가 음수인 주문이 저장될 수 있다.
+        if (discountAmount.value > this.totalPrice.value) {
+            throw CoreException(ErrorType.BAD_REQUEST, "할인 금액은 주문 총액을 넘을 수 없습니다.")
         }
     }
 
@@ -79,7 +108,16 @@ class OrderModel private constructor(
          * items 를 그대로 들고 있지 않고 복사하는 이유는, 호출자가 넘긴 리스트를 이후에 바꾸면
          * 주문의 총액·항목 수와 실제 항목이 어긋나기 때문이다.
          */
-        fun create(userId: Long, items: List<OrderItemModel>): OrderModel =
-            OrderModel(userId = userId, items = items)
+        fun create(
+            userId: Long,
+            items: List<OrderItemModel>,
+            discountAmount: Price = Price.ZERO,
+            usedCouponId: Long? = null,
+        ): OrderModel = OrderModel(
+            userId = userId,
+            items = items,
+            discountAmount = discountAmount,
+            usedCouponId = usedCouponId,
+        )
     }
 }
