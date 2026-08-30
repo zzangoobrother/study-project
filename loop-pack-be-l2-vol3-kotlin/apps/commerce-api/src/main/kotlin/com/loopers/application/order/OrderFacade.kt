@@ -70,6 +70,8 @@ class OrderFacade(
             ?.let { useCouponOrThrow(userId = user.id, userCouponId = it, totalPrice = totalPrice) }
             ?: Price.ZERO
 
+        // 0 행은 재고 부족과 상품 소멸을 함께 뜻한다. 구분하지 않는다 —
+        // 주문할 수 없다는 결론이 같고, 나누려면 다시 조회해야 하는데 그 조회도 같은 경합을 겪는다.
         sorted.forEach { item ->
             if (!productService.decreaseStock(productId = item.productId, quantity = item.quantity.value)) {
                 throw CoreException(

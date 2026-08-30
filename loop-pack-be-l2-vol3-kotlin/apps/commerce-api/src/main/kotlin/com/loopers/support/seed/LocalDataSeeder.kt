@@ -4,6 +4,9 @@ import com.loopers.domain.brand.BrandDescription
 import com.loopers.domain.brand.BrandModel
 import com.loopers.domain.brand.BrandName
 import com.loopers.domain.brand.BrandRepository
+import com.loopers.domain.coupon.CouponModel
+import com.loopers.domain.coupon.CouponName
+import com.loopers.domain.coupon.DiscountType
 import com.loopers.domain.product.LikeCount
 import com.loopers.domain.product.Price
 import com.loopers.domain.product.ProductModel
@@ -17,12 +20,14 @@ import com.loopers.domain.user.RawPassword
 import com.loopers.domain.user.UserCommand
 import com.loopers.domain.user.UserName
 import com.loopers.domain.user.UserService
+import com.loopers.infrastructure.coupon.CouponJpaRepository
 import org.slf4j.LoggerFactory
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
+import java.time.ZonedDateTime
 
 /**
  * 로컬 확인용 시드 데이터.
@@ -44,6 +49,7 @@ class LocalDataSeeder(
     private val brandRepository: BrandRepository,
     private val productRepository: ProductRepository,
     private val userService: UserService,
+    private val couponJpaRepository: CouponJpaRepository,
 ) : ApplicationRunner {
     private val log = LoggerFactory.getLogger(LocalDataSeeder::class.java)
 
@@ -87,7 +93,41 @@ class LocalDataSeeder(
         }
         productRepository.saveAll(products)
 
-        log.info("로컬 시드 데이터 생성 완료 : 회원 {}명, 브랜드 {}개, 상품 {}개", users.size, brands.size, products.size)
+        // 쿠폰 정책 3건. coupon-v1.http 가 세 상태를 전부 확인할 수 있어야 한다. (설계 문서 9 장)
+        // 세 번째가 이미 만료된 것은 의도적이다 — 발급 후 N일 방식이면 EXPIRED 를 요청으로 만들 수 없다.
+        // 도메인 CouponRepository 에는 save 가 없어 CouponJpaRepository 를 직접 주입한다.
+        // 정책은 시더만 만들고 애플리케이션은 읽기만 하므로 계약을 넓히지 않는다.
+        val now = ZonedDateTime.now()
+        val coupons = couponJpaRepository.saveAll(
+            listOf(
+                CouponModel.create(
+                    name = CouponName("신규가입 5천원"),
+                    discountType = DiscountType.FIXED_AMOUNT,
+                    discountValue = 5_000,
+                    expiresAt = now.plusDays(30),
+                ),
+                CouponModel.create(
+                    name = CouponName("가을맞이 10%"),
+                    discountType = DiscountType.PERCENTAGE,
+                    discountValue = 10,
+                    expiresAt = now.plusDays(30),
+                ),
+                CouponModel.create(
+                    name = CouponName("여름 특가 3천원"),
+                    discountType = DiscountType.FIXED_AMOUNT,
+                    discountValue = 3_000,
+                    expiresAt = now.minusDays(1),
+                ),
+            ),
+        )
+
+        log.info(
+            "로컬 시드 데이터 생성 완료 : 회원 {}명, 브랜드 {}개, 상품 {}개, 쿠폰 정책 {}개",
+            users.size,
+            brands.size,
+            products.size,
+            coupons.size,
+        )
     }
 
     companion object {

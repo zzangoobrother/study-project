@@ -4,6 +4,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertAll
 
 class DiscountTypeTest {
     @DisplayName("정액 쿠폰의 할인을 계산할 때, ")
@@ -93,8 +94,10 @@ class DiscountTypeTest {
         @Test
         fun returnsZero_forEveryType() {
             // act & assert
-            assertThat(DiscountType.FIXED_AMOUNT.calculate(discountValue = 5_000, totalPrice = 0)).isEqualTo(0)
-            assertThat(DiscountType.PERCENTAGE.calculate(discountValue = 50, totalPrice = 0)).isEqualTo(0)
+            assertAll(
+                { assertThat(DiscountType.FIXED_AMOUNT.calculate(discountValue = 5_000, totalPrice = 0)).isEqualTo(0) },
+                { assertThat(DiscountType.PERCENTAGE.calculate(discountValue = 50, totalPrice = 0)).isEqualTo(0) },
+            )
         }
     }
 }

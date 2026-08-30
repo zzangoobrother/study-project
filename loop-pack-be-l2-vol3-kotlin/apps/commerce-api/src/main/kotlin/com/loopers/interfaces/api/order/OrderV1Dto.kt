@@ -15,6 +15,9 @@ class OrderV1Dto {
      * (설계 문서 4.1 장)
      *
      * 생략 가능하다. 없으면 할인 없는 주문이 되어 기존 요청이 그대로 동작한다.
+     *
+     * quantity 를 Int 로 받고 Quantity 로 감싸는 것만으로 1 이상 검증이 수행된다.
+     * 별도의 @Min 애노테이션을 두지 않는 이유이며, 검증 규칙이 값 객체 한 곳에만 존재하게 된다.
      */
     data class PlaceRequest(
         val items: List<Item>,
