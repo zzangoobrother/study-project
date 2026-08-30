@@ -128,6 +128,20 @@ class CouponConcurrencyTest @Autowired constructor(
     private fun orderCount(): Long = orderJpaRepository.count()
 
     /**
+     * 실패가 전부 CoreException 인지 먼저 확인한 뒤 에러 타입만 꺼낸다.
+     *
+     * filterIsInstance 로 곧장 걸러내면 부분집합만 보게 되어, 일부만 CoreException 으로 변환되고
+     * 나머지가 raw 예외로 새는 회귀를 놓친다. 건수 단언도 이 구멍을 막지 못한다 —
+     * 그것은 실패의 개수만 보고 타입은 보지 않기 때문이다. 걸러내기 전에 전부인지 확인하는 것이 요점이다.
+     */
+    private fun errorTypesOf(failures: List<Throwable>): List<ErrorType> {
+        assertThat(failures)
+            .describedAs("실패가 전부 CoreException 이어야 한다. raw 예외가 섞이면 예외 변환이 빠진 것이다")
+            .hasOnlyElementsOfType(CoreException::class.java)
+        return failures.filterIsInstance<CoreException>().map { it.errorType }
+    }
+
+    /**
      * 모든 스레드를 같은 순간에 출발시킨다.
      * 순차 실행이면 경합이 재현되지 않아 테스트가 있으나 마나가 되므로 시작 래치가 필요하다.
      *
@@ -189,7 +203,7 @@ class CouponConcurrencyTest @Autowired constructor(
                     .hasSize(CONCURRENT_REQUESTS - 1)
             },
             {
-                assertThat(failures.filterIsInstance<CoreException>().map { it.errorType })
+                assertThat(errorTypesOf(failures))
                     .describedAs("실패는 전부 쿠폰 재사용이어야 한다")
                     .containsOnly(ErrorType.CONFLICT)
             },
@@ -229,7 +243,7 @@ class CouponConcurrencyTest @Autowired constructor(
         assertAll(
             { assertThat(failures).hasSize(CONCURRENT_REQUESTS - 1) },
             {
-                assertThat(failures.filterIsInstance<CoreException>().map { it.errorType })
+                assertThat(errorTypesOf(failures))
                     .describedAs("중복 발급은 전부 CONFLICT 여야 한다. 500 이 섞이면 예외 변환이 빠진 것이다")
                     .containsOnly(ErrorType.CONFLICT)
             },
@@ -270,7 +284,7 @@ class CouponConcurrencyTest @Autowired constructor(
                     .hasSize(CONCURRENT_REQUESTS)
             },
             {
-                assertThat(failures.filterIsInstance<CoreException>().map { it.errorType })
+                assertThat(errorTypesOf(failures))
                     .describedAs("재고 부족과 쿠폰 경합 모두 CONFLICT 다")
                     .containsOnly(ErrorType.CONFLICT)
             },

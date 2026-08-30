@@ -328,7 +328,9 @@ class OrderV1ApiE2ETest @Autowired constructor(
             signUp()
             val product = saveProduct(stock = 10)
             val coupon = issueCoupon()
-            order(product.id to 1, userCouponId = coupon.id)
+            // 첫 사용이 실제로 성공했는지 단언한다. 이것이 실패해도 아래 단언은 CONFLICT 를 받으므로,
+            // 확인하지 않으면 "재사용이 막혔다" 가 아니라 "처음부터 못 썼다" 로도 초록이 된다.
+            assertThat(order(product.id to 1, userCouponId = coupon.id).statusCode).isEqualTo(HttpStatus.OK)
 
             // act
             val response = order(product.id to 1, userCouponId = coupon.id)
