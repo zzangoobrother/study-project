@@ -51,7 +51,8 @@ X-Loopers-LoginId: seeduser01
 POST {{commerce-api}}/api/v1/coupons/3/issue
 X-Loopers-LoginId: seeduser01
 
-### 확인 - 목록에 3건이 있고 status 가 AVAILABLE / AVAILABLE / EXPIRED 다
+### 확인 - 목록 3건이 최근 발급순으로 EXPIRED / AVAILABLE / AVAILABLE 이다
+// 최근 발급 순 정렬이라 맨 나중에 발급한 만료 쿠폰이 맨 앞에 온다. 발급 순서의 역순이다.
 GET {{commerce-api}}/api/v1/users/me/coupons
 X-Loopers-LoginId: seeduser01
 
