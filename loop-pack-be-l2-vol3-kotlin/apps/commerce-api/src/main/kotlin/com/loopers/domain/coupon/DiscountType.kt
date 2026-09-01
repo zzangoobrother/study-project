@@ -7,11 +7,11 @@ package com.loopers.domain.coupon
  * 협력자가 없어 순수 단위 테스트로 전부 검증된다. ProductSortType 이 from() 을 갖는 것과 같은 배치다.
  */
 enum class DiscountType {
-    FIXED_AMOUNT {
+    FIXED {
         override fun rawDiscount(discountValue: Long, totalPrice: Long): Long = discountValue
     },
 
-    PERCENTAGE {
+    RATE {
         /**
          * 곱셈을 먼저 하고 나눗셈을 나중에 한다. 순서를 바꾸면 discountValue / 100 이 0 이 되어 할인이 사라진다.
          * Long 나눗셈이라 원 단위 미만은 자동으로 버려진다.

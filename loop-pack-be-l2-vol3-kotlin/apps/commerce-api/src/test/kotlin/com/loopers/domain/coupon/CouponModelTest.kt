@@ -30,11 +30,11 @@ class CouponModelTest {
         @Test
         fun creates_whenFixedAmountIsPositive() {
             // act
-            val model = coupon(DiscountType.FIXED_AMOUNT, 5_000)
+            val model = coupon(DiscountType.FIXED, 5_000)
 
             // assert
             assertAll(
-                { assertThat(model.discountType).isEqualTo(DiscountType.FIXED_AMOUNT) },
+                { assertThat(model.discountType).isEqualTo(DiscountType.FIXED) },
                 { assertThat(model.discountValue).isEqualTo(5_000) },
                 { assertThat(model.expiresAt).isEqualTo(future) },
             )
@@ -45,7 +45,7 @@ class CouponModelTest {
         @ValueSource(longs = [0L, -1L])
         fun throwsBadRequest_whenFixedAmountIsNotPositive(value: Long) {
             // act
-            val result = assertThrows<CoreException> { coupon(DiscountType.FIXED_AMOUNT, value) }
+            val result = assertThrows<CoreException> { coupon(DiscountType.FIXED, value) }
 
             // assert
             assertThat(result.errorType).isEqualTo(ErrorType.BAD_REQUEST)
@@ -56,7 +56,7 @@ class CouponModelTest {
         @ValueSource(longs = [1L, 50L, 100L])
         fun creates_whenPercentageIsInRange(value: Long) {
             // act
-            val model = coupon(DiscountType.PERCENTAGE, value)
+            val model = coupon(DiscountType.RATE, value)
 
             // assert
             assertThat(model.discountValue).isEqualTo(value)
@@ -67,7 +67,7 @@ class CouponModelTest {
         @ValueSource(longs = [0L, -1L, 101L])
         fun throwsBadRequest_whenPercentageIsOutOfRange(value: Long) {
             // act
-            val result = assertThrows<CoreException> { coupon(DiscountType.PERCENTAGE, value) }
+            val result = assertThrows<CoreException> { coupon(DiscountType.RATE, value) }
 
             // assert
             assertThat(result.errorType).isEqualTo(ErrorType.BAD_REQUEST)

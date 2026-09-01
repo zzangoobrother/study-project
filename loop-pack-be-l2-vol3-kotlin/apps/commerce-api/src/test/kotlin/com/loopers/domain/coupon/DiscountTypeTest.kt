@@ -14,7 +14,7 @@ class DiscountTypeTest {
         @Test
         fun returnsDiscountValue_whenLessThanTotal() {
             // act
-            val result = DiscountType.FIXED_AMOUNT.calculate(discountValue = 5_000, totalPrice = 30_000)
+            val result = DiscountType.FIXED.calculate(discountValue = 5_000, totalPrice = 30_000)
 
             // assert
             assertThat(result).isEqualTo(5_000)
@@ -24,7 +24,7 @@ class DiscountTypeTest {
         @Test
         fun returnsTotalPrice_whenGreaterThanTotal() {
             // act
-            val result = DiscountType.FIXED_AMOUNT.calculate(discountValue = 10_000, totalPrice = 5_000)
+            val result = DiscountType.FIXED.calculate(discountValue = 10_000, totalPrice = 5_000)
 
             // assert
             assertThat(result).isEqualTo(5_000)
@@ -34,7 +34,7 @@ class DiscountTypeTest {
         @Test
         fun returnsTotalPrice_whenEqualToTotal() {
             // act
-            val result = DiscountType.FIXED_AMOUNT.calculate(discountValue = 5_000, totalPrice = 5_000)
+            val result = DiscountType.FIXED.calculate(discountValue = 5_000, totalPrice = 5_000)
 
             // assert
             assertThat(result).isEqualTo(5_000)
@@ -48,7 +48,7 @@ class DiscountTypeTest {
         @Test
         fun returnsProportionalDiscount() {
             // act
-            val result = DiscountType.PERCENTAGE.calculate(discountValue = 10, totalPrice = 30_000)
+            val result = DiscountType.RATE.calculate(discountValue = 10, totalPrice = 30_000)
 
             // assert
             assertThat(result).isEqualTo(3_000)
@@ -59,7 +59,7 @@ class DiscountTypeTest {
         fun truncatesBelowWon() {
             // act
             // 33,333 의 20% 는 6,666.6 이다. 내림해서 6,666 이어야 한다.
-            val result = DiscountType.PERCENTAGE.calculate(discountValue = 20, totalPrice = 33_333)
+            val result = DiscountType.RATE.calculate(discountValue = 20, totalPrice = 33_333)
 
             // assert
             assertThat(result).isEqualTo(6_666)
@@ -69,7 +69,7 @@ class DiscountTypeTest {
         @Test
         fun returnsTotalPrice_whenHundredPercent() {
             // act
-            val result = DiscountType.PERCENTAGE.calculate(discountValue = 100, totalPrice = 30_000)
+            val result = DiscountType.RATE.calculate(discountValue = 100, totalPrice = 30_000)
 
             // assert
             assertThat(result).isEqualTo(30_000)
@@ -80,7 +80,7 @@ class DiscountTypeTest {
         fun returnsZero_whenResultIsBelowOneWon() {
             // act
             // 9 원의 10% 는 0.9 원이라 내림하면 0 이다.
-            val result = DiscountType.PERCENTAGE.calculate(discountValue = 10, totalPrice = 9)
+            val result = DiscountType.RATE.calculate(discountValue = 10, totalPrice = 9)
 
             // assert
             assertThat(result).isEqualTo(0)
@@ -95,8 +95,8 @@ class DiscountTypeTest {
         fun returnsZero_forEveryType() {
             // act & assert
             assertAll(
-                { assertThat(DiscountType.FIXED_AMOUNT.calculate(discountValue = 5_000, totalPrice = 0)).isEqualTo(0) },
-                { assertThat(DiscountType.PERCENTAGE.calculate(discountValue = 50, totalPrice = 0)).isEqualTo(0) },
+                { assertThat(DiscountType.FIXED.calculate(discountValue = 5_000, totalPrice = 0)).isEqualTo(0) },
+                { assertThat(DiscountType.RATE.calculate(discountValue = 50, totalPrice = 0)).isEqualTo(0) },
             )
         }
     }

@@ -452,7 +452,7 @@ class OrderFacadeTest {
                 userId = USER_ID,
                 coupon = CouponModel.create(
                     name = CouponName("테스트 쿠폰"),
-                    discountType = DiscountType.FIXED_AMOUNT,
+                    discountType = DiscountType.FIXED,
                     discountValue = discountValue,
                     expiresAt = ZonedDateTime.now().plusDays(30),
                 ).withId(10L),

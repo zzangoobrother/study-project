@@ -28,7 +28,7 @@ class CouponServiceIntegrationTest @Autowired constructor(
     }
 
     private fun savedCoupon(
-        type: DiscountType = DiscountType.FIXED_AMOUNT,
+        type: DiscountType = DiscountType.FIXED,
         value: Long = 5_000,
         expiresAt: ZonedDateTime = ZonedDateTime.now().plusDays(30),
     ): CouponModel = couponJpaRepository.save(
@@ -47,7 +47,7 @@ class CouponServiceIntegrationTest @Autowired constructor(
         @Test
         fun savesWithSnapshot() {
             // arrange
-            val coupon = savedCoupon(type = DiscountType.PERCENTAGE, value = 15)
+            val coupon = savedCoupon(type = DiscountType.RATE, value = 15)
 
             // act
             val issued = couponService.issue(userId = 1L, couponId = coupon.id)
@@ -55,7 +55,7 @@ class CouponServiceIntegrationTest @Autowired constructor(
             // assert
             assertAll(
                 { assertThat(issued.id).isPositive() },
-                { assertThat(issued.discountType).isEqualTo(DiscountType.PERCENTAGE) },
+                { assertThat(issued.discountType).isEqualTo(DiscountType.RATE) },
                 { assertThat(issued.discountValue).isEqualTo(15) },
             )
         }

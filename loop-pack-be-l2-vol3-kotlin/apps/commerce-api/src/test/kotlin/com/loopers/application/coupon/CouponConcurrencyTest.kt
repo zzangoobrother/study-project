@@ -98,7 +98,7 @@ class CouponConcurrencyTest @Autowired constructor(
         couponJpaRepository.save(
             CouponModel.create(
                 name = CouponName("테스트 쿠폰"),
-                discountType = DiscountType.FIXED_AMOUNT,
+                discountType = DiscountType.FIXED,
                 discountValue = 5_000,
                 expiresAt = expiresAt,
             ),

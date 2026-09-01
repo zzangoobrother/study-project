@@ -43,7 +43,7 @@ class UserCouponModelPersistenceTest @Autowired constructor(
         couponJpaRepository.save(
             CouponModel.create(
                 name = CouponName("테스트 쿠폰"),
-                discountType = DiscountType.PERCENTAGE,
+                discountType = DiscountType.RATE,
                 discountValue = 10,
                 expiresAt = expiresAt,
             ),
@@ -67,7 +67,7 @@ class UserCouponModelPersistenceTest @Autowired constructor(
             assertAll(
                 { assertThat(found).isNotNull },
                 { assertThat(found?.couponId).isEqualTo(coupon.id) },
-                { assertThat(found?.discountType).isEqualTo(DiscountType.PERCENTAGE) },
+                { assertThat(found?.discountType).isEqualTo(DiscountType.RATE) },
                 { assertThat(found?.discountValue).isEqualTo(10) },
                 { assertThat(found?.usedAt).isNull() },
             )

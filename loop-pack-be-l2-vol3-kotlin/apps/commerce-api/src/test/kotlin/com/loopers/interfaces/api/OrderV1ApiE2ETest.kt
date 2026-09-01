@@ -112,7 +112,7 @@ class OrderV1ApiE2ETest @Autowired constructor(
      * expiresAt 을 과거로 넘기는 것만으로 만들어진다.
      */
     private fun issueCoupon(
-        discountType: DiscountType = DiscountType.FIXED_AMOUNT,
+        discountType: DiscountType = DiscountType.FIXED,
         discountValue: Long = 5_000,
         expiresAt: ZonedDateTime = ZonedDateTime.now().plusDays(30),
         loginId: String = LOGIN_ID,
