@@ -73,4 +73,57 @@ class CouponModelTest {
             assertThat(result.errorType).isEqualTo(ErrorType.BAD_REQUEST)
         }
     }
+
+    @DisplayName("최소 주문 금액을 지정할 때, ")
+    @Nested
+    inner class MinOrderAmount {
+        @DisplayName("생략하면 0 이 된다.")
+        @Test
+        fun defaultsToZero_whenOmitted() {
+            // act
+            val coupon = CouponModel.create(
+                name = CouponName("신규가입"),
+                discountType = DiscountType.FIXED,
+                discountValue = 5_000,
+                expiresAt = ZonedDateTime.now().plusDays(30),
+            )
+
+            // assert
+            assertThat(coupon.minOrderAmount).isEqualTo(0L)
+        }
+
+        @DisplayName("0 이상이면 그 값이 그대로 저장된다.")
+        @Test
+        fun keepsValue_whenNotNegative() {
+            // act
+            val coupon = CouponModel.create(
+                name = CouponName("신규가입"),
+                discountType = DiscountType.FIXED,
+                discountValue = 5_000,
+                minOrderAmount = 10_000,
+                expiresAt = ZonedDateTime.now().plusDays(30),
+            )
+
+            // assert
+            assertThat(coupon.minOrderAmount).isEqualTo(10_000L)
+        }
+
+        @DisplayName("음수면 BAD_REQUEST 예외가 발생한다.")
+        @Test
+        fun throwsBadRequest_whenNegative() {
+            // act
+            val result = assertThrows<CoreException> {
+                CouponModel.create(
+                    name = CouponName("신규가입"),
+                    discountType = DiscountType.FIXED,
+                    discountValue = 5_000,
+                    minOrderAmount = -1,
+                    expiresAt = ZonedDateTime.now().plusDays(30),
+                )
+            }
+
+            // assert
+            assertThat(result.errorType).isEqualTo(ErrorType.BAD_REQUEST)
+        }
+    }
 }

@@ -101,6 +101,26 @@ class UserCouponModelTest {
             // assert
             assertThat(result.errorType).isEqualTo(ErrorType.BAD_REQUEST)
         }
+
+        @DisplayName("최소 주문 금액도 스냅샷으로 복사된다.")
+        @Test
+        fun copiesMinOrderAmount_whenIssued() {
+            // arrange
+            // issue 가 couponId 를 양수로 요구하므로(영속화 전 id 는 0), couponWithId 와 같은 이유로 리플렉션으로 심는다.
+            val coupon = CouponModel.create(
+                name = CouponName("가을맞이"),
+                discountType = DiscountType.RATE,
+                discountValue = 10,
+                minOrderAmount = 20_000,
+                expiresAt = ZonedDateTime.now().plusDays(30),
+            ).apply { ReflectionTestUtils.setField(this, "id", 10L) }
+
+            // act
+            val issued = UserCouponModel.issue(userId = 1L, coupon = coupon)
+
+            // assert
+            assertThat(issued.minOrderAmount).isEqualTo(20_000L)
+        }
     }
 
     @DisplayName("쿠폰의 상태를 판정할 때, ")
