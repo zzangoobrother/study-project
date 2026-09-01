@@ -19,7 +19,7 @@ class UserCouponModelTest {
     private fun coupon(expiresAt: ZonedDateTime): CouponModel =
         CouponModel.create(
             name = CouponName("테스트 쿠폰"),
-            discountType = DiscountType.FIXED_AMOUNT,
+            discountType = DiscountType.FIXED,
             discountValue = 5_000,
             expiresAt = expiresAt,
         )
@@ -53,7 +53,7 @@ class UserCouponModelTest {
                 { assertThat(issued.userId).isEqualTo(1L) },
                 { assertThat(issued.couponId).isEqualTo(10L) },
                 { assertThat(issued.name).isEqualTo(CouponName("테스트 쿠폰")) },
-                { assertThat(issued.discountType).isEqualTo(DiscountType.FIXED_AMOUNT) },
+                { assertThat(issued.discountType).isEqualTo(DiscountType.FIXED) },
                 { assertThat(issued.discountValue).isEqualTo(5_000) },
                 { assertThat(issued.expiresAt).isEqualTo(expiresAt) },
                 { assertThat(issued.usedAt).isNull() },

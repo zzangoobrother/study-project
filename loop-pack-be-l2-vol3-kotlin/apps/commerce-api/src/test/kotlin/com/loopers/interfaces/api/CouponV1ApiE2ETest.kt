@@ -64,7 +64,7 @@ class CouponV1ApiE2ETest @Autowired constructor(
     ): CouponModel = couponJpaRepository.save(
         CouponModel.create(
             name = CouponName(name),
-            discountType = DiscountType.FIXED_AMOUNT,
+            discountType = DiscountType.FIXED,
             discountValue = 5_000,
             expiresAt = expiresAt,
         ),

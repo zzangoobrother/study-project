@@ -102,19 +102,19 @@ class LocalDataSeeder(
             listOf(
                 CouponModel.create(
                     name = CouponName("신규가입 5천원"),
-                    discountType = DiscountType.FIXED_AMOUNT,
+                    discountType = DiscountType.FIXED,
                     discountValue = 5_000,
                     expiresAt = now.plusDays(30),
                 ),
                 CouponModel.create(
                     name = CouponName("가을맞이 10%"),
-                    discountType = DiscountType.PERCENTAGE,
+                    discountType = DiscountType.RATE,
                     discountValue = 10,
                     expiresAt = now.plusDays(30),
                 ),
                 CouponModel.create(
                     name = CouponName("여름 특가 3천원"),
-                    discountType = DiscountType.FIXED_AMOUNT,
+                    discountType = DiscountType.FIXED,
                     discountValue = 3_000,
                     expiresAt = now.minusDays(1),
                 ),

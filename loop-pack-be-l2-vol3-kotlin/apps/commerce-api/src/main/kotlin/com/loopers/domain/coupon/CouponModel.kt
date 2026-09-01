@@ -78,12 +78,12 @@ class CouponModel private constructor(
          */
         fun validateDiscount(discountType: DiscountType, discountValue: Long) {
             when (discountType) {
-                DiscountType.FIXED_AMOUNT ->
+                DiscountType.FIXED ->
                     if (discountValue < 1) {
                         throw CoreException(ErrorType.BAD_REQUEST, "정액 할인은 1 원 이상이어야 합니다.")
                     }
 
-                DiscountType.PERCENTAGE ->
+                DiscountType.RATE ->
                     if (discountValue < 1 || discountValue > MAX_PERCENTAGE) {
                         throw CoreException(ErrorType.BAD_REQUEST, "정률 할인은 1 이상 $MAX_PERCENTAGE 이하여야 합니다.")
                     }

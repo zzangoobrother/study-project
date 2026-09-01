@@ -93,7 +93,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
 
     private fun issuedCoupon(
         loginId: LoginId,
-        type: DiscountType = DiscountType.FIXED_AMOUNT,
+        type: DiscountType = DiscountType.FIXED,
         value: Long = 5_000,
         expiresAt: ZonedDateTime = ZonedDateTime.now().plusDays(30),
     ): CouponInfo {
@@ -511,7 +511,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
             // arrange
             val user = signUp()
             val product = saveProduct(price = 10_000, stock = 10)
-            val coupon = issuedCoupon(user.loginId, type = DiscountType.PERCENTAGE, value = 10)
+            val coupon = issuedCoupon(user.loginId, type = DiscountType.RATE, value = 10)
 
             // act
             val info = place(user.loginId, product.id to 2, userCouponId = coupon.id)

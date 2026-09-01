@@ -37,7 +37,7 @@ class CouponServiceTest {
     private fun policy(): CouponModel =
         CouponModel.create(
             name = CouponName("테스트 쿠폰"),
-            discountType = DiscountType.FIXED_AMOUNT,
+            discountType = DiscountType.FIXED,
             discountValue = 5_000,
             expiresAt = ZonedDateTime.now().plusDays(30),
         ).apply { ReflectionTestUtils.setField(this, "id", COUPON_ID) }
