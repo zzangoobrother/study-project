@@ -33,10 +33,8 @@ import java.time.ZonedDateTime
     ],
     indexes = [Index(name = "idx_user_coupons_user_id_created_at", columnList = "user_id, created_at")],
 )
-@Check(
-    name = "ck_user_coupons_discount_value_positive",
-    constraints = "discount_value >= 1 AND min_order_amount >= 0",
-)
+@Check(name = "ck_user_coupons_discount_value_positive", constraints = "discount_value >= 1")
+@Check(name = "ck_user_coupons_min_order_amount_non_negative", constraints = "min_order_amount >= 0")
 class UserCouponModel private constructor(
     userId: Long,
     couponId: Long,

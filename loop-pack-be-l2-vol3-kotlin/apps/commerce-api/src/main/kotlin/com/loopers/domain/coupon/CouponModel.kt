@@ -24,10 +24,8 @@ import java.time.ZonedDateTime
  */
 @Entity
 @Table(name = "coupons")
-@Check(
-    name = "ck_coupons_discount_value_positive",
-    constraints = "discount_value >= 1 AND min_order_amount >= 0",
-)
+@Check(name = "ck_coupons_discount_value_positive", constraints = "discount_value >= 1")
+@Check(name = "ck_coupons_min_order_amount_non_negative", constraints = "min_order_amount >= 0")
 class CouponModel private constructor(
     name: CouponName,
     discountType: DiscountType,
