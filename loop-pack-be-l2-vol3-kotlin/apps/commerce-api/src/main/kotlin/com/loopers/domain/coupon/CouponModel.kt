@@ -25,10 +25,12 @@ import java.time.ZonedDateTime
 @Entity
 @Table(name = "coupons")
 @Check(name = "ck_coupons_discount_value_positive", constraints = "discount_value >= 1")
+@Check(name = "ck_coupons_min_order_amount_non_negative", constraints = "min_order_amount >= 0")
 class CouponModel private constructor(
     name: CouponName,
     discountType: DiscountType,
     discountValue: Long,
+    minOrderAmount: Long,
     expiresAt: ZonedDateTime,
 ) : BaseEntity() {
     @Embedded
@@ -48,12 +50,23 @@ class CouponModel private constructor(
     var discountValue: Long = discountValue
         protected set
 
+    /**
+     * 이 금액 이상일 때만 쓸 수 있다. 0 은 조건 없음을 뜻한다.
+     *
+     * 할인의 하한 조건일 뿐 상한이 아니다. 정률 100 퍼센트 쿠폰에 이 값을 걸어도
+     * 결제액이 0 원이 되는 것을 막지 못한다. (2026-09-01 설계 문서 11.3 장)
+     */
+    @Column(name = "min_order_amount", nullable = false)
+    var minOrderAmount: Long = minOrderAmount
+        protected set
+
     @Column(name = "expires_at", nullable = false)
     var expiresAt: ZonedDateTime = expiresAt
         protected set
 
     init {
         validateDiscount(discountType, discountValue)
+        validateMinOrderAmount(minOrderAmount)
     }
 
     companion object {
@@ -63,11 +76,13 @@ class CouponModel private constructor(
             name: CouponName,
             discountType: DiscountType,
             discountValue: Long,
+            minOrderAmount: Long = 0,
             expiresAt: ZonedDateTime,
         ): CouponModel = CouponModel(
             name = name,
             discountType = discountType,
             discountValue = discountValue,
+            minOrderAmount = minOrderAmount,
             expiresAt = expiresAt,
         )
 
@@ -87,6 +102,16 @@ class CouponModel private constructor(
                     if (discountValue < 1 || discountValue > MAX_PERCENTAGE) {
                         throw CoreException(ErrorType.BAD_REQUEST, "정률 할인은 1 이상 $MAX_PERCENTAGE 이하여야 합니다.")
                     }
+            }
+        }
+
+        /**
+         * UserCouponModel 이 같은 규칙을 다시 확인하므로 여기에 두고 공유한다.
+         * validateDiscount 와 나누는 이유는 이 규칙이 discountType 에 의존하지 않기 때문이다.
+         */
+        fun validateMinOrderAmount(minOrderAmount: Long) {
+            if (minOrderAmount < 0) {
+                throw CoreException(ErrorType.BAD_REQUEST, "최소 주문 금액은 0 원 이상이어야 합니다.")
             }
         }
     }

@@ -34,12 +34,14 @@ import java.time.ZonedDateTime
     indexes = [Index(name = "idx_user_coupons_user_id_created_at", columnList = "user_id, created_at")],
 )
 @Check(name = "ck_user_coupons_discount_value_positive", constraints = "discount_value >= 1")
+@Check(name = "ck_user_coupons_min_order_amount_non_negative", constraints = "min_order_amount >= 0")
 class UserCouponModel private constructor(
     userId: Long,
     couponId: Long,
     name: CouponName,
     discountType: DiscountType,
     discountValue: Long,
+    minOrderAmount: Long,
     expiresAt: ZonedDateTime,
 ) : BaseEntity() {
     @Column(name = "user_id", nullable = false)
@@ -71,6 +73,14 @@ class UserCouponModel private constructor(
     var discountValue: Long = discountValue
         protected set
 
+    /**
+     * 조건도 스냅샷이다. 정책이 삭제돼도 이 쿠폰은 살아남으므로(2026-09-01 설계 문서 5.5 장)
+     * 대조할 정책 행이 없다. 조건을 스스로 들고 있어야 한다.
+     */
+    @Column(name = "min_order_amount", nullable = false)
+    var minOrderAmount: Long = minOrderAmount
+        protected set
+
     @Column(name = "expires_at", nullable = false)
     var expiresAt: ZonedDateTime = expiresAt
         protected set
@@ -88,6 +98,7 @@ class UserCouponModel private constructor(
         }
         // 스냅샷이 복사되는 순간에도 규칙을 다시 확인한다. 복사 과정의 실수가 조용히 통과하지 않는다.
         CouponModel.validateDiscount(discountType, discountValue)
+        CouponModel.validateMinOrderAmount(minOrderAmount)
     }
 
     /**
@@ -119,6 +130,7 @@ class UserCouponModel private constructor(
             name = coupon.name,
             discountType = coupon.discountType,
             discountValue = coupon.discountValue,
+            minOrderAmount = coupon.minOrderAmount,
             expiresAt = coupon.expiresAt,
         )
     }
