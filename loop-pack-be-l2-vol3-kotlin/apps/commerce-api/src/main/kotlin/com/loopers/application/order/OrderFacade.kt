@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional
  *
  * 쿠폰이 더해지며 이 파사드가 네 애그리거트를 잇는 지점이 되었다.
  * 조율 로직은 useCouponOrThrow 같은 private 메서드로 분리해 place 가 흐름만 읽히도록 유지한다. (설계 문서 7.2 장)
+ * 최소 주문 금액은 조건부 UPDATE 가 아니라 이 파사드가 판정한다. 경합하지 않는 조건이기 때문이다. (2026-09-01 설계 문서 6.3 장)
  */
 @Component
 class OrderFacade(
@@ -64,11 +65,11 @@ class OrderFacade(
         }
         val totalPrice = items.sumOf { it.subtotal.value }
 
-        // 쿠폰을 재고보다 먼저 소모한다 (설계 문서 6.4 장).
+        // 쿠폰을 재고보다 먼저 소모한다 (2026-08-30 설계 문서 6.4 장).
         // 사용 불가능한 쿠폰이면 재고를 건드리기 전에 실패하고, 경합이 심한 products 락을 더 짧게 잡는다.
-        val discountAmount = command.userCouponId
-            ?.let { useCouponOrThrow(userId = user.id, userCouponId = it, totalPrice = totalPrice) }
-            ?: Price.ZERO
+        val applied = command.couponId
+            ?.let { useCouponOrThrow(userId = user.id, couponId = it, totalPrice = totalPrice) }
+        val discountAmount = applied?.discountAmount ?: Price.ZERO
 
         // 0 행은 재고 부족과 상품 소멸을 함께 뜻한다. 구분하지 않는다 —
         // 주문할 수 없다는 결론이 같고, 나누려면 다시 조회해야 하는데 그 조회도 같은 경합을 겪는다.
@@ -86,39 +87,57 @@ class OrderFacade(
                 userId = user.id,
                 items = items,
                 discountAmount = discountAmount,
-                usedCouponId = command.userCouponId,
+                usedCouponId = applied?.userCouponId,
             ),
         )
     }
+
+    /**
+     * 적용된 쿠폰. 할인 금액과 발급 ID 를 함께 나른다.
+     *
+     * 발급 ID 가 필요한 이유는 orders.used_coupon_id 가 정책이 아니라 발급분을 가리키기 때문이다.
+     * 요청은 정책 ID 로 오지만 기록은 발급분이어야 추적이 정확하다. (2026-09-01 설계 문서 4.5 장)
+     */
+    private data class AppliedCoupon(val userCouponId: Long, val discountAmount: Price)
 
     /**
      * 쿠폰을 조회해 할인을 계산하고 소모한다.
      *
      * 조회와 소모가 두 단계인 것은 조건부 UPDATE 가 영향 행 수만 돌려주고 행의 내용을 주지 않기 때문이다.
      * 할인 계산에 쿠폰 내용이 필요하므로 조회는 선택이 아니라 필수이며,
-     * 그 조회가 자연스럽게 404 판정을 겸한다. (설계 문서 6.3 장)
+     * 그 조회가 자연스럽게 404 판정을 겸한다. (2026-08-30 설계 문서 6.3 장)
      *
      * 조회와 UPDATE 사이에 다른 요청이 그 쿠폰을 써 버릴 수 있다. 그때 use 가 false 를 돌려주고 409 가 나간다.
      * 틈이 없는 것이 아니라, 틈에서 벌어진 일이 WHERE 절에 걸려 정확한 결과로 이어진다.
      */
-    private fun useCouponOrThrow(userId: Long, userCouponId: Long, totalPrice: Long): Price {
-        val coupon = couponService.getUserCoupon(userCouponId = userCouponId, userId = userId)
+    private fun useCouponOrThrow(userId: Long, couponId: Long, totalPrice: Long): AppliedCoupon {
+        val coupon = couponService.getUserCoupon(couponId = couponId, userId = userId)
             ?: throw CoreException(
                 errorType = ErrorType.NOT_FOUND,
-                customMessage = "[userCouponId = $userCouponId] 존재하지 않는 쿠폰입니다.",
+                customMessage = "[couponId = $couponId] 발급받지 않았거나 존재하지 않는 쿠폰입니다.",
             )
 
-        val discountAmount = Price(coupon.discountFor(totalPrice))
-
-        // 이미 썼는지·만료됐는지를 구분하지 않는다. 호출자가 두 경우에 할 수 있는 일이 같다. (설계 문서 8.2 장)
-        if (!couponService.use(userCouponId = userCouponId, userId = userId)) {
+        // 경합하지 않는 조건이라 조건부 UPDATE 의 WHERE 가 아니라 여기서 판정한다. (2026-09-01 설계 문서 6.3 장)
+        // 사용·만료와 달리 400 인 이유는 호출자가 할 수 있는 일이 다르기 때문이다 — 더 담으면 쓸 수 있다.
+        if (totalPrice < coupon.minOrderAmount) {
             throw CoreException(
-                errorType = ErrorType.CONFLICT,
-                customMessage = "[userCouponId = $userCouponId] 이미 사용했거나 만료된 쿠폰입니다.",
+                errorType = ErrorType.BAD_REQUEST,
+                customMessage = "[couponId = $couponId] 최소 주문 금액 ${coupon.minOrderAmount} 원 이상부터 사용할 수 있습니다.",
             )
         }
 
-        return discountAmount
+        val discountAmount = Price(coupon.discountFor(totalPrice))
+
+        // 이미 썼는지·만료됐는지를 구분하지 않는다. 호출자가 두 경우에 할 수 있는 일이 같다.
+        // (2026-08-30 설계 문서 8.2 장)
+        if (!couponService.use(couponId = couponId, userId = userId)) {
+            throw CoreException(
+                errorType = ErrorType.CONFLICT,
+                customMessage = "[couponId = $couponId] 이미 사용했거나 만료된 쿠폰입니다.",
+            )
+        }
+
+        return AppliedCoupon(userCouponId = coupon.id, discountAmount = discountAmount)
     }
 
     /**

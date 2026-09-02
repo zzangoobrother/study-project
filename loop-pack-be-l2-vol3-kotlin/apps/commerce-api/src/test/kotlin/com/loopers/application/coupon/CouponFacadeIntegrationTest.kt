@@ -153,7 +153,7 @@ class CouponFacadeIntegrationTest @Autowired constructor(
             val available = couponFacade.issue(loginId, savedCoupon(name = "유효").id)
             val expired = couponFacade.issue(loginId, savedCoupon(name = "만료", expiresAt = ZonedDateTime.now().minusDays(1)).id)
             val toUse = couponFacade.issue(loginId, savedCoupon(name = "사용").id)
-            couponService.use(userCouponId = toUse.id, userId = user.id)
+            couponService.use(couponId = toUse.couponId, userId = user.id)
 
             // act
             val result = couponFacade.getUserCoupons(loginId, PageQuery(page = 0, size = 20))

@@ -27,6 +27,7 @@ import com.loopers.domain.user.UserModel
 import com.loopers.domain.user.UserName
 import com.loopers.domain.user.UserService
 import com.loopers.infrastructure.coupon.CouponJpaRepository
+import com.loopers.infrastructure.coupon.UserCouponJpaRepository
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
 import com.loopers.utils.DatabaseCleanUp
@@ -50,6 +51,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
     private val productRepository: ProductRepository,
     private val couponFacade: CouponFacade,
     private val couponJpaRepository: CouponJpaRepository,
+    private val userCouponJpaRepository: UserCouponJpaRepository,
     private val databaseCleanUp: DatabaseCleanUp,
 ) {
     @AfterEach
@@ -80,12 +82,12 @@ class OrderFacadeIntegrationTest @Autowired constructor(
         )
     }
 
-    private fun place(loginId: LoginId, vararg items: Pair<Long, Int>, userCouponId: Long? = null) =
+    private fun place(loginId: LoginId, vararg items: Pair<Long, Int>, couponId: Long? = null) =
         orderFacade.place(
             OrderCommand.Place(
                 loginId = loginId,
                 items = items.map { OrderCommand.Item(productId = it.first, quantity = Quantity(it.second)) },
-                userCouponId = userCouponId,
+                couponId = couponId,
             ),
         )
 
@@ -107,6 +109,23 @@ class OrderFacadeIntegrationTest @Autowired constructor(
         )
         return couponFacade.issue(loginId, policy.id)
     }
+
+    /** issuedCoupon 과 달리 발급까지 하지 않고 정책만 저장한다. 발급 시점을 테스트가 직접 통제해야 할 때 쓴다. */
+    private fun saveCoupon(
+        discountType: DiscountType = DiscountType.FIXED,
+        discountValue: Long = 5_000,
+        minOrderAmount: Long = 0,
+        expiresAt: ZonedDateTime = ZonedDateTime.now().plusDays(30),
+    ): CouponModel =
+        couponJpaRepository.save(
+            CouponModel.create(
+                name = CouponName("테스트 쿠폰"),
+                discountType = discountType,
+                discountValue = discountValue,
+                minOrderAmount = minOrderAmount,
+                expiresAt = expiresAt,
+            ),
+        )
 
     private fun statusOf(loginId: LoginId, userCouponId: Long): CouponStatus =
         couponFacade.getUserCoupons(loginId, PageQuery(page = 0, size = 20))
@@ -450,7 +469,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
             val coupon = issuedCoupon(user.loginId, value = 5_000)
 
             // act
-            val info = place(user.loginId, product.id to 2, userCouponId = coupon.id)
+            val info = place(user.loginId, product.id to 2, couponId = coupon.couponId)
 
             // assert
             assertAll(
@@ -471,7 +490,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
             val coupon = issuedCoupon(user.loginId, value = 5_000)
 
             // act
-            val info = place(user.loginId, product.id to 1, userCouponId = coupon.id)
+            val info = place(user.loginId, product.id to 1, couponId = coupon.couponId)
 
             // assert
             assertAll(
@@ -495,7 +514,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
 
             // act
             val result = assertThrows<CoreException> {
-                place(user.loginId, product.id to 1, userCouponId = coupon.id)
+                place(user.loginId, product.id to 1, couponId = coupon.couponId)
             }
 
             // assert
@@ -514,7 +533,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
             val coupon = issuedCoupon(user.loginId, type = DiscountType.RATE, value = 10)
 
             // act
-            val info = place(user.loginId, product.id to 2, userCouponId = coupon.id)
+            val info = place(user.loginId, product.id to 2, couponId = coupon.couponId)
 
             // assert
             assertAll(
@@ -530,11 +549,11 @@ class OrderFacadeIntegrationTest @Autowired constructor(
             val user = signUp()
             val product = saveProduct(price = 10_000, stock = 10)
             val coupon = issuedCoupon(user.loginId)
-            place(user.loginId, product.id to 1, userCouponId = coupon.id)
+            place(user.loginId, product.id to 1, couponId = coupon.couponId)
 
             // act
             val result = assertThrows<CoreException> {
-                place(user.loginId, product.id to 1, userCouponId = coupon.id)
+                place(user.loginId, product.id to 1, couponId = coupon.couponId)
             }
 
             // assert
@@ -552,7 +571,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
 
             // act
             val result = assertThrows<CoreException> {
-                place(user.loginId, product.id to 1, userCouponId = coupon.id)
+                place(user.loginId, product.id to 1, couponId = coupon.couponId)
             }
 
             // assert
@@ -574,7 +593,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
 
             // act
             val result = assertThrows<CoreException> {
-                place(other.loginId, product.id to 1, userCouponId = coupon.id)
+                place(other.loginId, product.id to 1, couponId = coupon.couponId)
             }
 
             // assert
@@ -599,6 +618,91 @@ class OrderFacadeIntegrationTest @Autowired constructor(
                 { assertThat(info.discountAmount).isEqualTo(0L) },
                 { assertThat(info.paidAmount).isEqualTo(info.totalPrice) },
             )
+        }
+    }
+
+    @DisplayName("최소 주문 금액이 걸린 쿠폰으로 주문할 때, ")
+    @Nested
+    inner class MinOrderAmount {
+        @DisplayName("총액이 모자라면 BAD_REQUEST 이고 쿠폰은 소모되지 않는다.")
+        @Test
+        fun throwsBadRequest_whenTotalIsBelowMinimum() {
+            // arrange
+            val user = signUp("tester01")
+            val product = saveProduct(price = 1_000, stock = 100)
+            val policy = saveCoupon(discountValue = 5_000, minOrderAmount = 10_000)
+            couponFacade.issue(user.loginId, policy.id)
+
+            // act — 1,000 원짜리 1 개라 총액 1,000 원이다
+            val result = assertThrows<CoreException> {
+                orderFacade.place(
+                    OrderCommand.Place(
+                        loginId = user.loginId,
+                        items = listOf(OrderCommand.Item(productId = product.id, quantity = Quantity(1))),
+                        couponId = policy.id,
+                    ),
+                )
+            }
+
+            // assert
+            assertAll(
+                { assertThat(result.errorType).isEqualTo(ErrorType.BAD_REQUEST) },
+                // 쿠폰이 살아 있어야 한다. 판정이 소모보다 앞에 있다는 증거다.
+                {
+                    assertThat(
+                        userCouponJpaRepository
+                            .findByCouponIdAndUserIdAndDeletedAtIsNull(policy.id, user.id)?.usedAt,
+                    ).isNull()
+                },
+            )
+        }
+
+        @DisplayName("총액이 최소 주문 금액과 같으면 사용할 수 있다. 경계는 이상이다.")
+        @Test
+        fun succeeds_whenTotalEqualsMinimum() {
+            // arrange
+            val user = signUp("tester02")
+            val product = saveProduct(price = 1_000, stock = 100)
+            val policy = saveCoupon(discountValue = 5_000, minOrderAmount = 10_000)
+            couponFacade.issue(user.loginId, policy.id)
+
+            // act — 1,000 원짜리 10 개라 총액 10,000 원이다
+            val result = orderFacade.place(
+                OrderCommand.Place(
+                    loginId = user.loginId,
+                    items = listOf(OrderCommand.Item(productId = product.id, quantity = Quantity(10))),
+                    couponId = policy.id,
+                ),
+            )
+
+            // assert
+            assertAll(
+                { assertThat(result.totalPrice).isEqualTo(10_000L) },
+                { assertThat(result.discountAmount).isEqualTo(5_000L) },
+                { assertThat(result.paidAmount).isEqualTo(5_000L) },
+            )
+        }
+
+        @DisplayName("최소 주문 금액이 0 이면 어떤 금액이든 사용할 수 있다.")
+        @Test
+        fun succeeds_whenMinimumIsZero() {
+            // arrange
+            val user = signUp("tester03")
+            val product = saveProduct(price = 1_000, stock = 100)
+            val policy = saveCoupon(discountValue = 500, minOrderAmount = 0)
+            couponFacade.issue(user.loginId, policy.id)
+
+            // act
+            val result = orderFacade.place(
+                OrderCommand.Place(
+                    loginId = user.loginId,
+                    items = listOf(OrderCommand.Item(productId = product.id, quantity = Quantity(1))),
+                    couponId = policy.id,
+                ),
+            )
+
+            // assert
+            assertThat(result.discountAmount).isEqualTo(500L)
         }
     }
 }

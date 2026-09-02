@@ -27,7 +27,6 @@ class CouponServiceTest {
     companion object {
         private const val USER_ID = 1L
         private const val COUPON_ID = 10L
-        private const val USER_COUPON_ID = 100L
     }
 
     private val couponRepository = mock<CouponRepository>()
@@ -108,11 +107,11 @@ class CouponServiceTest {
         @Test
         fun returnsTrue_whenOneRowAffected() {
             // arrange
-            whenever(userCouponRepository.use(id = eq(USER_COUPON_ID), userId = eq(USER_ID), now = any()))
+            whenever(userCouponRepository.use(couponId = eq(COUPON_ID), userId = eq(USER_ID), now = any()))
                 .thenReturn(1)
 
             // act
-            val result = couponService.use(userCouponId = USER_COUPON_ID, userId = USER_ID)
+            val result = couponService.use(couponId = COUPON_ID, userId = USER_ID)
 
             // assert
             assertThat(result).isTrue()
@@ -122,11 +121,11 @@ class CouponServiceTest {
         @Test
         fun returnsFalse_whenNoRowAffected() {
             // arrange
-            whenever(userCouponRepository.use(id = eq(USER_COUPON_ID), userId = eq(USER_ID), now = any()))
+            whenever(userCouponRepository.use(couponId = eq(COUPON_ID), userId = eq(USER_ID), now = any()))
                 .thenReturn(0)
 
             // act
-            val result = couponService.use(userCouponId = USER_COUPON_ID, userId = USER_ID)
+            val result = couponService.use(couponId = COUPON_ID, userId = USER_ID)
 
             // assert
             assertThat(result).isFalse()
@@ -137,14 +136,14 @@ class CouponServiceTest {
         fun doesNotLookUpBeforeUse() {
             // arrange
             // 조회는 파사드가 할인 계산을 위해 따로 한다. 서비스의 use 는 전이만 담당한다. (설계 문서 7.2 장)
-            whenever(userCouponRepository.use(id = eq(USER_COUPON_ID), userId = eq(USER_ID), now = any()))
+            whenever(userCouponRepository.use(couponId = eq(COUPON_ID), userId = eq(USER_ID), now = any()))
                 .thenReturn(1)
 
             // act
-            couponService.use(userCouponId = USER_COUPON_ID, userId = USER_ID)
+            couponService.use(couponId = COUPON_ID, userId = USER_ID)
 
             // assert
-            verify(userCouponRepository, never()).findByIdAndUserId(any(), any())
+            verify(userCouponRepository, never()).findByCouponIdAndUserId(any(), any())
         }
     }
 
@@ -156,10 +155,10 @@ class CouponServiceTest {
         fun delegatesToRepository() {
             // arrange
             val issued = UserCouponModel.issue(userId = USER_ID, coupon = policy())
-            whenever(userCouponRepository.findByIdAndUserId(USER_COUPON_ID, USER_ID)).thenReturn(issued)
+            whenever(userCouponRepository.findByCouponIdAndUserId(COUPON_ID, USER_ID)).thenReturn(issued)
 
             // act
-            val result = couponService.getUserCoupon(userCouponId = USER_COUPON_ID, userId = USER_ID)
+            val result = couponService.getUserCoupon(couponId = COUPON_ID, userId = USER_ID)
 
             // assert
             assertThat(result).isSameAs(issued)
@@ -170,10 +169,10 @@ class CouponServiceTest {
         fun returnsNull_whenNotFound() {
             // arrange
             // 404 로 볼지는 유스케이스가 정한다. 도메인 서비스는 "없다" 는 사실만 전달한다.
-            whenever(userCouponRepository.findByIdAndUserId(USER_COUPON_ID, USER_ID)).thenReturn(null)
+            whenever(userCouponRepository.findByCouponIdAndUserId(COUPON_ID, USER_ID)).thenReturn(null)
 
             // act
-            val result = couponService.getUserCoupon(userCouponId = USER_COUPON_ID, userId = USER_ID)
+            val result = couponService.getUserCoupon(couponId = COUPON_ID, userId = USER_ID)
 
             // assert
             assertThat(result).isNull()

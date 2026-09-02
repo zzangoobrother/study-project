@@ -61,7 +61,7 @@ class UserCouponModelPersistenceTest @Autowired constructor(
 
             // act
             val saved = userCouponRepository.save(UserCouponModel.issue(userId = 1L, coupon = coupon))
-            val found = userCouponRepository.findByIdAndUserId(id = saved.id, userId = 1L)
+            val found = userCouponRepository.findByCouponIdAndUserId(couponId = saved.couponId, userId = 1L)
 
             // assert
             assertAll(
@@ -117,12 +117,12 @@ class UserCouponModelPersistenceTest @Autowired constructor(
             val saved = userCouponRepository.save(UserCouponModel.issue(userId = 1L, coupon = savedCoupon()))
 
             // act
-            val affected = userCouponRepository.use(id = saved.id, userId = 1L, now = ZonedDateTime.now())
+            val affected = userCouponRepository.use(couponId = saved.couponId, userId = 1L, now = ZonedDateTime.now())
 
             // assert
             assertAll(
                 { assertThat(affected).isEqualTo(1) },
-                { assertThat(userCouponRepository.findByIdAndUserId(saved.id, 1L)?.usedAt).isNotNull },
+                { assertThat(userCouponRepository.findByCouponIdAndUserId(saved.couponId, 1L)?.usedAt).isNotNull },
             )
         }
 
@@ -132,10 +132,10 @@ class UserCouponModelPersistenceTest @Autowired constructor(
         fun affectsNoRow_whenAlreadyUsed() {
             // arrange
             val saved = userCouponRepository.save(UserCouponModel.issue(userId = 1L, coupon = savedCoupon()))
-            userCouponRepository.use(id = saved.id, userId = 1L, now = ZonedDateTime.now())
+            userCouponRepository.use(couponId = saved.couponId, userId = 1L, now = ZonedDateTime.now())
 
             // act
-            val affected = userCouponRepository.use(id = saved.id, userId = 1L, now = ZonedDateTime.now())
+            val affected = userCouponRepository.use(couponId = saved.couponId, userId = 1L, now = ZonedDateTime.now())
 
             // assert
             assertThat(affected).isEqualTo(0)
@@ -150,7 +150,7 @@ class UserCouponModelPersistenceTest @Autowired constructor(
             val saved = userCouponRepository.save(UserCouponModel.issue(userId = 1L, coupon = expired))
 
             // act
-            val affected = userCouponRepository.use(id = saved.id, userId = 1L, now = ZonedDateTime.now())
+            val affected = userCouponRepository.use(couponId = saved.couponId, userId = 1L, now = ZonedDateTime.now())
 
             // assert
             assertThat(affected).isEqualTo(0)
@@ -164,12 +164,12 @@ class UserCouponModelPersistenceTest @Autowired constructor(
             val saved = userCouponRepository.save(UserCouponModel.issue(userId = 1L, coupon = savedCoupon()))
 
             // act
-            val affected = userCouponRepository.use(id = saved.id, userId = 999L, now = ZonedDateTime.now())
+            val affected = userCouponRepository.use(couponId = saved.couponId, userId = 999L, now = ZonedDateTime.now())
 
             // assert
             assertAll(
                 { assertThat(affected).isEqualTo(0) },
-                { assertThat(userCouponRepository.findByIdAndUserId(saved.id, 1L)?.usedAt).isNull() },
+                { assertThat(userCouponRepository.findByCouponIdAndUserId(saved.couponId, 1L)?.usedAt).isNull() },
             )
         }
     }
