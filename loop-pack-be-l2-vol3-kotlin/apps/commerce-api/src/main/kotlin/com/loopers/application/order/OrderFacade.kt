@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional
  *
  * 쿠폰이 더해지며 이 파사드가 네 애그리거트를 잇는 지점이 되었다.
  * 조율 로직은 useCouponOrThrow 같은 private 메서드로 분리해 place 가 흐름만 읽히도록 유지한다. (설계 문서 7.2 장)
+ * 최소 주문 금액은 조건부 UPDATE 가 아니라 이 파사드가 판정한다. 경합하지 않는 조건이기 때문이다. (2026-09-01 설계 문서 6.3 장)
  */
 @Component
 class OrderFacade(
@@ -115,6 +116,15 @@ class OrderFacade(
                 errorType = ErrorType.NOT_FOUND,
                 customMessage = "[couponId = $couponId] 발급받지 않았거나 존재하지 않는 쿠폰입니다.",
             )
+
+        // 경합하지 않는 조건이라 조건부 UPDATE 의 WHERE 가 아니라 여기서 판정한다. (2026-09-01 설계 문서 6.3 장)
+        // 사용·만료와 달리 400 인 이유는 호출자가 할 수 있는 일이 다르기 때문이다 — 더 담으면 쓸 수 있다.
+        if (totalPrice < coupon.minOrderAmount) {
+            throw CoreException(
+                errorType = ErrorType.BAD_REQUEST,
+                customMessage = "[couponId = $couponId] 최소 주문 금액 ${coupon.minOrderAmount} 원 이상부터 사용할 수 있습니다.",
+            )
+        }
 
         val discountAmount = Price(coupon.discountFor(totalPrice))
 
