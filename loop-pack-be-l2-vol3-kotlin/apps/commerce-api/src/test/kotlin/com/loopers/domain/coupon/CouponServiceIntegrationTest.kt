@@ -14,12 +14,14 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import com.loopers.domain.support.PageQuery
 import com.loopers.infrastructure.coupon.CouponJpaRepository
+import com.loopers.infrastructure.coupon.UserCouponJpaRepository
 import java.time.ZonedDateTime
 
 @SpringBootTest
 class CouponServiceIntegrationTest @Autowired constructor(
     private val couponService: CouponService,
     private val couponJpaRepository: CouponJpaRepository,
+    private val userCouponJpaRepository: UserCouponJpaRepository,
     private val databaseCleanUp: DatabaseCleanUp,
 ) {
     @AfterEach
@@ -95,8 +97,8 @@ class CouponServiceIntegrationTest @Autowired constructor(
             val issued = couponService.issue(userId = 1L, couponId = savedCoupon().id)
 
             // act
-            val first = couponService.use(userCouponId = issued.id, userId = 1L)
-            val second = couponService.use(userCouponId = issued.id, userId = 1L)
+            val first = couponService.use(couponId = issued.couponId, userId = 1L)
+            val second = couponService.use(couponId = issued.couponId, userId = 1L)
 
             // assert
             assertAll(
@@ -113,7 +115,7 @@ class CouponServiceIntegrationTest @Autowired constructor(
             val issued = couponService.issue(userId = 1L, couponId = expired.id)
 
             // act
-            val result = couponService.use(userCouponId = issued.id, userId = 1L)
+            val result = couponService.use(couponId = issued.couponId, userId = 1L)
 
             // assert
             assertThat(result).isFalse()
@@ -141,6 +143,56 @@ class CouponServiceIntegrationTest @Autowired constructor(
                 { assertThat(result.totalElements).isEqualTo(2L) },
                 { assertThat(result.content.first().id).isEqualTo(latest.id) },
             )
+        }
+    }
+
+    @DisplayName("정책 ID 로 쿠폰을 소모할 때, ")
+    @Nested
+    inner class UseByCouponId {
+        @DisplayName("발급받은 회원이면 소모되고 usedAt 이 채워진다.")
+        @Test
+        fun consumesCoupon_whenIssuedToUser() {
+            // arrange
+            val policy = savedCoupon()
+            val issued = couponService.issue(userId = 1L, couponId = policy.id)
+
+            // act
+            val result = couponService.use(couponId = policy.id, userId = 1L)
+
+            // assert
+            assertAll(
+                { assertThat(result).isTrue() },
+                { assertThat(userCouponJpaRepository.findById(issued.id).get().usedAt).isNotNull() },
+            )
+        }
+
+        @DisplayName("두 번째 호출은 false 다. 재사용이 막힌다.")
+        @Test
+        fun returnsFalse_whenUsedTwice() {
+            // arrange
+            val policy = savedCoupon()
+            couponService.issue(userId = 1L, couponId = policy.id)
+            couponService.use(couponId = policy.id, userId = 1L)
+
+            // act
+            val result = couponService.use(couponId = policy.id, userId = 1L)
+
+            // assert
+            assertThat(result).isFalse()
+        }
+
+        @DisplayName("남의 쿠폰이면 false 다. 소유권이 WHERE 절에 걸려 있다.")
+        @Test
+        fun returnsFalse_whenOtherUsersCoupon() {
+            // arrange
+            val policy = savedCoupon()
+            couponService.issue(userId = 1L, couponId = policy.id)
+
+            // act
+            val result = couponService.use(couponId = policy.id, userId = 2L)
+
+            // assert
+            assertThat(result).isFalse()
         }
     }
 }

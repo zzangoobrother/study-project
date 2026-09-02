@@ -104,17 +104,18 @@ class CouponConcurrencyTest @Autowired constructor(
             ),
         )
 
-    private fun place(loginId: LoginId, vararg items: Pair<Long, Int>, userCouponId: Long? = null) =
+    private fun place(loginId: LoginId, vararg items: Pair<Long, Int>, couponId: Long? = null) =
         orderFacade.place(
             OrderCommand.Place(
                 loginId = loginId,
                 items = items.map { OrderCommand.Item(productId = it.first, quantity = Quantity(it.second)) },
-                userCouponId = userCouponId,
+                couponId = couponId,
             ),
         )
 
-    private fun usedAtOf(userCouponId: Long): ZonedDateTime? =
-        userCouponJpaRepository.findById(userCouponId).get().usedAt
+    /** 발급 ID 가 아니라 (회원, 정책) 로 지목한다. 유니크 제약이 대상을 하나로 묶는다. */
+    private fun usedAtOf(userId: Long, couponId: Long): ZonedDateTime? =
+        userCouponJpaRepository.findByCouponIdAndUserIdAndDeletedAtIsNull(couponId = couponId, userId = userId)?.usedAt
 
     private fun userCouponCountOf(userId: Long): Long =
         userCouponJpaRepository.countByUserIdAndDeletedAtIsNull(userId)
@@ -188,11 +189,12 @@ class CouponConcurrencyTest @Autowired constructor(
         // arrange — 재고를 넉넉히 두어 실패 원인이 쿠폰뿐이도록 한다
         val user = signUp("loopers1")
         val product = saveProduct(stock = CONCURRENT_REQUESTS.toLong())
-        val coupon = couponFacade.issue(user.loginId, savedCoupon().id)
+        val policy = savedCoupon()
+        couponFacade.issue(user.loginId, policy.id)
 
         // act
         val failures = runConcurrently(CONCURRENT_REQUESTS) {
-            place(user.loginId, product.id to 1, userCouponId = coupon.id)
+            place(user.loginId, product.id to 1, couponId = policy.id)
         }
 
         // assert
@@ -208,7 +210,7 @@ class CouponConcurrencyTest @Autowired constructor(
                     .containsOnly(ErrorType.CONFLICT)
             },
             {
-                assertThat(usedAtOf(coupon.id))
+                assertThat(usedAtOf(user.id, policy.id))
                     .describedAs("쿠폰은 정확히 한 번만 소모되어야 한다")
                     .isNotNull()
             },
@@ -269,11 +271,12 @@ class CouponConcurrencyTest @Autowired constructor(
         val user = signUp("loopers1")
         val soldOut = saveProduct(name = "품절", stock = 0)
         val inStock = saveProduct(name = "재고있음", stock = 1)
-        val coupon = couponFacade.issue(user.loginId, savedCoupon().id)
+        val policy = savedCoupon()
+        couponFacade.issue(user.loginId, policy.id)
 
         // act — 전부 재고에서 실패한다
         val failures = runConcurrently(CONCURRENT_REQUESTS) {
-            place(user.loginId, soldOut.id to 1, userCouponId = coupon.id)
+            place(user.loginId, soldOut.id to 1, couponId = policy.id)
         }
 
         // assert
@@ -290,13 +293,13 @@ class CouponConcurrencyTest @Autowired constructor(
             },
             { assertThat(orderCount()).describedAs("성사된 주문이 없다").isEqualTo(0L) },
             {
-                assertThat(usedAtOf(coupon.id))
+                assertThat(usedAtOf(user.id, policy.id))
                     .describedAs("쿠폰 소모가 전부 롤백되어야 한다")
                     .isNull()
             },
             {
                 // 롤백이 상태만 되돌린 게 아니라 실제로 다시 쓰이는지 확인한다
-                assertThat(place(user.loginId, inStock.id to 1, userCouponId = coupon.id).discountAmount)
+                assertThat(place(user.loginId, inStock.id to 1, couponId = policy.id).discountAmount)
                     .describedAs("복구된 쿠폰이 실제로 적용되어야 한다")
                     .isEqualTo(1_000L)
             },

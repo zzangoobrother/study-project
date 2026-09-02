@@ -16,16 +16,19 @@ class UserCouponRepositoryImpl(
         return userCouponJpaRepository.save(userCoupon)
     }
 
-    override fun findByIdAndUserId(id: Long, userId: Long): UserCouponModel? {
-        return userCouponJpaRepository.findByIdAndUserIdAndDeletedAtIsNull(id = id, userId = userId)
+    override fun findByCouponIdAndUserId(couponId: Long, userId: Long): UserCouponModel? {
+        return userCouponJpaRepository.findByCouponIdAndUserIdAndDeletedAtIsNull(
+            couponId = couponId,
+            userId = userId,
+        )
     }
 
     override fun existsByUserIdAndCouponId(userId: Long, couponId: Long): Boolean {
         return userCouponJpaRepository.existsByUserIdAndCouponIdAndDeletedAtIsNull(userId = userId, couponId = couponId)
     }
 
-    override fun use(id: Long, userId: Long, now: ZonedDateTime): Int {
-        return userCouponJpaRepository.use(id = id, userId = userId, now = now)
+    override fun use(couponId: Long, userId: Long, now: ZonedDateTime): Int {
+        return userCouponJpaRepository.use(couponId = couponId, userId = userId, now = now)
     }
 
     /** Pageable 은 이 클래스 안에서만 쓰이고, 도메인 계약은 PageQuery / PageResult 로 유지된다. */

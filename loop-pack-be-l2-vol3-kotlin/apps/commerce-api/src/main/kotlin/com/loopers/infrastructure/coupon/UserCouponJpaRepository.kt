@@ -9,7 +9,7 @@ import org.springframework.data.repository.query.Param
 import java.time.ZonedDateTime
 
 interface UserCouponJpaRepository : JpaRepository<UserCouponModel, Long> {
-    fun findByIdAndUserIdAndDeletedAtIsNull(id: Long, userId: Long): UserCouponModel?
+    fun findByCouponIdAndUserIdAndDeletedAtIsNull(couponId: Long, userId: Long): UserCouponModel?
 
     fun existsByUserIdAndCouponIdAndDeletedAtIsNull(userId: Long, couponId: Long): Boolean
 
@@ -17,13 +17,20 @@ interface UserCouponJpaRepository : JpaRepository<UserCouponModel, Long> {
      * 쿠폰 소모. 판정과 전이가 한 문장 안에서 끝난다.
      *
      * 두 요청이 동시에 이 문을 실행해도 행 잠금이 직렬화하므로, 나중에 도착한 쪽은
-     * usedAt IS NULL 을 만족하지 못해 0 행을 받는다. 이것이 재사용 불가의 실체다. (설계 문서 6.2 장)
+     * usedAt IS NULL 을 만족하지 못해 0 행을 받는다. 이것이 재사용 불가의 실체다. (2026-09-01 설계 문서 6.1 장)
+     *
+     * 조회 키가 발급 ID 가 아니라 정책 ID 인데도 대상이 최대 한 행인 이유는
+     * uk_user_coupons_user_coupon (user_id, coupon_id) 유니크 제약 때문이다. (2026-09-01 설계 문서 6.2 장)
+     * 이 제약이 사라지면 이 문장은 여러 행을 한꺼번에 소모시킨다.
      *
      * userId 조건이 WHERE 절에 함께 있는 것이 소유권 검증이다. 애플리케이션이 앞서 확인하지만,
      * 확인과 갱신 사이의 틈을 이 조건이 막는다.
      *
      * expiresAt > :now 는 UserCouponModel.statusAt 의 만료 경계와 같아야 한다.
      * 어긋나면 목록에서 AVAILABLE 로 보인 쿠폰이 주문에서 409 가 나는 구간이 생긴다.
+     *
+     * minOrderAmount 가 이 WHERE 절에 없는 것은 의도적이다. 그 조건은 경합하지 않으므로
+     * 애플리케이션이 판정한다. 여기에 넣으면 0 행의 뜻이 셋으로 늘어 진단만 잃는다. (2026-09-01 설계 문서 6.3 장)
      *
      * clearAutomatically 를 켜는 이유는 직전 선조회로 1차 캐시에 올라온 엔티티가 이 UPDATE 를
      * 반영하지 못한 채 남기 때문이다. flushAutomatically 는 반대 방향의 보호다.
@@ -34,7 +41,7 @@ interface UserCouponJpaRepository : JpaRepository<UserCouponModel, Long> {
         """
         UPDATE UserCouponModel c
            SET c.usedAt = :now, c.updatedAt = :now
-         WHERE c.id = :id
+         WHERE c.couponId = :couponId
            AND c.userId = :userId
            AND c.usedAt IS NULL
            AND c.expiresAt > :now
@@ -42,7 +49,7 @@ interface UserCouponJpaRepository : JpaRepository<UserCouponModel, Long> {
         """,
     )
     fun use(
-        @Param("id") id: Long,
+        @Param("couponId") couponId: Long,
         @Param("userId") userId: Long,
         @Param("now") now: ZonedDateTime,
     ): Int

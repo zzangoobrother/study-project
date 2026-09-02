@@ -10,9 +10,11 @@ class OrderV1Dto {
     /**
      * 주문 요청.
      *
-     * userCouponId 는 발급된 쿠폰의 ID(user_coupons.id)이며 정책 ID 가 아니다.
-     * 발급 URL 의 {couponId} 가 정책을 가리키므로, 둘에 같은 이름을 쓰면 한 이름이 두 가지를 뜻하게 된다.
-     * (설계 문서 4.1 장)
+     * couponId 는 쿠폰 정책의 ID(coupons.id)이며 발급된 쿠폰의 ID 가 아니다.
+     * 발급 URL 의 couponId 와 같은 것을 가리키므로 요구사항 명세 전체에서 이 이름의 뜻이 하나다.
+     * (2026-09-01 설계 문서 4.5 장)
+     *
+     * 어느 발급분을 쓸지는 (회원, 정책) 유니크 제약이 결정한다. 회원은 정책당 한 장만 가질 수 있다.
      *
      * 생략 가능하다. 없으면 할인 없는 주문이 되어 기존 요청이 그대로 동작한다.
      *
@@ -21,7 +23,7 @@ class OrderV1Dto {
      */
     data class PlaceRequest(
         val items: List<Item>,
-        val userCouponId: Long? = null,
+        val couponId: Long? = null,
     ) {
         data class Item(
             val productId: Long,
@@ -31,7 +33,7 @@ class OrderV1Dto {
         fun toCommand(loginId: LoginId): OrderCommand.Place = OrderCommand.Place(
             loginId = loginId,
             items = items.map { OrderCommand.Item(productId = it.productId, quantity = Quantity(it.quantity)) },
-            userCouponId = userCouponId,
+            couponId = couponId,
         )
     }
 

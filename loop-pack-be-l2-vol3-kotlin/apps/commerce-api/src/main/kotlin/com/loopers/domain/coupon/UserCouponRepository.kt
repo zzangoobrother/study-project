@@ -15,17 +15,17 @@ import java.time.ZonedDateTime
 interface UserCouponRepository {
     fun save(userCoupon: UserCouponModel): UserCouponModel
 
-    /** 소유자까지 함께 건다. 남의 쿠폰은 없는 것과 같다. (설계 문서 4.3 장) */
-    fun findByIdAndUserId(id: Long, userId: Long): UserCouponModel?
+    /** 소유자까지 함께 건다. 남의 쿠폰은 없는 것과 같다. (2026-08-30 설계 문서 4.3 장) */
+    fun findByCouponIdAndUserId(couponId: Long, userId: Long): UserCouponModel?
 
     /** 1인 1매 판정용. 최종 방어선은 유니크 제약이다. */
     fun existsByUserIdAndCouponId(userId: Long, couponId: Long): Boolean
 
     /**
      * 쿠폰을 소모한다. 이미 썼거나 만료됐거나 남의 것이면 아무것도 바꾸지 않는다.
-     * 반환값은 영향 행 수다.
+     * 반환값은 영향 행 수다. 정책 ID 로 지목하며, 유니크 제약이 대상을 최대 한 행으로 묶는다.
      */
-    fun use(id: Long, userId: Long, now: ZonedDateTime): Int
+    fun use(couponId: Long, userId: Long, now: ZonedDateTime): Int
 
     /** 최근 발급 순으로 페이징 조회한다. 상태와 무관하게 전부 반환한다. */
     fun findAllByUserId(userId: Long, pageQuery: PageQuery): PageResult<UserCouponModel>

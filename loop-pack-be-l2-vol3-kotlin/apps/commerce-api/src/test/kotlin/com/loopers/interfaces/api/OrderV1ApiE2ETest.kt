@@ -91,14 +91,14 @@ class OrderV1ApiE2ETest @Autowired constructor(
     private fun headers(loginId: String? = LOGIN_ID) =
         HttpHeaders().apply { loginId?.let { set(ApiHeaders.LOGIN_ID, it) } }
 
-    private fun order(vararg items: Pair<Long, Int>, loginId: String? = LOGIN_ID, userCouponId: Long? = null) =
+    private fun order(vararg items: Pair<Long, Int>, loginId: String? = LOGIN_ID, couponId: Long? = null) =
         testRestTemplate.exchange(
             ENDPOINT,
             HttpMethod.POST,
             HttpEntity(
                 OrderV1Dto.PlaceRequest(
                     items = items.map { OrderV1Dto.PlaceRequest.Item(it.first, it.second) },
-                    userCouponId = userCouponId,
+                    couponId = couponId,
                 ),
                 headers(loginId),
             ),
@@ -276,7 +276,7 @@ class OrderV1ApiE2ETest @Autowired constructor(
             val coupon = issueCoupon(discountValue = 5_000)
 
             // act
-            val response = order(product.id to 2, userCouponId = coupon.id)
+            val response = order(product.id to 2, couponId = coupon.couponId)
 
             // assert
             assertAll(
@@ -315,7 +315,7 @@ class OrderV1ApiE2ETest @Autowired constructor(
             val coupon = issueCoupon(loginId = "loopers02")
 
             // act
-            val response = order(product.id to 1, userCouponId = coupon.id)
+            val response = order(product.id to 1, couponId = coupon.couponId)
 
             // assert
             assertThat(response.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
@@ -330,10 +330,10 @@ class OrderV1ApiE2ETest @Autowired constructor(
             val coupon = issueCoupon()
             // 첫 사용이 실제로 성공했는지 단언한다. 이것이 실패해도 아래 단언은 CONFLICT 를 받으므로,
             // 확인하지 않으면 "재사용이 막혔다" 가 아니라 "처음부터 못 썼다" 로도 초록이 된다.
-            assertThat(order(product.id to 1, userCouponId = coupon.id).statusCode).isEqualTo(HttpStatus.OK)
+            assertThat(order(product.id to 1, couponId = coupon.couponId).statusCode).isEqualTo(HttpStatus.OK)
 
             // act
-            val response = order(product.id to 1, userCouponId = coupon.id)
+            val response = order(product.id to 1, couponId = coupon.couponId)
 
             // assert
             assertThat(response.statusCode).isEqualTo(HttpStatus.CONFLICT)
@@ -348,21 +348,21 @@ class OrderV1ApiE2ETest @Autowired constructor(
             val coupon = issueCoupon(expiresAt = ZonedDateTime.now().minusDays(1))
 
             // act
-            val response = order(product.id to 1, userCouponId = coupon.id)
+            val response = order(product.id to 1, couponId = coupon.couponId)
 
             // assert
             assertThat(response.statusCode).isEqualTo(HttpStatus.CONFLICT)
         }
 
-        @DisplayName("userCouponId 가 숫자가 아니면, 400 BAD_REQUEST 를 반환한다.")
+        @DisplayName("couponId 가 숫자가 아니면, 400 BAD_REQUEST 를 반환한다.")
         @Test
-        fun returnsBadRequest_whenUserCouponIdIsNotNumeric() {
+        fun returnsBadRequest_whenCouponIdIsNotNumeric() {
             // arrange
             signUp()
             val product = saveProduct()
             val body = mapOf(
                 "items" to listOf(mapOf("productId" to product.id, "quantity" to 1)),
-                "userCouponId" to "abc",
+                "couponId" to "abc",
             )
 
             // act

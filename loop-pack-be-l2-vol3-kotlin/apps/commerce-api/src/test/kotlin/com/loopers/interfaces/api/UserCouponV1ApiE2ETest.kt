@@ -128,7 +128,7 @@ class UserCouponV1ApiE2ETest @Autowired constructor(
             val available = issue(savedCoupon(name = "유효").id)!!
             val expired = issue(savedCoupon(name = "만료", expiresAt = ZonedDateTime.now().minusDays(1)).id)!!
             val toUse = issue(savedCoupon(name = "사용").id)!!
-            couponService.use(userCouponId = toUse.id, userId = user.id)
+            couponService.use(couponId = toUse.couponId, userId = user.id)
 
             // act
             val response = getUserCoupons()

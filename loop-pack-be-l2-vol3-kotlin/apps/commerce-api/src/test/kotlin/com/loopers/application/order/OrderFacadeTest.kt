@@ -445,7 +445,8 @@ class OrderFacadeTest {
     @DisplayName("쿠폰을 적용해 주문할 때, ")
     @Nested
     inner class PlaceWithCoupon {
-        private val userCouponId = 7L
+        private val policyId = 10L
+        private val issuedCouponId = 7L
 
         private fun availableCoupon(discountValue: Long = 5_000L): UserCouponModel =
             UserCouponModel.issue(
@@ -455,13 +456,13 @@ class OrderFacadeTest {
                     discountType = DiscountType.FIXED,
                     discountValue = discountValue,
                     expiresAt = ZonedDateTime.now().plusDays(30),
-                ).withId(10L),
-            ).withId(userCouponId)
+                ).withId(policyId),
+            ).withId(issuedCouponId)
 
         private fun singleItemCommand() = OrderCommand.Place(
             loginId = LOGIN_ID,
             items = listOf(OrderCommand.Item(productId = 1L, quantity = Quantity(2))),
-            userCouponId = userCouponId,
+            couponId = policyId,
         )
 
         @DisplayName("쿠폰을 재고보다 먼저 소모한다.")
@@ -474,8 +475,8 @@ class OrderFacadeTest {
             val loggedInUser = user()
             whenever(userService.getUser(LOGIN_ID)).thenReturn(loggedInUser)
             whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L)))
-            whenever(couponService.getUserCoupon(eq(userCouponId), eq(USER_ID))).thenReturn(availableCoupon())
-            whenever(couponService.use(eq(userCouponId), eq(USER_ID))).thenReturn(true)
+            whenever(couponService.getUserCoupon(eq(policyId), eq(USER_ID))).thenReturn(availableCoupon())
+            whenever(couponService.use(eq(policyId), eq(USER_ID))).thenReturn(true)
             whenever(productService.decreaseStock(any(), any())).thenReturn(true)
             whenever(orderService.place(any(), any(), any(), anyOrNull())).thenReturn(order())
 
@@ -484,7 +485,7 @@ class OrderFacadeTest {
 
             // assert
             val ordered = inOrder(couponService, productService)
-            ordered.verify(couponService).use(eq(userCouponId), eq(USER_ID))
+            ordered.verify(couponService).use(eq(policyId), eq(USER_ID))
             ordered.verify(productService).decreaseStock(productId = any(), quantity = any())
         }
 
@@ -496,8 +497,8 @@ class OrderFacadeTest {
             val loggedInUser = user()
             whenever(userService.getUser(LOGIN_ID)).thenReturn(loggedInUser)
             whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L)))
-            whenever(couponService.getUserCoupon(eq(userCouponId), eq(USER_ID))).thenReturn(availableCoupon())
-            whenever(couponService.use(eq(userCouponId), eq(USER_ID))).thenReturn(true)
+            whenever(couponService.getUserCoupon(eq(policyId), eq(USER_ID))).thenReturn(availableCoupon())
+            whenever(couponService.use(eq(policyId), eq(USER_ID))).thenReturn(true)
             whenever(productService.decreaseStock(any(), any())).thenReturn(true)
             whenever(orderService.place(any(), any(), any(), anyOrNull())).thenReturn(order())
 
@@ -505,11 +506,12 @@ class OrderFacadeTest {
             orderFacade.place(singleItemCommand())
 
             // assert
+            // usedCouponId 는 정책 ID 가 아니라 발급 ID 다. orders.used_coupon_id 가 발급분을 추적하기 때문이다.
             verify(orderService).place(
                 userId = eq(USER_ID),
                 items = any(),
                 discountAmount = eq(Price(2_000)),
-                usedCouponId = eq(userCouponId),
+                usedCouponId = eq(issuedCouponId),
             )
         }
 
@@ -546,7 +548,7 @@ class OrderFacadeTest {
             val loggedInUser = user()
             whenever(userService.getUser(LOGIN_ID)).thenReturn(loggedInUser)
             whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L)))
-            whenever(couponService.getUserCoupon(eq(userCouponId), eq(USER_ID))).thenReturn(null)
+            whenever(couponService.getUserCoupon(eq(policyId), eq(USER_ID))).thenReturn(null)
 
             // act
             val result = assertThrows<CoreException> { orderFacade.place(singleItemCommand()) }
@@ -566,8 +568,8 @@ class OrderFacadeTest {
             val loggedInUser = user()
             whenever(userService.getUser(LOGIN_ID)).thenReturn(loggedInUser)
             whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L)))
-            whenever(couponService.getUserCoupon(eq(userCouponId), eq(USER_ID))).thenReturn(availableCoupon())
-            whenever(couponService.use(eq(userCouponId), eq(USER_ID))).thenReturn(false)
+            whenever(couponService.getUserCoupon(eq(policyId), eq(USER_ID))).thenReturn(availableCoupon())
+            whenever(couponService.use(eq(policyId), eq(USER_ID))).thenReturn(false)
 
             // act
             val result = assertThrows<CoreException> { orderFacade.place(singleItemCommand()) }

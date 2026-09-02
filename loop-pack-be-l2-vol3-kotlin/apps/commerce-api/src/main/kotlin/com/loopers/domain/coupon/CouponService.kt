@@ -48,20 +48,20 @@ class CouponService(
 
     /** 없거나 남의 쿠폰이면 null 이다. 404 로 볼지는 유스케이스가 정한다. */
     @Transactional(readOnly = true)
-    fun getUserCoupon(userCouponId: Long, userId: Long): UserCouponModel? {
-        return userCouponRepository.findByIdAndUserId(id = userCouponId, userId = userId)
+    fun getUserCoupon(couponId: Long, userId: Long): UserCouponModel? {
+        return userCouponRepository.findByCouponIdAndUserId(couponId = couponId, userId = userId)
     }
 
     /**
      * 쿠폰을 소모한다. 반환값은 "이 호출이 쿠폰을 소모했는가" 다.
      *
-     * false 는 없거나·이미 썼거나·만료됐다는 뜻이며, 셋을 구분하지 않는다. (설계 문서 8.2 장)
-     * 선조회가 없는 것은 등록 경로와 달리 INSERT 가 없어 유니크 제약 위반이 생길 수 없고,
-     * 조건부 UPDATE 한 문장이 판정과 전이를 동시에 끝내기 때문이다.
+     * false 는 없거나·이미 썼거나·만료됐다는 뜻이며, 셋을 구분하지 않는다. (2026-08-30 설계 문서 8.2 장)
+     * 최소 주문 금액 미달은 여기에 포함되지 않는다 — 호출자가 할 수 있는 일이 달라
+     * OrderFacade 가 앞서 400 으로 걸러낸다. (2026-09-01 설계 문서 6.4 장)
      */
     @Transactional
-    fun use(userCouponId: Long, userId: Long): Boolean {
-        return userCouponRepository.use(id = userCouponId, userId = userId, now = ZonedDateTime.now()) == 1
+    fun use(couponId: Long, userId: Long): Boolean {
+        return userCouponRepository.use(couponId = couponId, userId = userId, now = ZonedDateTime.now()) == 1
     }
 
     @Transactional(readOnly = true)

@@ -80,12 +80,12 @@ class OrderFacadeIntegrationTest @Autowired constructor(
         )
     }
 
-    private fun place(loginId: LoginId, vararg items: Pair<Long, Int>, userCouponId: Long? = null) =
+    private fun place(loginId: LoginId, vararg items: Pair<Long, Int>, couponId: Long? = null) =
         orderFacade.place(
             OrderCommand.Place(
                 loginId = loginId,
                 items = items.map { OrderCommand.Item(productId = it.first, quantity = Quantity(it.second)) },
-                userCouponId = userCouponId,
+                couponId = couponId,
             ),
         )
 
@@ -450,7 +450,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
             val coupon = issuedCoupon(user.loginId, value = 5_000)
 
             // act
-            val info = place(user.loginId, product.id to 2, userCouponId = coupon.id)
+            val info = place(user.loginId, product.id to 2, couponId = coupon.couponId)
 
             // assert
             assertAll(
@@ -471,7 +471,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
             val coupon = issuedCoupon(user.loginId, value = 5_000)
 
             // act
-            val info = place(user.loginId, product.id to 1, userCouponId = coupon.id)
+            val info = place(user.loginId, product.id to 1, couponId = coupon.couponId)
 
             // assert
             assertAll(
@@ -495,7 +495,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
 
             // act
             val result = assertThrows<CoreException> {
-                place(user.loginId, product.id to 1, userCouponId = coupon.id)
+                place(user.loginId, product.id to 1, couponId = coupon.couponId)
             }
 
             // assert
@@ -514,7 +514,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
             val coupon = issuedCoupon(user.loginId, type = DiscountType.RATE, value = 10)
 
             // act
-            val info = place(user.loginId, product.id to 2, userCouponId = coupon.id)
+            val info = place(user.loginId, product.id to 2, couponId = coupon.couponId)
 
             // assert
             assertAll(
@@ -530,11 +530,11 @@ class OrderFacadeIntegrationTest @Autowired constructor(
             val user = signUp()
             val product = saveProduct(price = 10_000, stock = 10)
             val coupon = issuedCoupon(user.loginId)
-            place(user.loginId, product.id to 1, userCouponId = coupon.id)
+            place(user.loginId, product.id to 1, couponId = coupon.couponId)
 
             // act
             val result = assertThrows<CoreException> {
-                place(user.loginId, product.id to 1, userCouponId = coupon.id)
+                place(user.loginId, product.id to 1, couponId = coupon.couponId)
             }
 
             // assert
@@ -552,7 +552,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
 
             // act
             val result = assertThrows<CoreException> {
-                place(user.loginId, product.id to 1, userCouponId = coupon.id)
+                place(user.loginId, product.id to 1, couponId = coupon.couponId)
             }
 
             // assert
@@ -574,7 +574,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
 
             // act
             val result = assertThrows<CoreException> {
-                place(other.loginId, product.id to 1, userCouponId = coupon.id)
+                place(other.loginId, product.id to 1, couponId = coupon.couponId)
             }
 
             // assert
