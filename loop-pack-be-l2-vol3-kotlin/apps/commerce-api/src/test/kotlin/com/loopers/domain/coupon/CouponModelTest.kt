@@ -126,4 +126,70 @@ class CouponModelTest {
             assertThat(result.errorType).isEqualTo(ErrorType.BAD_REQUEST)
         }
     }
+
+    @DisplayName("정책을 수정할 때, ")
+    @Nested
+    inner class Change {
+        @DisplayName("전 필드가 새 값으로 교체된다.")
+        @Test
+        fun replacesAllFields() {
+            // arrange
+            val coupon = CouponModel.create(
+                name = CouponName("이전 이름"),
+                discountType = DiscountType.FIXED,
+                discountValue = 5_000,
+                minOrderAmount = 0,
+                expiresAt = ZonedDateTime.now().plusDays(10),
+            )
+            val newExpiresAt = ZonedDateTime.now().plusDays(60)
+
+            // act
+            coupon.change(
+                name = CouponName("새 이름"),
+                discountType = DiscountType.RATE,
+                discountValue = 20,
+                minOrderAmount = 30_000,
+                expiresAt = newExpiresAt,
+            )
+
+            // assert
+            assertAll(
+                { assertThat(coupon.name).isEqualTo(CouponName("새 이름")) },
+                { assertThat(coupon.discountType).isEqualTo(DiscountType.RATE) },
+                { assertThat(coupon.discountValue).isEqualTo(20L) },
+                { assertThat(coupon.minOrderAmount).isEqualTo(30_000L) },
+                { assertThat(coupon.expiresAt).isEqualTo(newExpiresAt) },
+            )
+        }
+
+        @DisplayName("등록과 같은 규칙으로 검증한다. 정률 101 은 거부된다.")
+        @Test
+        fun throwsBadRequest_whenRateExceedsHundred() {
+            // arrange
+            val coupon = CouponModel.create(
+                name = CouponName("이전 이름"),
+                discountType = DiscountType.FIXED,
+                discountValue = 5_000,
+                expiresAt = ZonedDateTime.now().plusDays(10),
+            )
+
+            // act
+            val result = assertThrows<CoreException> {
+                coupon.change(
+                    name = CouponName("새 이름"),
+                    discountType = DiscountType.RATE,
+                    discountValue = 101,
+                    minOrderAmount = 0,
+                    expiresAt = ZonedDateTime.now().plusDays(60),
+                )
+            }
+
+            // assert
+            assertAll(
+                { assertThat(result.errorType).isEqualTo(ErrorType.BAD_REQUEST) },
+                // 검증이 대입보다 앞에 있어야 한다. 실패한 수정이 절반만 반영되면 안 된다.
+                { assertThat(coupon.name).isEqualTo(CouponName("이전 이름")) },
+            )
+        }
+    }
 }

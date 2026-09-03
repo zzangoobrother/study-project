@@ -20,6 +20,7 @@ import java.time.ZonedDateTime
 @SpringBootTest
 class CouponServiceIntegrationTest @Autowired constructor(
     private val couponService: CouponService,
+    private val couponRepository: CouponRepository,
     private val couponJpaRepository: CouponJpaRepository,
     private val userCouponJpaRepository: UserCouponJpaRepository,
     private val databaseCleanUp: DatabaseCleanUp,
@@ -193,6 +194,114 @@ class CouponServiceIntegrationTest @Autowired constructor(
 
             // assert
             assertThat(result).isFalse()
+        }
+    }
+
+    @DisplayName("정책을 관리할 때, ")
+    @Nested
+    inner class ManagePolicy {
+        @DisplayName("등록하면 저장되고 ID 가 부여된다.")
+        @Test
+        fun registersCoupon() {
+            // act
+            val result = couponService.register(
+                CouponCommand.Register(
+                    name = CouponName("신규가입"),
+                    discountType = DiscountType.RATE,
+                    discountValue = 10,
+                    minOrderAmount = 10_000,
+                    expiresAt = ZonedDateTime.now().plusDays(30),
+                ),
+            )
+
+            // assert
+            assertAll(
+                { assertThat(result.id).isPositive() },
+                { assertThat(result.minOrderAmount).isEqualTo(10_000L) },
+            )
+        }
+
+        @DisplayName("없는 정책을 수정하면 NOT_FOUND 다.")
+        @Test
+        fun throwsNotFound_whenChangingMissingCoupon() {
+            // act
+            val result = assertThrows<CoreException> {
+                couponService.change(
+                    CouponCommand.Change(
+                        id = 999_999L,
+                        name = CouponName("새 이름"),
+                        discountType = DiscountType.FIXED,
+                        discountValue = 1_000,
+                        minOrderAmount = 0,
+                        expiresAt = ZonedDateTime.now().plusDays(30),
+                    ),
+                )
+            }
+
+            // assert
+            assertThat(result.errorType).isEqualTo(ErrorType.NOT_FOUND)
+        }
+
+        @DisplayName("삭제된 정책을 수정하면 CONFLICT 다.")
+        @Test
+        fun throwsConflict_whenChangingDeletedCoupon() {
+            // arrange
+            val policy = savedCoupon()
+            couponService.delete(policy.id)
+
+            // act
+            val result = assertThrows<CoreException> {
+                couponService.change(
+                    CouponCommand.Change(
+                        id = policy.id,
+                        name = CouponName("새 이름"),
+                        discountType = DiscountType.FIXED,
+                        discountValue = 1_000,
+                        minOrderAmount = 0,
+                        expiresAt = ZonedDateTime.now().plusDays(30),
+                    ),
+                )
+            }
+
+            // assert
+            assertThat(result.errorType).isEqualTo(ErrorType.CONFLICT)
+        }
+
+        @DisplayName("삭제해도 발급된 쿠폰은 살아남는다. 삭제는 회수가 아니다.")
+        @Test
+        fun keepsIssuedCoupons_whenPolicyDeleted() {
+            // arrange
+            val policy = savedCoupon()
+            couponService.issue(userId = 1L, couponId = policy.id)
+
+            // act
+            couponService.delete(policy.id)
+
+            // assert
+            assertAll(
+                // 정책은 공개 조회에서 사라진다 — 더 이상 발급되지 않는다
+                { assertThat(couponRepository.findById(policy.id)).isNull() },
+                // 발급분은 그대로 쓸 수 있다 (2026-09-01 설계 문서 5.5 장)
+                { assertThat(couponService.use(couponId = policy.id, userId = 1L)).isTrue() },
+            )
+        }
+
+        @DisplayName("어드민 목록은 삭제된 정책도 포함한다.")
+        @Test
+        fun includesDeletedCoupons_inAdminList() {
+            // arrange
+            val alive = savedCoupon()
+            val deleted = savedCoupon()
+            couponService.delete(deleted.id)
+
+            // act
+            val result = couponService.getCouponsIncludingDeleted(PageQuery(page = 0, size = 20))
+
+            // assert
+            assertAll(
+                { assertThat(result.totalElements).isEqualTo(2L) },
+                { assertThat(result.content.map { it.id }).containsExactlyInAnyOrder(alive.id, deleted.id) },
+            )
         }
     }
 }
