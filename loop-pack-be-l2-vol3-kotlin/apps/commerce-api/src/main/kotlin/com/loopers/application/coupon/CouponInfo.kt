@@ -8,19 +8,22 @@ import java.time.ZonedDateTime
 /**
  * 쿠폰 계층 밖으로 전달되는 정보.
  *
- * status 는 저장된 값이 아니라 usedAt 과 expiresAt 에서 계산한 것이다. (설계 문서 5.4 장)
+ * status 는 저장된 값이 아니라 usedAt 과 expiresAt 에서 계산한 것이다. (2026-08-30 설계 문서 5.4 장)
  * 그 사실이 밖으로 드러나지 않도록 여기서 확정해 내보낸다.
+ *
+ * 발급 ID 를 담지 않는다. 주문이 정책 ID 로 쿠폰을 지목하게 되어 클라이언트가 쓸 곳이 없다.
+ * (2026-09-01 설계 문서 4.5 장)
  *
  * name 을 String 으로 펼치는 이유는 OrderInfo 와 같다 — 이 타입을 소비하는 곳이 컨트롤러 하나뿐이고
  * 거기서 다시 값 객체를 풀어야 한다. discountType 과 status 는 값 객체가 아니라 열거형 자체가 값이므로
  * 그대로 내보낸다.
  */
 data class CouponInfo(
-    val id: Long,
     val couponId: Long,
     val name: String,
     val discountType: DiscountType,
     val discountValue: Long,
+    val minOrderAmount: Long,
     val status: CouponStatus,
     val expiresAt: ZonedDateTime,
     val usedAt: ZonedDateTime?,
@@ -32,11 +35,11 @@ data class CouponInfo(
          * 만료 경계에 걸린 두 쿠폰의 상태가 서로 모순되는 조합이 나올 수 있다.
          */
         fun of(model: UserCouponModel, now: ZonedDateTime): CouponInfo = CouponInfo(
-            id = model.id,
             couponId = model.couponId,
             name = model.name.value,
             discountType = model.discountType,
             discountValue = model.discountValue,
+            minOrderAmount = model.minOrderAmount,
             status = model.statusAt(now),
             expiresAt = model.expiresAt,
             usedAt = model.usedAt,
