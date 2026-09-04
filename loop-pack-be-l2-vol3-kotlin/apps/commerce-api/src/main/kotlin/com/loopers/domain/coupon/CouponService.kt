@@ -68,4 +68,79 @@ class CouponService(
     fun getUserCoupons(userId: Long, pageQuery: PageQuery): PageResult<UserCouponModel> {
         return userCouponRepository.findAllByUserId(userId = userId, pageQuery = pageQuery)
     }
+
+    @Transactional
+    fun register(command: CouponCommand.Register): CouponModel {
+        val coupon = CouponModel.create(
+            name = command.name,
+            discountType = command.discountType,
+            discountValue = command.discountValue,
+            minOrderAmount = command.minOrderAmount,
+            expiresAt = command.expiresAt,
+        )
+        return couponRepository.save(coupon)
+    }
+
+    /**
+     * 정책을 수정한다. 더티 체킹으로 반영되므로 save 를 부르지 않는다.
+     *
+     * 삭제된 정책을 409 로 거부하는 것은 ProductService.change 와 같은 판단이다.
+     * 없는 것(404)과 지워진 것(409)을 어드민에서는 구분한다.
+     */
+    @Transactional
+    fun change(command: CouponCommand.Change): CouponModel {
+        val coupon = couponRepository.findByIdIncludingDeleted(command.id)
+            ?: throw CoreException(
+                errorType = ErrorType.NOT_FOUND,
+                customMessage = "[couponId = ${command.id}] 존재하지 않는 쿠폰입니다.",
+            )
+
+        if (coupon.deletedAt != null) {
+            throw CoreException(
+                errorType = ErrorType.CONFLICT,
+                customMessage = "[couponId = ${command.id}] 삭제된 쿠폰은 수정할 수 없습니다.",
+            )
+        }
+
+        coupon.change(
+            name = command.name,
+            discountType = command.discountType,
+            discountValue = command.discountValue,
+            minOrderAmount = command.minOrderAmount,
+            expiresAt = command.expiresAt,
+        )
+
+        return coupon
+    }
+
+    /**
+     * 정책을 소프트 삭제한다. 이미 발급된 쿠폰은 건드리지 않는다. (2026-09-01 설계 문서 5.5 장)
+     *
+     * 연쇄가 없으므로 이 메서드는 단일 애그리거트 연산이다.
+     * 상품 삭제가 좋아요를 연쇄 삭제한 것과 다른 이유는, 그 연쇄의 근거였던 목록 불일치가
+     * 쿠폰에는 생기지 않기 때문이다 — 목록과 주문이 user_coupons 의 스냅샷만 읽는다.
+     *
+     * BaseEntity.delete 가 멱등이라 이미 삭제된 정책에 대해서도 성공한다.
+     */
+    @Transactional
+    fun delete(id: Long) {
+        val coupon = couponRepository.findByIdIncludingDeleted(id)
+            ?: throw CoreException(
+                errorType = ErrorType.NOT_FOUND,
+                customMessage = "[couponId = $id] 존재하지 않는 쿠폰입니다.",
+            )
+
+        coupon.delete()
+    }
+
+    /** 어드민 전용. 삭제된 정책도 200 으로 돌려주며 deletedAt 으로 구분한다. */
+    @Transactional(readOnly = true)
+    fun getCouponIncludingDeleted(id: Long): CouponModel? {
+        return couponRepository.findByIdIncludingDeleted(id)
+    }
+
+    @Transactional(readOnly = true)
+    fun getCouponsIncludingDeleted(pageQuery: PageQuery): PageResult<CouponModel> {
+        return couponRepository.findAllIncludingDeleted(pageQuery)
+    }
 }

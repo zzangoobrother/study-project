@@ -67,12 +67,14 @@ class UserCouponV1ApiE2ETest @Autowired constructor(
 
     private fun savedCoupon(
         name: String = "테스트 쿠폰",
+        minOrderAmount: Long = 0,
         expiresAt: ZonedDateTime = ZonedDateTime.now().plusDays(30),
     ): CouponModel = couponJpaRepository.save(
         CouponModel.create(
             name = CouponName(name),
             discountType = DiscountType.FIXED,
             discountValue = 5_000,
+            minOrderAmount = minOrderAmount,
             expiresAt = expiresAt,
         ),
     )
@@ -134,12 +136,37 @@ class UserCouponV1ApiE2ETest @Autowired constructor(
             val response = getUserCoupons()
 
             // assert
-            val byId = response.body?.data?.content?.associateBy { it.id }
+            // 발급 ID 가 응답에서 빠져 식별자를 couponId(정책 ID) 로 삼는다 — 한 회원 안에서는 유일하다.
+            val byCouponId = response.body?.data?.content?.associateBy { it.couponId }
             assertAll(
                 { assertThat(response.statusCode).isEqualTo(HttpStatus.OK) },
-                { assertThat(byId?.get(available.id)?.status).isEqualTo(CouponStatus.AVAILABLE) },
-                { assertThat(byId?.get(expired.id)?.status).isEqualTo(CouponStatus.EXPIRED) },
-                { assertThat(byId?.get(toUse.id)?.status).isEqualTo(CouponStatus.USED) },
+                { assertThat(byCouponId?.get(available.couponId)?.status).isEqualTo(CouponStatus.AVAILABLE) },
+                { assertThat(byCouponId?.get(expired.couponId)?.status).isEqualTo(CouponStatus.EXPIRED) },
+                { assertThat(byCouponId?.get(toUse.couponId)?.status).isEqualTo(CouponStatus.USED) },
+            )
+        }
+
+        @DisplayName("응답 필드가 요구사항 명세의 이름을 따른다.")
+        @Test
+        fun respondsWithSpecFieldNames() {
+            // arrange
+            signUp()
+            val policy = savedCoupon(minOrderAmount = 10_000)
+            issue(policy.id)
+
+            // act
+            val response = getUserCoupons()
+
+            // assert
+            val first = response.body?.data?.content?.first()
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.OK) },
+                { assertThat(first?.couponId).isEqualTo(policy.id) },
+                { assertThat(first?.type).isEqualTo(DiscountType.FIXED) },
+                { assertThat(first?.value).isEqualTo(5_000L) },
+                { assertThat(first?.minOrderAmount).isEqualTo(10_000L) },
+                { assertThat(first?.expiredAt).isNotNull() },
+                { assertThat(first?.status).isEqualTo(CouponStatus.AVAILABLE) },
             )
         }
 

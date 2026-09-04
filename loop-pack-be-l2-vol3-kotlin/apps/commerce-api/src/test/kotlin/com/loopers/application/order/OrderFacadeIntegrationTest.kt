@@ -127,9 +127,10 @@ class OrderFacadeIntegrationTest @Autowired constructor(
             ),
         )
 
-    private fun statusOf(loginId: LoginId, userCouponId: Long): CouponStatus =
+    // 발급 ID 가 CouponInfo 에서 빠져 정책 ID(couponId) 로 지목한다 — 한 회원 안에서는 유일하다.
+    private fun statusOf(loginId: LoginId, couponId: Long): CouponStatus =
         couponFacade.getUserCoupons(loginId, PageQuery(page = 0, size = 20))
-            .content.first { it.id == userCouponId }.status
+            .content.first { it.couponId == couponId }.status
 
     @DisplayName("주문할 때, ")
     @Nested
@@ -476,7 +477,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
                 { assertThat(info.totalPrice).describedAs("총액은 할인 전 합계다").isEqualTo(20_000L) },
                 { assertThat(info.discountAmount).isEqualTo(5_000L) },
                 { assertThat(info.paidAmount).isEqualTo(15_000L) },
-                { assertThat(statusOf(user.loginId, coupon.id)).isEqualTo(CouponStatus.USED) },
+                { assertThat(statusOf(user.loginId, coupon.couponId)).isEqualTo(CouponStatus.USED) },
             )
         }
 
@@ -520,7 +521,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
             // assert
             assertAll(
                 { assertThat(result.errorType).isEqualTo(ErrorType.CONFLICT) },
-                { assertThat(statusOf(user.loginId, coupon.id)).isEqualTo(CouponStatus.AVAILABLE) },
+                { assertThat(statusOf(user.loginId, coupon.couponId)).isEqualTo(CouponStatus.AVAILABLE) },
             )
         }
 

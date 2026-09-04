@@ -16,8 +16,8 @@ import java.time.ZonedDateTime
 /**
  * 쿠폰 정책. 발급의 원본이다.
  *
- * 읽기 전용에 가깝다 — 시더가 만들고 발급이 읽을 뿐, 갱신하는 경로가 없다.
- * 발급 수량 제한이 없으므로 발급이 이 행을 건드리지도 않는다. (설계 문서 5.1 장)
+ * 어드민이 등록·수정·삭제한다. 발급은 이 행을 읽기만 하며, 발급 수량 제한이 없어 갱신하지 않는다.
+ * (2026-09-01 설계 문서 5.3 장)
  *
  * 주의 — CHECK 제약은 Hibernate 가 DDL 을 생성하는 환경(local·test)에만 적용된다.
  * dev 이상은 ddl-auto 가 none 이므로 스키마에 직접 적용해야 한다.
@@ -67,6 +67,33 @@ class CouponModel private constructor(
     init {
         validateDiscount(discountType, discountValue)
         validateMinOrderAmount(minOrderAmount)
+    }
+
+    /**
+     * 정책을 수정한다. PUT 이므로 전체 교체이며 부분 수정이 아니다.
+     *
+     * 이미 발급된 쿠폰은 영향받지 않는다. 발급 시점의 스냅샷이 그대로 남으므로
+     * 할인율을 낮춰도 기발급자는 이전 조건으로 쓴다. 의도된 동작이다. (2026-09-01 설계 문서 11.2 장)
+     *
+     * 변경 이력을 남기지 않는다. user_coupons 의 스냅샷이 감사 추적의 실질을 담당한다. (2026-09-01 설계 문서 5.4 장)
+     *
+     * 검증을 대입보다 먼저 하는 이유는 실패한 수정이 절반만 반영되는 상태를 막기 위해서다.
+     */
+    fun change(
+        name: CouponName,
+        discountType: DiscountType,
+        discountValue: Long,
+        minOrderAmount: Long,
+        expiresAt: ZonedDateTime,
+    ) {
+        validateDiscount(discountType, discountValue)
+        validateMinOrderAmount(minOrderAmount)
+
+        this.name = name
+        this.discountType = discountType
+        this.discountValue = discountValue
+        this.minOrderAmount = minOrderAmount
+        this.expiresAt = expiresAt
     }
 
     companion object {

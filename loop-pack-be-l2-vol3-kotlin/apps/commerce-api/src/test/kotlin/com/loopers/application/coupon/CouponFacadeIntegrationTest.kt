@@ -157,14 +157,15 @@ class CouponFacadeIntegrationTest @Autowired constructor(
 
             // act
             val result = couponFacade.getUserCoupons(loginId, PageQuery(page = 0, size = 20))
-            val byId = result.content.associateBy { it.id }
+            // 발급 ID 가 CouponInfo 에서 빠져 식별자를 couponId(정책 ID) 로 삼는다 — 한 회원 안에서는 유일하다.
+            val byCouponId = result.content.associateBy { it.couponId }
 
             // assert
             assertAll(
                 { assertThat(result.totalElements).isEqualTo(3L) },
-                { assertThat(byId[available.id]?.status).isEqualTo(CouponStatus.AVAILABLE) },
-                { assertThat(byId[expired.id]?.status).isEqualTo(CouponStatus.EXPIRED) },
-                { assertThat(byId[toUse.id]?.status).isEqualTo(CouponStatus.USED) },
+                { assertThat(byCouponId[available.couponId]?.status).isEqualTo(CouponStatus.AVAILABLE) },
+                { assertThat(byCouponId[expired.couponId]?.status).isEqualTo(CouponStatus.EXPIRED) },
+                { assertThat(byCouponId[toUse.couponId]?.status).isEqualTo(CouponStatus.USED) },
             )
         }
 
