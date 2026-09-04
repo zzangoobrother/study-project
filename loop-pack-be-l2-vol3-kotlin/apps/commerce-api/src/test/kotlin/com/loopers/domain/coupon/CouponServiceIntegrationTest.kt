@@ -221,6 +221,33 @@ class CouponServiceIntegrationTest @Autowired constructor(
             )
         }
 
+        @DisplayName("수정하면 새 값이 저장소에 반영된다.")
+        @Test
+        fun changesSavedCoupon() {
+            // arrange
+            val policy = savedCoupon()
+
+            // act
+            couponService.change(
+                CouponCommand.Change(
+                    id = policy.id,
+                    name = CouponName("새 이름"),
+                    discountType = DiscountType.RATE,
+                    discountValue = 20,
+                    minOrderAmount = 30_000,
+                    expiresAt = ZonedDateTime.now().plusDays(60),
+                ),
+            )
+
+            // assert — 더티 체킹이 실제로 flush 됐는지 재조회로 확인한다. 반환값만 보면 인메모리 상태만 검증하게 된다.
+            val reloaded = couponRepository.findById(policy.id)
+            assertAll(
+                { assertThat(reloaded?.discountType).isEqualTo(DiscountType.RATE) },
+                { assertThat(reloaded?.discountValue).isEqualTo(20L) },
+                { assertThat(reloaded?.minOrderAmount).isEqualTo(30_000L) },
+            )
+        }
+
         @DisplayName("없는 정책을 수정하면 NOT_FOUND 다.")
         @Test
         fun throwsNotFound_whenChangingMissingCoupon() {
