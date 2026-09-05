@@ -148,4 +148,9 @@ class CouponService(
     fun countIssuedByCouponIds(couponIds: List<Long>): Map<Long, Long> {
         return userCouponRepository.countIssuedByCouponIds(couponIds)
     }
+
+    @Transactional(readOnly = true)
+    fun getIssues(couponId: Long, pageQuery: PageQuery): PageResult<UserCouponModel> {
+        return userCouponRepository.findAllByCouponId(couponId = couponId, pageQuery = pageQuery)
+    }
 }

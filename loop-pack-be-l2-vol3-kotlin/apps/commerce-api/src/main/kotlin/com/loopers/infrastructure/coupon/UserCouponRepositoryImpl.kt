@@ -49,4 +49,14 @@ class UserCouponRepositoryImpl(
         return userCouponJpaRepository.countIssuedByCouponIds(couponIds.distinct())
             .associate { it.couponId to it.issuedCount }
     }
+
+    override fun findAllByCouponId(couponId: Long, pageQuery: PageQuery): PageResult<UserCouponModel> {
+        val content = userCouponJpaRepository.findAllByCouponId(
+            couponId = couponId,
+            pageable = PageRequest.of(pageQuery.page, pageQuery.size),
+        )
+        val totalElements = userCouponJpaRepository.countByCouponIdAndDeletedAtIsNull(couponId)
+
+        return PageResult.of(content = content, pageQuery = pageQuery, totalElements = totalElements)
+    }
 }

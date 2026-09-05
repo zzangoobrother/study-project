@@ -86,4 +86,20 @@ interface UserCouponJpaRepository : JpaRepository<UserCouponModel, Long> {
         """,
     )
     fun countIssuedByCouponIds(@Param("couponIds") couponIds: List<Long>): List<CouponIssueCount>
+
+    /**
+     * 어드민 발급 내역. 최근 발급 순이다.
+     *
+     * id DESC 보조 정렬은 같은 시각의 행이 여럿일 때 페이지 경계에서 중복과 누락을 막는다.
+     */
+    @Query(
+        """
+        SELECT c FROM UserCouponModel c
+         WHERE c.couponId = :couponId AND c.deletedAt IS NULL
+         ORDER BY c.createdAt DESC, c.id DESC
+        """,
+    )
+    fun findAllByCouponId(@Param("couponId") couponId: Long, pageable: Pageable): List<UserCouponModel>
+
+    fun countByCouponIdAndDeletedAtIsNull(couponId: Long): Long
 }

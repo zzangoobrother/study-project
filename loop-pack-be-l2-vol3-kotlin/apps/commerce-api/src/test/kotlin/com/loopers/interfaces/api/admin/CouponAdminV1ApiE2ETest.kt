@@ -1,8 +1,18 @@
 package com.loopers.interfaces.api.admin
 
+import com.loopers.application.coupon.CouponFacade
 import com.loopers.domain.coupon.CouponModel
 import com.loopers.domain.coupon.CouponName
+import com.loopers.domain.coupon.CouponStatus
 import com.loopers.domain.coupon.DiscountType
+import com.loopers.domain.user.BirthDate
+import com.loopers.domain.user.Email
+import com.loopers.domain.user.LoginId
+import com.loopers.domain.user.RawPassword
+import com.loopers.domain.user.UserCommand
+import com.loopers.domain.user.UserModel
+import com.loopers.domain.user.UserName
+import com.loopers.domain.user.UserService
 import com.loopers.infrastructure.coupon.CouponJpaRepository
 import com.loopers.interfaces.api.ApiResponse
 import com.loopers.interfaces.api.PageResponse
@@ -30,6 +40,8 @@ import java.time.ZonedDateTime
 class CouponAdminV1ApiE2ETest @Autowired constructor(
     private val testRestTemplate: TestRestTemplate,
     private val couponJpaRepository: CouponJpaRepository,
+    private val userService: UserService,
+    private val couponFacade: CouponFacade,
     private val databaseCleanUp: DatabaseCleanUp,
 ) {
     companion object {
@@ -41,6 +53,18 @@ class CouponAdminV1ApiE2ETest @Autowired constructor(
     private val couponType = object : ParameterizedTypeReference<ApiResponse<CouponAdminV1Dto.CouponResponse>>() {}
     private val pageType =
         object : ParameterizedTypeReference<ApiResponse<PageResponse<CouponAdminV1Dto.CouponResponse>>>() {}
+    private val issueType =
+        object : ParameterizedTypeReference<ApiResponse<PageResponse<CouponAdminV1Dto.IssueResponse>>>() {}
+
+    private fun signUp(loginId: String): UserModel = userService.signUp(
+        UserCommand.SignUp(
+            loginId = LoginId(loginId),
+            password = RawPassword("Loopers1!"),
+            name = UserName("홍길동"),
+            birthDate = BirthDate.from("1990-01-01"),
+            email = Email("$loginId@loopers.com"),
+        ),
+    )
 
     private fun adminHeaders(): HttpHeaders = HttpHeaders().apply {
         set(AdminAuthInterceptor.HEADER_LDAP_ID, ADMIN_ID)
@@ -322,6 +346,53 @@ class CouponAdminV1ApiE2ETest @Autowired constructor(
                 { assertThat(content?.first()?.name).isEqualTo("나중에 만든 정책") },
                 { assertThat(content?.first()?.issuedCount).isEqualTo(0L) },
             )
+        }
+    }
+
+    @DisplayName("GET /api-admin/v1/coupons/{couponId}/issues")
+    @Nested
+    inner class GetIssues {
+        @DisplayName("발급한 회원의 id 와 loginId 가 함께 반환된다.")
+        @Test
+        fun returnsIssuesWithUser() {
+            // arrange
+            val user = signUp("tester01")
+            val coupon = savedCoupon()
+            couponFacade.issue(user.loginId, coupon.id)
+
+            // act
+            val response = testRestTemplate.exchange(
+                "$ENDPOINT/${coupon.id}/issues",
+                HttpMethod.GET,
+                HttpEntity<Any>(adminHeaders()),
+                issueType,
+            )
+
+            // assert
+            val first = response.body?.data?.content?.first()
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.OK) },
+                { assertThat(response.body?.data?.totalElements).isEqualTo(1L) },
+                { assertThat(first?.user?.id).isEqualTo(user.id) },
+                { assertThat(first?.user?.loginId).isEqualTo("tester01") },
+                { assertThat(first?.status).isEqualTo(CouponStatus.AVAILABLE) },
+                { assertThat(first?.usedAt).isNull() },
+            )
+        }
+
+        @DisplayName("없는 정책이면 404 다. 빈 목록이 아니다.")
+        @Test
+        fun returnsNotFound_whenCouponMissing() {
+            // act
+            val response = testRestTemplate.exchange(
+                "$ENDPOINT/999999/issues",
+                HttpMethod.GET,
+                HttpEntity<Any>(adminHeaders()),
+                issueType,
+            )
+
+            // assert
+            assertThat(response.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
         }
     }
 }

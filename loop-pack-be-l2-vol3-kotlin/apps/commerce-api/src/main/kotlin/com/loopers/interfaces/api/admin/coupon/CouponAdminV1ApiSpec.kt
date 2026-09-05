@@ -58,4 +58,18 @@ interface CouponAdminV1ApiSpec {
         @Schema(name = "쿠폰 정책 ID", description = "삭제할 정책의 ID")
         couponId: Long,
     ): ApiResponse<Any>
+
+    @Operation(
+        summary = "쿠폰 발급 내역 조회",
+        description = "그 정책으로 발급된 쿠폰을 최근 발급순으로 조회합니다. " +
+            "삭제된 정책의 내역도 조회할 수 있습니다. 없는 정책이면 404 입니다.",
+    )
+    fun getIssues(
+        @Schema(name = "쿠폰 정책 ID", description = "발급 내역을 조회할 정책의 ID")
+        couponId: Long,
+        @Schema(name = "페이지 번호", description = "0 부터 시작합니다. 생략 시 0")
+        page: Int?,
+        @Schema(name = "페이지 크기", description = "1 이상 100 이하. 생략 시 20")
+        size: Int?,
+    ): ApiResponse<PageResponse<CouponAdminV1Dto.IssueResponse>>
 }
