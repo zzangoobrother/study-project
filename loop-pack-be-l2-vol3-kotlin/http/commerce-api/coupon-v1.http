@@ -1,13 +1,67 @@
 // 위에서 아래로 순서대로 실행하는 것을 전제로 한다.
 //
 // 시드 회원 seeduser01 과 시드 쿠폰 정책 1·2·3 을 전제로 한다. (LocalDataSeeder)
-// 정책 1 = 정액 5,000원(유효) / 정책 2 = 정률 10%(유효) / 정책 3 = 정액 3,000원(이미 만료)
+// 정책 1 = 정액 5,000원(유효, 최소 주문 금액 없음) / 정책 2 = 정률 10%(유효, 최소 주문 금액 20,000원) / 정책 3 = 정액 3,000원(이미 만료)
+//
+// 어드민 구획이 먼저 나오고 대고객 구획이 뒤따른다. 어드민 구획은 정책 4 를 새로 등록·수정·삭제하므로
+// 시드 정책 1·2·3 에는 영향이 없고, 대고객 구획의 실행 순서와 무관하게 항상 먼저 돌려도 안전하다.
 //
 // 주문 할인 확인을 order-v1.http 가 아니라 이 파일에 두는 이유는 발급이 선행되어야 하기 때문이다.
 // 두 파일에 걸치면 실행 순서 의존이 생긴다.
 //
 // 모든 주문 요청은 상품 10 을 쓴다. 상품 10 의 가격이 10,000 원이다 — 정액 5,000원 쿠폰이
 // 총액 상한(minOf)에 걸리지 않고 정상 동작하는 모습을 보려면 저가 상품(예: 상품 1, 1,000원)은 쓸 수 없다.
+
+### 어드민 - 쿠폰 정책 목록. 시드 3건이 최신순으로 나온다
+GET {{commerce-api}}/api-admin/v1/coupons?page=0&size=20
+X-Loopers-LdapId: {{admin-ldap-id}}
+X-Loopers-LdapPw: {{admin-ldap-pw}}
+
+### 어드민 - 인증 헤더 없이 호출하면 401 이다
+GET {{commerce-api}}/api-admin/v1/coupons
+
+### 어드민 - 정책 등록. 응답의 id 를 아래 요청들에 쓴다
+POST {{commerce-api}}/api-admin/v1/coupons
+X-Loopers-LdapId: {{admin-ldap-id}}
+X-Loopers-LdapPw: {{admin-ldap-pw}}
+Content-Type: application/json
+
+{
+  "name": "테스트 정률 20%",
+  "type": "RATE",
+  "value": 20,
+  "minOrderAmount": 30000,
+  "expiredAt": "2026-12-31T23:59:59+09:00"
+}
+
+### 어드민 - 정책 상세. issuedCount 가 0 이다
+GET {{commerce-api}}/api-admin/v1/coupons/4
+X-Loopers-LdapId: {{admin-ldap-id}}
+X-Loopers-LdapPw: {{admin-ldap-pw}}
+
+### 어드민 - 정책 수정. 전 필드가 교체된다
+PUT {{commerce-api}}/api-admin/v1/coupons/4
+X-Loopers-LdapId: {{admin-ldap-id}}
+X-Loopers-LdapPw: {{admin-ldap-pw}}
+Content-Type: application/json
+
+{
+  "name": "테스트 정액 2천원",
+  "type": "FIXED",
+  "value": 2000,
+  "minOrderAmount": 0,
+  "expiredAt": "2026-12-31T23:59:59+09:00"
+}
+
+### 어드민 - 정책 발급 내역
+GET {{commerce-api}}/api-admin/v1/coupons/2/issues?page=0&size=20
+X-Loopers-LdapId: {{admin-ldap-id}}
+X-Loopers-LdapPw: {{admin-ldap-pw}}
+
+### 어드민 - 정책 삭제. 발급된 쿠폰은 회수되지 않는다
+DELETE {{commerce-api}}/api-admin/v1/coupons/4
+X-Loopers-LdapId: {{admin-ldap-id}}
+X-Loopers-LdapPw: {{admin-ldap-pw}}
 
 ### 발급 전 상태 확인 - 내 쿠폰 목록 (빈 목록)
 GET {{commerce-api}}/api/v1/users/me/coupons
@@ -33,7 +87,8 @@ POST {{commerce-api}}/api/v1/coupons/abc/issue
 X-Loopers-LoginId: seeduser01
 
 ### 발급 - 정액 5,000원 쿠폰
-// 이 구간에서 처음으로 상태가 바뀐다. 응답의 id 를 기억해 둔다 — 주문에 넣을 값이다.
+// 이 구간에서 처음으로 상태가 바뀐다. 주문에 넣는 값은 이 정책의 ID(1)로 시더가 고정하므로,
+// 응답에서 id 를 받아올 필요가 없다(Task 5 가 어드민이 아닌 응답에서 id 를 뺐다).
 POST {{commerce-api}}/api/v1/coupons/1/issue
 X-Loopers-LoginId: seeduser01
 
@@ -65,19 +120,19 @@ GET {{commerce-api}}/api/v1/users/me/coupons?size=101
 X-Loopers-LoginId: seeduser01
 
 ### 주문 - 만료된 쿠폰 (409 Conflict, 재고 불변)
-// userCouponId 는 위 목록에서 받은 만료 쿠폰의 id 로 바꾼다.
+// couponId 는 발급받은 쿠폰의 id 가 아니라 쿠폰 정책의 id 다. 정책 3(만료)을 그대로 쓴다.
 POST {{commerce-api}}/api/v1/orders
 X-Loopers-LoginId: seeduser01
 Content-Type: application/json
 
-{ "items": [{ "productId": 10, "quantity": 1 }], "userCouponId": 3 }
+{ "items": [{ "productId": 10, "quantity": 1 }], "couponId": 3 }
 
 ### 주문 - 남의 쿠폰 (404 Not Found)
 POST {{commerce-api}}/api/v1/orders
 X-Loopers-LoginId: seeduser02
 Content-Type: application/json
 
-{ "items": [{ "productId": 10, "quantity": 1 }], "userCouponId": 1 }
+{ "items": [{ "productId": 10, "quantity": 1 }], "couponId": 1 }
 
 ### 주문 - 정액 5,000원 쿠폰 적용
 // 상품 10 의 가격이 10,000 원이다. 총액 20,000 · 할인 5,000 · 결제 15,000 이다.
@@ -85,7 +140,7 @@ POST {{commerce-api}}/api/v1/orders
 X-Loopers-LoginId: seeduser01
 Content-Type: application/json
 
-{ "items": [{ "productId": 10, "quantity": 2 }], "userCouponId": 1 }
+{ "items": [{ "productId": 10, "quantity": 2 }], "couponId": 1 }
 
 ### 주문 - 같은 쿠폰 재사용 (409 Conflict)
 // 재사용 불가의 확인이다.
@@ -93,11 +148,20 @@ POST {{commerce-api}}/api/v1/orders
 X-Loopers-LoginId: seeduser01
 Content-Type: application/json
 
-{ "items": [{ "productId": 10, "quantity": 1 }], "userCouponId": 1 }
+{ "items": [{ "productId": 10, "quantity": 1 }], "couponId": 1 }
 
 ### 확인 - 쓴 쿠폰의 status 가 USED 다
 GET {{commerce-api}}/api/v1/users/me/coupons
 X-Loopers-LoginId: seeduser01
+
+### 주문 - 최소 주문 금액 미달 (400 Bad Request)
+// 정책 2 는 최소 주문 금액 20,000 원이다. 총액 10,000 원이라 미달이며 메시지에 금액이 들어 있다.
+// 실패해도 쿠폰을 소모하지 않으므로 바로 아래 수량 2 요청이 성공한다.
+POST {{commerce-api}}/api/v1/orders
+X-Loopers-LoginId: seeduser01
+Content-Type: application/json
+
+{ "items": [{ "productId": 10, "quantity": 1 }], "couponId": 2 }
 
 ### 주문 - 정률 10% 쿠폰 적용
 // 총액 20,000 · 할인 2,000 · 결제 18,000 이다.
@@ -105,7 +169,7 @@ POST {{commerce-api}}/api/v1/orders
 X-Loopers-LoginId: seeduser01
 Content-Type: application/json
 
-{ "items": [{ "productId": 10, "quantity": 2 }], "userCouponId": 2 }
+{ "items": [{ "productId": 10, "quantity": 2 }], "couponId": 2 }
 
 ### 주문 - 쿠폰 없이 (기존 동작 유지, discountAmount 0)
 POST {{commerce-api}}/api/v1/orders
@@ -115,7 +179,7 @@ Content-Type: application/json
 { "items": [{ "productId": 10, "quantity": 1 }] }
 
 ### 확인 - 주문 목록에 결제액이 다른 3건이 있다
-// 만료 쿠폰(409)·남의 쿠폰(404)·쿠폰 재사용(409) 요청은 실패해 주문을 만들지 않는다.
+// 만료 쿠폰(409)·남의 쿠폰(404)·쿠폰 재사용(409)·최소 주문 금액 미달(400) 요청은 실패해 주문을 만들지 않는다.
 // 성공한 것은 정액 할인(15,000) · 정률 할인(18,000) · 쿠폰 없음(10,000) 셋뿐이다.
 GET {{commerce-api}}/api/v1/orders
 X-Loopers-LoginId: seeduser01
