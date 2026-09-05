@@ -29,4 +29,10 @@ interface UserCouponRepository {
 
     /** 최근 발급 순으로 페이징 조회한다. 상태와 무관하게 전부 반환한다. */
     fun findAllByUserId(userId: Long, pageQuery: PageQuery): PageResult<UserCouponModel>
+
+    /**
+     * 정책별 발급 건수. 발급이 없는 정책은 키가 없으므로 호출자가 0 으로 채운다.
+     * 빈 목록을 넘기면 빈 맵이며 쿼리가 나가지 않는다.
+     */
+    fun countIssuedByCouponIds(couponIds: List<Long>): Map<Long, Long>
 }

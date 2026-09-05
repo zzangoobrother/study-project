@@ -68,4 +68,22 @@ interface UserCouponJpaRepository : JpaRepository<UserCouponModel, Long> {
     fun findAllByUserId(@Param("userId") userId: Long, pageable: Pageable): List<UserCouponModel>
 
     fun countByUserIdAndDeletedAtIsNull(userId: Long): Long
+
+    /**
+     * 정책별 발급 건수를 한 번에 센다.
+     *
+     * 정책마다 세면 페이지 크기만큼 쿼리가 나간다. IN 절과 GROUP BY 로 묶어 1 회로 끝낸다.
+     * (2026-09-01 설계 문서 7.3 장)
+     *
+     * 발급이 0 건인 정책은 결과에 나타나지 않는다. 호출자가 기본값 0 을 채워야 한다.
+     */
+    @Query(
+        """
+        SELECT c.couponId AS couponId, COUNT(c) AS issuedCount
+          FROM UserCouponModel c
+         WHERE c.couponId IN :couponIds AND c.deletedAt IS NULL
+         GROUP BY c.couponId
+        """,
+    )
+    fun countIssuedByCouponIds(@Param("couponIds") couponIds: List<Long>): List<CouponIssueCount>
 }

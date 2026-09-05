@@ -41,4 +41,12 @@ class UserCouponRepositoryImpl(
 
         return PageResult.of(content = content, pageQuery = pageQuery, totalElements = totalElements)
     }
+
+    override fun countIssuedByCouponIds(couponIds: List<Long>): Map<Long, Long> {
+        // 빈 IN 절은 일부 방언에서 문법 오류가 된다. 나갈 이유도 없으므로 앞에서 끊는다.
+        if (couponIds.isEmpty()) return emptyMap()
+
+        return userCouponJpaRepository.countIssuedByCouponIds(couponIds.distinct())
+            .associate { it.couponId to it.issuedCount }
+    }
 }

@@ -143,4 +143,9 @@ class CouponService(
     fun getCouponsIncludingDeleted(pageQuery: PageQuery): PageResult<CouponModel> {
         return couponRepository.findAllIncludingDeleted(pageQuery)
     }
+
+    @Transactional(readOnly = true)
+    fun countIssuedByCouponIds(couponIds: List<Long>): Map<Long, Long> {
+        return userCouponRepository.countIssuedByCouponIds(couponIds)
+    }
 }
