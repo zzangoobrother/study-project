@@ -1,12 +1,25 @@
 package com.loopers.interfaces.api.admin.coupon
 
 import com.loopers.interfaces.api.ApiResponse
+import com.loopers.interfaces.api.PageResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
 
 @Tag(name = "Coupon Admin V1 API", description = "Loopers 쿠폰 정책 어드민 API 입니다. LDAP 인증이 필요합니다.")
 interface CouponAdminV1ApiSpec {
+    @Operation(
+        summary = "쿠폰 정책 목록 조회",
+        description = "등록된 정책을 최신순으로 조회합니다. 삭제된 정책도 포함되며 deleted 로 구분합니다. " +
+            "issuedCount 는 그 정책으로 발급된 쿠폰 수입니다.",
+    )
+    fun getCoupons(
+        @Schema(name = "페이지 번호", description = "0 부터 시작합니다. 생략 시 0")
+        page: Int?,
+        @Schema(name = "페이지 크기", description = "1 이상 100 이하. 생략 시 20")
+        size: Int?,
+    ): ApiResponse<PageResponse<CouponAdminV1Dto.CouponResponse>>
+
     @Operation(
         summary = "쿠폰 정책 상세 조회",
         description = "정책 ID 로 조회합니다. 삭제된 정책도 200 으로 반환하며 deleted 가 true 입니다.",

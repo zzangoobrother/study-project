@@ -5,6 +5,7 @@ import com.loopers.domain.coupon.CouponName
 import com.loopers.domain.coupon.DiscountType
 import com.loopers.infrastructure.coupon.CouponJpaRepository
 import com.loopers.interfaces.api.ApiResponse
+import com.loopers.interfaces.api.PageResponse
 import com.loopers.interfaces.api.admin.coupon.CouponAdminV1Dto
 import com.loopers.support.auth.AdminAuthInterceptor
 import com.loopers.utils.DatabaseCleanUp
@@ -38,6 +39,8 @@ class CouponAdminV1ApiE2ETest @Autowired constructor(
     }
 
     private val couponType = object : ParameterizedTypeReference<ApiResponse<CouponAdminV1Dto.CouponResponse>>() {}
+    private val pageType =
+        object : ParameterizedTypeReference<ApiResponse<PageResponse<CouponAdminV1Dto.CouponResponse>>>() {}
 
     private fun adminHeaders(): HttpHeaders = HttpHeaders().apply {
         set(AdminAuthInterceptor.HEADER_LDAP_ID, ADMIN_ID)
@@ -288,6 +291,36 @@ class CouponAdminV1ApiE2ETest @Autowired constructor(
             assertAll(
                 { assertThat(first.statusCode).isEqualTo(HttpStatus.OK) },
                 { assertThat(second.statusCode).isEqualTo(HttpStatus.OK) },
+            )
+        }
+    }
+
+    @DisplayName("GET /api-admin/v1/coupons")
+    @Nested
+    inner class GetCoupons {
+        @DisplayName("최신순으로 반환하며 발급 건수를 포함한다.")
+        @Test
+        fun returnsCouponsWithIssuedCount() {
+            // arrange
+            savedCoupon(name = "먼저 만든 정책")
+            savedCoupon(name = "나중에 만든 정책")
+
+            // act
+            val response = testRestTemplate.exchange(
+                ENDPOINT,
+                HttpMethod.GET,
+                HttpEntity<Any>(adminHeaders()),
+                pageType,
+            )
+
+            // assert
+            val content = response.body?.data?.content
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.OK) },
+                { assertThat(response.body?.data?.totalElements).isEqualTo(2L) },
+                // 최신순이므로 나중에 만든 것이 앞이다
+                { assertThat(content?.first()?.name).isEqualTo("나중에 만든 정책") },
+                { assertThat(content?.first()?.issuedCount).isEqualTo(0L) },
             )
         }
     }

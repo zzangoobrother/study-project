@@ -3,6 +3,8 @@ package com.loopers.application.admin.coupon
 import com.loopers.domain.coupon.CouponCommand
 import com.loopers.domain.coupon.CouponModel
 import com.loopers.domain.coupon.CouponService
+import com.loopers.domain.support.PageQuery
+import com.loopers.domain.support.PageResult
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
 import org.springframework.stereotype.Component
@@ -23,6 +25,22 @@ class CouponAdminFacade(
     fun register(command: CouponCommand.Register): CouponAdminInfo {
         // 갓 등록한 정책의 발급 건수는 반드시 0 이다. 세러 가지 않는다.
         return CouponAdminInfo.of(couponService.register(command), issuedCount = 0)
+    }
+
+    /**
+     * 어드민 정책 목록. 삭제된 정책도 포함한다.
+     *
+     * 발급 건수를 정책마다 세지 않고 IN 절 한 번으로 묶는다. 정책 수만큼 쿼리가 나가는 것을 막는다.
+     * (2026-09-01 설계 문서 7.3 장)
+     *
+     * GROUP BY 결과에 발급이 0 건인 정책은 나타나지 않으므로 기본값 0 으로 채운다.
+     * 이것을 빠뜨리면 발급 이력이 없는 정책의 issuedCount 가 null 이 되어 응답이 깨진다.
+     */
+    fun getCoupons(pageQuery: PageQuery): PageResult<CouponAdminInfo> {
+        val coupons = couponService.getCouponsIncludingDeleted(pageQuery)
+        val counts = couponService.countIssuedByCouponIds(coupons.content.map { it.id })
+
+        return coupons.map { CouponAdminInfo.of(it, counts[it.id] ?: 0) }
     }
 
     fun getCoupon(id: Long): CouponAdminInfo {
