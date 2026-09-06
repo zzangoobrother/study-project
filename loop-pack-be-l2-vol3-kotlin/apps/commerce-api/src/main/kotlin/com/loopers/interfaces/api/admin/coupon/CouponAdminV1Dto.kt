@@ -1,8 +1,10 @@
 package com.loopers.interfaces.api.admin.coupon
 
 import com.loopers.application.admin.coupon.CouponAdminInfo
+import com.loopers.application.admin.coupon.CouponIssueAdminInfo
 import com.loopers.domain.coupon.CouponCommand
 import com.loopers.domain.coupon.CouponName
+import com.loopers.domain.coupon.CouponStatus
 import com.loopers.domain.coupon.DiscountType
 import java.time.ZonedDateTime
 
@@ -89,5 +91,31 @@ class CouponAdminV1Dto {
             minOrderAmount = minOrderAmount,
             expiresAt = expiredAt,
         )
+    }
+
+    /**
+     * 발급 내역 원소.
+     *
+     * 할인 조건을 담지 않는 이유는 CouponIssueAdminInfo 와 같다.
+     */
+    data class IssueResponse(
+        val user: UserSummary?,
+        val status: CouponStatus,
+        val issuedAt: ZonedDateTime,
+        val usedAt: ZonedDateTime?,
+    ) {
+        data class UserSummary(
+            val id: Long,
+            val loginId: String,
+        )
+
+        companion object {
+            fun from(info: CouponIssueAdminInfo): IssueResponse = IssueResponse(
+                user = info.user?.let { UserSummary(id = it.id, loginId = it.loginId) },
+                status = info.status,
+                issuedAt = info.issuedAt,
+                usedAt = info.usedAt,
+            )
+        }
     }
 }

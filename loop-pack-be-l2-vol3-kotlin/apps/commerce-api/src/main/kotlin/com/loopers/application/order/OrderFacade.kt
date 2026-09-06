@@ -71,6 +71,24 @@ class OrderFacade(
             ?.let { useCouponOrThrow(userId = user.id, couponId = it, totalPrice = totalPrice) }
         val discountAmount = applied?.discountAmount ?: Price.ZERO
 
+        // 주문 저장을 재고 차감보다 앞으로 옮긴다. 부하 테스트로 실측한 병목이 products 배타 락
+        // 보유 시간이었다 — 락을 잡은 채로 orders/order_items INSERT 까지 끝내고 있었다. 재고 차감이
+        // 실패하면 CoreException 이 트랜잭션 전체를 롤백시키므로, 먼저 저장해도 정합성은 그대로다.
+        // (2026-09-06 부하 테스트, 377 TPS 상한의 원인)
+        val order = orderService.place(
+            userId = user.id,
+            items = items,
+            discountAmount = discountAmount,
+            usedCouponId = applied?.userCouponId,
+        )
+
+        // ⚠️ OrderInfo 변환을 재고 차감보다 반드시 먼저 한다. ProductJpaRepository.decreaseStock 이
+        // @Modifying(clearAutomatically = true) 라 호출될 때마다 영속성 컨텍스트를 통째로 비우고,
+        // 그러면 방금 저장한 order 가 detach 된다. 차감을 먼저 하고 order.items 를 나중에 읽으면
+        // 컬렉션 초기화 여부에 따라 실패할 수 있다. "변환은 마지막에 하는 게 자연스럽다" 며
+        // 이 순서를 되돌리면 이 자리가 조용히 깨진다.
+        val orderInfo = OrderInfo.of(order)
+
         // 0 행은 재고 부족과 상품 소멸을 함께 뜻한다. 구분하지 않는다 —
         // 주문할 수 없다는 결론이 같고, 나누려면 다시 조회해야 하는데 그 조회도 같은 경합을 겪는다.
         sorted.forEach { item ->
@@ -82,14 +100,7 @@ class OrderFacade(
             }
         }
 
-        return OrderInfo.of(
-            orderService.place(
-                userId = user.id,
-                items = items,
-                discountAmount = discountAmount,
-                usedCouponId = applied?.userCouponId,
-            ),
-        )
+        return orderInfo
     }
 
     /**

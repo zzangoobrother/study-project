@@ -35,4 +35,7 @@ interface UserCouponRepository {
      * 빈 목록을 넘기면 빈 맵이며 쿼리가 나가지 않는다.
      */
     fun countIssuedByCouponIds(couponIds: List<Long>): Map<Long, Long>
+
+    /** 어드민 발급 내역. 최근 발급 순이며 상태와 무관하게 전부 반환한다. */
+    fun findAllByCouponId(couponId: Long, pageQuery: PageQuery): PageResult<UserCouponModel>
 }

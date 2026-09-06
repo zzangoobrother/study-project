@@ -11,7 +11,6 @@ import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
 import jakarta.persistence.Index
-import jakarta.persistence.JoinColumn
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
 
@@ -24,6 +23,10 @@ import jakarta.persistence.Table
  * 규약을 어기는 것이 아니라 규약이 적용되지 않는 첫 사례다. (설계 문서 5.2 장)
  *
  * 반대로 userId 는 기존 규약 그대로 식별자다. 회원은 주문과 독립적으로 존재하는 다른 애그리거트다.
+ *
+ * FK 소유자는 OrderItemModel 이다(양방향, mappedBy). 이 애그리거트는 여전히 orderItems 를
+ * cascade = ALL + orphanRemoval 로 소유해 생명주기를 지배하지만, 어떤 컬럼이 FK 인지를 정하는
+ * 매핑의 주인은 자식 쪽이다. 이유는 [OrderItemModel.order] KDoc 을 참고한다.
  *
  * 주의 — 목록 조회가 항목을 읽지 않기 때문에 지금은 N+1 이 생길 경로가 없다.
  * 목록 응답에 항목을 추가하는 순간 N+1 이 살아나며, 그때는 fetch join 이나 BatchSize 가 필요하다.
@@ -44,8 +47,7 @@ class OrderModel private constructor(
     var userId: Long = userId
         protected set
 
-    @OneToMany(cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false)
+    @OneToMany(mappedBy = "order", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
     private val orderItems: MutableList<OrderItemModel> = items.toMutableList()
 
     /** 밖으로는 읽기 전용으로만 낸다. 항목은 주문 생성 시점에 확정되고 이후 바뀌지 않는다. */
@@ -101,6 +103,10 @@ class OrderModel private constructor(
         if (discountAmount.value > this.totalPrice.value) {
             throw CoreException(ErrorType.BAD_REQUEST, "할인 금액은 주문 총액을 넘을 수 없습니다.")
         }
+
+        // FK 소유자가 OrderItemModel 로 넘어갔으므로, 그 쪽의 order 를 여기서 채워야 INSERT 문에
+        // order_id 가 실린다. 이 연결을 빠뜨리면 order_id 가 NULL 이라 저장 자체가 실패한다.
+        orderItems.forEach { it.assignOrder(this) }
     }
 
     companion object {

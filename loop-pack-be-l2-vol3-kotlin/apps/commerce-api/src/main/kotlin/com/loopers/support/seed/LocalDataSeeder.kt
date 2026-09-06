@@ -100,18 +100,22 @@ class LocalDataSeeder(
         val now = ZonedDateTime.now()
         val coupons = couponJpaRepository.saveAll(
             listOf(
+                // 최소 주문 금액이 없는 정액 쿠폰. 가장 단순한 경로를 확인한다.
                 CouponModel.create(
                     name = CouponName("신규가입 5천원"),
                     discountType = DiscountType.FIXED,
                     discountValue = 5_000,
                     expiresAt = now.plusDays(30),
                 ),
+                // 최소 주문 금액이 걸린 정률 쿠폰. 미달 400 을 수동으로 확인하는 대상이다.
                 CouponModel.create(
                     name = CouponName("가을맞이 10%"),
                     discountType = DiscountType.RATE,
                     discountValue = 10,
+                    minOrderAmount = 20_000,
                     expiresAt = now.plusDays(30),
                 ),
+                // 이미 만료된 정책. 배치가 없어 EXPIRED 를 확인할 유일한 방법이다.
                 CouponModel.create(
                     name = CouponName("여름 특가 3천원"),
                     discountType = DiscountType.FIXED,

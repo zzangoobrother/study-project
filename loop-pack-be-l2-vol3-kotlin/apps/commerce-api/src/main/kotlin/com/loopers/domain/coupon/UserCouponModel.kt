@@ -31,7 +31,12 @@ import java.time.ZonedDateTime
     uniqueConstraints = [
         UniqueConstraint(name = "uk_user_coupons_user_coupon", columnNames = ["user_id", "coupon_id"]),
     ],
-    indexes = [Index(name = "idx_user_coupons_user_id_created_at", columnList = "user_id, created_at")],
+    indexes = [
+        Index(name = "idx_user_coupons_user_id_created_at", columnList = "user_id, created_at"),
+        // 어드민 발급 내역 조회용. 기존 두 인덱스는 선두가 user_id 라 coupon_id 단독 조회에 쓸 수 없다.
+        // InnoDB 보조 인덱스는 기본 키를 뒤에 달고 있어 id 보조 정렬까지 이 인덱스로 처리된다. (2026-09-01 설계 문서 6.5 장)
+        Index(name = "idx_user_coupons_coupon_id_created_at", columnList = "coupon_id, created_at"),
+    ],
 )
 @Check(name = "ck_user_coupons_discount_value_positive", constraints = "discount_value >= 1")
 @Check(name = "ck_user_coupons_min_order_amount_non_negative", constraints = "min_order_amount >= 0")

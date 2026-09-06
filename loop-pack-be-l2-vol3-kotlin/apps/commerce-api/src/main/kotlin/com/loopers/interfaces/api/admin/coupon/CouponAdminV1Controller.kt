@@ -70,4 +70,15 @@ class CouponAdminV1Controller(
         couponAdminFacade.delete(couponId)
         return ApiResponse.success()
     }
+
+    @GetMapping("/{couponId}/issues")
+    override fun getIssues(
+        @PathVariable couponId: Long,
+        @RequestParam(required = false) page: Int?,
+        @RequestParam(required = false) size: Int?,
+    ): ApiResponse<PageResponse<CouponAdminV1Dto.IssueResponse>> {
+        return couponAdminFacade.getIssues(couponId, PageQuery.of(page, size))
+            .let { result -> PageResponse.from(result) { CouponAdminV1Dto.IssueResponse.from(it) } }
+            .let { ApiResponse.success(it) }
+    }
 }

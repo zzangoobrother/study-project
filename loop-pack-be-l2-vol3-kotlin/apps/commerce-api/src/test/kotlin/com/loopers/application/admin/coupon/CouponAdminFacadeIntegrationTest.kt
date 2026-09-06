@@ -5,6 +5,15 @@ import com.loopers.domain.coupon.CouponName
 import com.loopers.domain.coupon.CouponService
 import com.loopers.domain.coupon.DiscountType
 import com.loopers.domain.support.PageQuery
+import com.loopers.domain.user.BirthDate
+import com.loopers.domain.user.Email
+import com.loopers.domain.user.LoginId
+import com.loopers.domain.user.RawPassword
+import com.loopers.domain.user.UserCommand
+import com.loopers.domain.user.UserModel
+import com.loopers.domain.user.UserName
+import com.loopers.domain.user.UserRepository
+import com.loopers.domain.user.UserService
 import com.loopers.infrastructure.coupon.CouponJpaRepository
 import com.loopers.utils.DatabaseCleanUp
 import org.assertj.core.api.Assertions.assertThat
@@ -24,10 +33,14 @@ import java.time.ZonedDateTime
 class CouponAdminFacadeIntegrationTest @Autowired constructor(
     private val couponAdminFacade: CouponAdminFacade,
     private val couponJpaRepository: CouponJpaRepository,
+    private val userRepository: UserRepository,
     private val databaseCleanUp: DatabaseCleanUp,
 ) {
     @MockitoSpyBean
     private lateinit var couponService: CouponService
+
+    @MockitoSpyBean
+    private lateinit var userService: UserService
 
     @AfterEach
     fun tearDown() {
@@ -42,6 +55,17 @@ class CouponAdminFacadeIntegrationTest @Autowired constructor(
             expiresAt = ZonedDateTime.now().plusDays(30),
         ),
     )
+
+    private fun signUp(loginId: String): UserModel =
+        userService.signUp(
+            UserCommand.SignUp(
+                loginId = LoginId(loginId),
+                password = RawPassword("Loopers1!"),
+                name = UserName("홍길동"),
+                birthDate = BirthDate.from("1990-01-01"),
+                email = Email("$loginId@loopers.com"),
+            ),
+        )
 
     @DisplayName("어드민이 쿠폰 정책 목록을 조회할 때, ")
     @Nested
@@ -87,6 +111,51 @@ class CouponAdminFacadeIntegrationTest @Autowired constructor(
             // 최신순이므로 나중에 만든 것이 앞이다. 이 순서까지 함께 고정된다.
             verify(couponService, times(1))
                 .countIssuedByCouponIds(listOf(third.id, second.id, first.id))
+        }
+    }
+
+    @DisplayName("어드민이 발급 내역을 조회할 때, ")
+    @Nested
+    inner class GetIssues {
+        /**
+         * 탈퇴 회원을 결과에서 빼면 "탈퇴한 회원의 발급" 과 "알 수 없는 회원의 발급" 이 둘 다
+         * user = null 로 뭉개진다. getUsersIncludingDeleted 를 쓰는 이유가 이 테스트다.
+         */
+        @DisplayName("탈퇴한 회원의 발급 내역도 loginId 가 채워진다.")
+        @Test
+        fun fillsLoginId_evenWhenUserIsSoftDeleted() {
+            // arrange
+            val withdrawn = signUp("loopers01")
+            val policy = savedCoupon("정책 1")
+            couponService.issue(userId = withdrawn.id, couponId = policy.id)
+            withdrawn.delete()
+            userRepository.save(withdrawn)
+
+            // act
+            val result = couponAdminFacade.getIssues(policy.id, PageQuery(page = 0, size = 20))
+
+            // assert
+            assertAll(
+                { assertThat(result.content.single().user?.id).isEqualTo(withdrawn.id) },
+                { assertThat(result.content.single().user?.loginId).isEqualTo("loopers01") },
+            )
+        }
+
+        /** loadUsers 가 userId 를 distinct() 하지 않거나 원소마다 조회하면 이 검증이 깨진다. */
+        @DisplayName("발급이 여럿이어도 회원 조회는 1회만 수행된다.")
+        @Test
+        fun queriesUsersOnlyOnce_regardlessOfIssueCount() {
+            // arrange
+            val policy = savedCoupon("정책 1")
+            val users = (1..3).map { signUp("loopers0$it") }
+            users.forEach { couponService.issue(userId = it.id, couponId = policy.id) }
+
+            // act
+            couponAdminFacade.getIssues(policy.id, PageQuery(page = 0, size = 20))
+
+            // assert
+            // 최근 발급 순이라 나중에 발급한 회원이 앞이다
+            verify(userService, times(1)).getUsersIncludingDeleted(users.map { it.id }.reversed())
         }
     }
 }
