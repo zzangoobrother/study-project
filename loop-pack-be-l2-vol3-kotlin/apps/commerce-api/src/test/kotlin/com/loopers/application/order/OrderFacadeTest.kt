@@ -277,6 +277,33 @@ class OrderFacadeTest {
             // assert
             verify(orderService).place(userId = eq(42L), items = any(), discountAmount = any(), usedCouponId = anyOrNull())
         }
+
+        @DisplayName("주문 저장을 재고 차감보다 먼저 한다.")
+        @Test
+        fun placesOrderBeforeDecreasingStock() {
+            // arrange
+            // 부하 테스트로 실측한 병목이 products 배타 락 보유 시간이었다 — 락을 잡은 채로
+            // orders/order_items INSERT 까지 끝내고 있었다. 통합 테스트로는 실제 락 경합 없이 두 호출의
+            // 순서를 관찰할 수 없어, 이 단위 테스트가 사실상 유일하게 이 순서 계약을 고정한다.
+            val loggedInUser = user()
+            whenever(userService.getUser(LOGIN_ID)).thenReturn(loggedInUser)
+            whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L)))
+            whenever(orderService.place(any(), any(), any(), anyOrNull())).thenReturn(order())
+            whenever(productService.decreaseStock(any(), any())).thenReturn(true)
+
+            val command = OrderCommand.Place(
+                loginId = LOGIN_ID,
+                items = listOf(OrderCommand.Item(productId = 1L, quantity = Quantity(1))),
+            )
+
+            // act
+            orderFacade.place(command)
+
+            // assert
+            val ordered = inOrder(orderService, productService)
+            ordered.verify(orderService).place(userId = any(), items = any(), discountAmount = any(), usedCouponId = anyOrNull())
+            ordered.verify(productService).decreaseStock(productId = any(), quantity = any())
+        }
     }
 
     @DisplayName("주문할 때, ")
@@ -290,6 +317,10 @@ class OrderFacadeTest {
             val loggedInUser = user()
             whenever(userService.getUser(LOGIN_ID)).thenReturn(loggedInUser)
             whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L)))
+            // 주문 저장이 재고 차감보다 먼저 실행되므로(부하 테스트 반영), 차감이 실패하는 경로에서도
+            // orderService.place 가 호출된다. 스텁이 없으면 목이 null 을 돌려줘 OrderInfo.of 에서
+            // NullPointerException 이 나 이 테스트의 의도(CONFLICT 검증)를 가린다.
+            whenever(orderService.place(any(), any(), any(), anyOrNull())).thenReturn(order())
             whenever(productService.decreaseStock(any(), any())).thenReturn(false)
 
             val command = OrderCommand.Place(
@@ -304,14 +335,19 @@ class OrderFacadeTest {
             assertThat(result.errorType).isEqualTo(ErrorType.CONFLICT)
         }
 
-        @DisplayName("재고가 모자라면 주문을 저장하지 않는다.")
+        @DisplayName("재고가 모자라도 주문 저장은 이미 호출된 뒤다.")
         @Test
-        fun doesNotPlaceOrder_whenStockIsInsufficient() {
+        fun stillCallsOrderServicePlace_whenStockIsInsufficient() {
             // arrange
-            // user() 를 whenever(...).thenReturn(user()) 처럼 인자 자리에서 바로 부르면 안 된다. (user() KDoc 참고)
+            // 주문 저장을 재고 차감보다 앞으로 옮긴 뒤로 이 테스트의 결론이 뒤집혔다 — 이전에는
+            // "재고가 모자라면 주문을 저장하지 않는다" 였지만, 지금은 저장 호출 자체는 이미 끝난 뒤에
+            // 재고 차감이 실패한다. 실제 DB 반영이 없는 것은 트랜잭션 롤백 덕분인데, 이 단위 테스트는
+            // 목만 쓰고 실제 트랜잭션이 없어 롤백을 관찰할 수 없다 — 그건
+            // OrderFacadeIntegrationTest.throwsConflict_andRollsBackEverything_whenAnyStockIsInsufficient 의 몫이다.
             val loggedInUser = user()
             whenever(userService.getUser(LOGIN_ID)).thenReturn(loggedInUser)
             whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L)))
+            whenever(orderService.place(any(), any(), any(), anyOrNull())).thenReturn(order())
             whenever(productService.decreaseStock(any(), any())).thenReturn(false)
 
             val command = OrderCommand.Place(
@@ -323,7 +359,7 @@ class OrderFacadeTest {
             assertThrows<CoreException> { orderFacade.place(command) }
 
             // assert
-            verify(orderService, never()).place(any(), any(), any(), anyOrNull())
+            verify(orderService).place(userId = any(), items = any(), discountAmount = any(), usedCouponId = anyOrNull())
         }
 
         @DisplayName("앞 항목의 차감이 실패하면 뒤 항목은 차감하지 않는다.")
@@ -334,6 +370,8 @@ class OrderFacadeTest {
             val loggedInUser = user()
             whenever(userService.getUser(LOGIN_ID)).thenReturn(loggedInUser)
             whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L), product(2L)))
+            // 주문 저장이 재고 차감보다 먼저 실행되므로 이 테스트에서도 스텁이 필요하다. (throwsConflict_whenStockIsInsufficient 주석 참고)
+            whenever(orderService.place(any(), any(), any(), anyOrNull())).thenReturn(order())
             whenever(productService.decreaseStock(productId = eq(1L), quantity = any())).thenReturn(false)
 
             val command = OrderCommand.Place(

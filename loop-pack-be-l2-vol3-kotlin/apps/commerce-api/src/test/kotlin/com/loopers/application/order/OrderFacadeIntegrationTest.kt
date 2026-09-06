@@ -28,6 +28,7 @@ import com.loopers.domain.user.UserName
 import com.loopers.domain.user.UserService
 import com.loopers.infrastructure.coupon.CouponJpaRepository
 import com.loopers.infrastructure.coupon.UserCouponJpaRepository
+import com.loopers.infrastructure.order.OrderJpaRepository
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
 import com.loopers.utils.DatabaseCleanUp
@@ -52,6 +53,7 @@ class OrderFacadeIntegrationTest @Autowired constructor(
     private val couponFacade: CouponFacade,
     private val couponJpaRepository: CouponJpaRepository,
     private val userCouponJpaRepository: UserCouponJpaRepository,
+    private val orderJpaRepository: OrderJpaRepository,
     private val databaseCleanUp: DatabaseCleanUp,
 ) {
     @AfterEach
@@ -239,6 +241,12 @@ class OrderFacadeIntegrationTest @Autowired constructor(
                 { assertThat(result.errorType).isEqualTo(ErrorType.CONFLICT) },
                 { assertThat(stockOf(enough.id)).isEqualTo(10L) },
                 { assertThat(stockOf(notEnough.id)).isEqualTo(1L) },
+                {
+                    // 주문 저장을 재고 차감보다 앞으로 옮긴 뒤로(2026-09-06 부하 테스트) 이 단언이 롤백의 유일한 방어선이 되었다.
+                    // 예전에는 재고 차감이 먼저라 실패하면 주문 저장에 도달조차 하지 않았지만, 지금은 이미 INSERT 된 주문 행을
+                    // 트랜잭션 롤백이 실제로 걷어내야 한다. 이 단언을 지우면 그 회귀를 잡을 테스트가 남지 않는다.
+                    assertThat(orderJpaRepository.count()).describedAs("롤백되어 주문 행이 남지 않아야 한다").isEqualTo(0L)
+                },
             )
         }
 
