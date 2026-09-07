@@ -38,3 +38,8 @@ out/
 
 ### Kotlin ###
 .kotlin
+
+### 부하 테스트 산출물 ###
+# k6 의 handleSummary 가 실행마다 남기는 요약 JSON. 특정 머신·특정 시점의 출력이라
+# 커밋해 두면 다음 측정 결과와 뒤섞인다. 재현에 필요한 것은 이 출력이 아니라 loadtest/ab.js 다.
+loadtest/results/
