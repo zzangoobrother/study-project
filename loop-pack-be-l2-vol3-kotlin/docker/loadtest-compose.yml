@@ -1,0 +1,154 @@
+# 주문 처리량 A/B 부하 테스트 전용 compose.
+#
+# infra-compose.yml 을 재사용하지 않고 새로 만든 이유는 두 가지다.
+# 1) infra-compose 는 개발 편의(Kafka, kafka-ui, 여러 볼륨)까지 다 띄우는데,
+#    부하 측정은 "주문 경로가 쓰는 것만" 있어야 자원 배분(CPU/메모리)이 설계 문서 3.1 장 수치와 맞는다.
+# 2) infra-compose 의 mysql 서비스에는 헬스체크·자원 제한이 없다. 여기서 새로 정의해야 한다.
+# (설계 문서: docs/superpowers/specs/2026-09-06-order-throughput-design.md 3 장)
+#
+# `version:` 필드를 두지 않는다. 최신 Docker Compose(v2) 는 이 필드가 없으면 최신 Compose Specification 으로
+# 해석하고, 있으면 obsolete 경고를 낸다. 아래 최상위 `cpus` / `mem_limit` 키를 쓰기 위한 것이므로 자세한 이유는
+# commerce-api 서비스 주석을 참고.
+#
+# `name:` 을 명시한다. Compose 프로젝트명 기본값은 "compose 파일이 들어있는 디렉터리명"이라
+# infra-compose.yml 과 이 파일이 같은 docker/ 디렉터리에 있으면 둘 다 기본 프로젝트명이 "docker"로
+# 겹친다 — 그러면 이 파일의 mysql 서비스가 infra-compose.yml 의 mysql 서비스와 같은 프로젝트로
+# 묶여 컨테이너가 뒤섞일 수 있다. 이름을 고정해 완전히 분리된 프로젝트로 만든다.
+# 단, 호스트 포트(3306, 6379)는 프로젝트가 달라도 OS 레벨에서 겹치므로 infra-compose.yml 을 먼저
+# 내려야 한다 — loadtest/README.md 참고.
+name: loopers-loadtest
+
+services:
+  mysql:
+    image: mysql:8.0
+    cpus: "2.0" # Docker Desktop VM 5 CPU 중 2 를 MySQL 에 배분 (설계 문서 3.1 장)
+    mem_limit: 2g
+    ports:
+      - "3306:3306" # 재고 주입 SQL(prepare.sql)을 호스트에서 실행하기 위해 노출한다.
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_USER=application
+      - MYSQL_PASSWORD=application
+      - MYSQL_DATABASE=loopers
+      # 아래 두 값은 infra-compose.yml 과 동일하게 맞춘 것이다(문자셋 차이가 A/B 변수가 되지 않도록).
+      # 다만 공식 mysql 이미지 entrypoint 가 이 env 를 실제로 반영하는지는 확인하지 못했다 — 그래서
+      # 아래 command 에 --character-set-server / --collation-server 를 별도로 명시해 이중으로 보장한다.
+      - MYSQL_CHARACTER_SET=utf8mb4
+      - MYSQL_COLLATE=utf8mb4_general_ci
+    command:
+      # innodb_buffer_pool_size=1G: 컨테이너 메모리 2g 중 절반을 버퍼풀에 준다(설계 문서 3.1 장 자원 배분).
+      # 11.1 장에 따라 durability 관련 값(innodb_flush_log_at_trx_commit, sync_binlog)은 건드리지 않는다 —
+      # 이 하네스는 그 기본값을 그대로 둔 채로 재는 것이 목적이다.
+      - --innodb_buffer_pool_size=1G
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+    volumes:
+      - loadtest-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  redis-master:
+    image: redis:7.0
+    # 주문 경로는 Redis 를 쓰지 않는다. 앱 기동(RedisProperties 바인딩)에만 필요하므로 자원을 배분하지 않는다.
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", ""]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6379", "PING"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+
+  redis-readonly:
+    image: redis:7.0
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    command: ["redis-server", "--save", "", "--replicaof", "redis-master", "6379", "--replica-read-only", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6379", "PING"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+
+  commerce-api:
+    # Dockerfile 을 만들지 않고 공식 JRE 이미지를 그대로 쓴다.
+    # 개선 전/후 두 jar 를 "완전히 동일한 런타임 이미지"에서 돌려야 A/B 차이가 jar 하나로 좁혀진다.
+    # 이미지를 새로 빌드하면(Dockerfile) 빌드 시점마다 베이스 레이어 캐시·타임스탬프가 달라질 여지가 생기고,
+    # 그 자체가 측정에 섞여 들어오는 변수가 된다. jar 를 볼륨으로 갈아 끼우면 그 변수가 사라진다.
+    image: eclipse-temurin:21-jre
+    cpus: "3.0" # Docker Desktop VM 5 CPU 중 3 을 앱에 배분. mysql(2) + app(3) = VM 전량(설계 문서 3.1 장)
+    mem_limit: 2g
+    # ⚠️ compose v2 함정: `deploy.resources.limits` 는 Swarm 전용이라 `docker compose up` 에서는 조용히 무시된다
+    # (에러도, 경고도 없다). 반드시 위처럼 최상위 서비스 키(cpus / mem_limit)로 줘야 실제로 컨테이너에 적용된다.
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+      redis-readonly:
+        condition: service_healthy
+    ports:
+      - "8080:8080" # k6 는 호스트에서 돈다.
+    environment:
+      # local 프로필은 jdbc-url 이 localhost 로 하드코딩돼 있다(modules/jpa/src/main/resources/jpa.yml).
+      # 커맨드라인 인자가 프로필 YAML 보다 우선순위가 높으므로, JAVA_TOOL_OPTIONS 가 아니라
+      # `java -jar ... --key=value` 형태로 command 에서 직접 덮어쓴다. 아래 command 참고.
+      TZ: UTC # 시간대가 측정에 끼어들지 않도록 컨테이너 로케일/시간대를 고정한다.
+    volumes:
+      # apps/commerce-api/build/libs 를 그대로 마운트하고, 어느 jar 를 실행할지는 APP_JAR 로 고른다.
+      # 예: APP_JAR=commerce-api-before-1ddfa77.jar / APP_JAR=commerce-api-after-5d8249c.jar
+      - ../apps/commerce-api/build/libs:/app/libs:ro
+    command:
+      - java
+      # -Xms1g -Xmx1g: 힙을 고정한다. -Xmx 만 주면 힙이 커지는 과정에서 GC 특성이 달라져
+      # A/B 사이에 "얼마나 워밍업됐는가"가 섞여 들어온다. 시작부터 최종 크기로 고정해 그 변수를 없앤다.
+      - -Xms1g
+      - -Xmx1g
+      - -jar
+      - /app/libs/${APP_JAR}
+      - --spring.profiles.active=local
+      # ⚠️ show-sql 을 반드시 끈다. local 프로필은 이 값이 true 다(modules/jpa/src/main/resources/jpa.yml).
+      # 켜 두면 Hibernate 가 쿼리마다 한 줄씩 stdout 에 찍고, 그 줄이 Docker json-file 로그 드라이버를
+      # 거쳐 디스크까지 간다. 주문 1건이 쿼리 6~7개이므로 1,000 TPS 면 초당 7,000 줄이다.
+      # 실제로 이 값을 켠 채 재 봤더니 그 로깅이 병목을 지배해, 재고 차감 락이 아니라 로깅 처리량을
+      # 재고 있었다. 부하 테스트에서 재려는 대상과 무관한 고정 비용은 먼저 걷어내야 한다.
+      - --spring.jpa.show-sql=false
+      # local 프로필의 하드코딩 값을 컨테이너 네트워크 주소로 덮어쓴다.
+      - --datasource.mysql-jpa.main.jdbc-url=jdbc:mysql://mysql:3306/loopers
+      - --datasource.mysql-jpa.main.username=application
+      - --datasource.mysql-jpa.main.password=application
+      - --datasource.redis.master.host=redis-master
+      - --datasource.redis.master.port=6379
+      - --datasource.redis.replicas[0].host=redis-readonly
+      - --datasource.redis.replicas[0].port=6379
+    healthcheck:
+      # actuator 는 8080 이 아니라 8081 이다 (supports/monitoring/src/main/resources/monitoring.yml 의
+      # management.server.port: 8081). 8080 으로 헬스체크하면 애초에 그 포트에 actuator 가 없어 항상 실패한다.
+      #
+      # 이 이미지에는 curl/wget 이 없다(용량을 줄인 JRE 전용 이미지). bash 는 있으므로 /dev/tcp 로 직접 소켓을
+      # 열어 HTTP 요청을 흉내 낸다. CMD(exec 형식)로 bash 를 직접 실행해 중간에 /bin/sh 가 한 번 더 끼는 것을
+      # 피한다 — 그래야 따옴표 이스케이프가 한 겹으로 끝난다.
+      test:
+        - "CMD"
+        - "bash"
+        - "-c"
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/8081 &&
+          printf 'GET /actuator/health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '"status":"UP"' <&3
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 20s
+
+volumes:
+  loadtest-mysql-data:
+
+networks:
+  default:
+    driver: bridge
