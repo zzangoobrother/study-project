@@ -149,8 +149,14 @@ APP_JAR=commerce-api-after-5d8249c.jar \
       before/after 양쪽에 정확히 같은 값으로 준다. `LABEL` 만 다르게 한다.
 - [ ] **CPU/메모리 배분 동일** — `docker/loadtest-compose.yml` 자체를 수정하지 않는 한 자동으로 지켜진다.
 - [ ] **409 없음** — 콘솔 요약의 상태코드 분포에서 409=0 인지 확인한다. 하나라도 섞이면 무효.
-- [ ] **dropped_iterations = 0** — 0 이 아니면 VU 부족으로 목표 TPS 를 못 채운 것이다. 서버 한계가
-      아니라 k6 자체의 한계를 잰 것이니 `ab.js` 의 `MAX_EXPECTED_LATENCY_SEC` 를 올리고 재측정한다.
+- [ ] **dropped_iterations — 구간에 따라 다르게 본다** (설계 문서 3.5 장 "이 가드는 틀렸다").
+      드롭은 결함 신호가 아니라 도착률 부족분 그 자체다. 목표 TPS × (WARMUP+DURATION) 에서 실제
+      요청 수를 뺀 값과 거의 같다. 따라서 포화시키면 반드시 0 이 아니게 되고, 상한 측정은 포화가 목적이다.
+  - **포화 이전**(달성 = 목표): `dropped = 0` 이어야 한다. 목표를 채웠는데 드롭이 있으면 계측이 어긋난 것이다.
+  - **포화 이후**(달성 < 목표): 드롭은 정상. 대신 **VU 여유**를 확인한다 —
+    `달성 TPS × 평균 응답 시간(초)` 이 `maxVUs`(= `TARGET_TPS × MAX_EXPECTED_LATENCY_SEC`) 보다
+    충분히 작아야 한다. 근접하거나 넘으면 서버가 아니라 하네스를 잰 것이니
+    `MAX_EXPECTED_LATENCY_SEC` 를 올리고 재측정한다.
 
 ## 알려진 제약
 
