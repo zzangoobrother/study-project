@@ -167,7 +167,7 @@ JUnit 5 · AssertJ · Mockito / Testcontainers
 이 태스크에는 새 동작이 없다. TDD 사이클이 성립하지 않으므로 **기존 스위트가 회귀 방지선**이며,
 "옛 이름이 하나도 남지 않았다" 를 grep 으로 단언한다.
 
-- [ ] **Step 1: 영향 범위를 확정한다**
+- [x] **Step 1: 영향 범위를 확정한다**
 
 ```bash
 cd /Users/choeseongang/IdeaProjects/study-project/loop-pack-be-l2-vol3-kotlin
@@ -176,7 +176,7 @@ grep -rln 'FIXED_AMOUNT\|PERCENTAGE' apps/commerce-api/src http/ | sort
 
 기대: 파일 목록이 출력된다. 이 목록을 그대로 보관한다 — Step 4 의 검증 대상이다.
 
-- [ ] **Step 2: 열거형을 개명한다**
+- [x] **Step 2: 열거형을 개명한다**
 
 `domain/coupon/DiscountType.kt` 의 상수 이름만 바꾼다. 계산식과 `calculate` 의 상한 규칙은 그대로다.
 
@@ -197,7 +197,7 @@ enum class DiscountType {
 
 KDoc 의 `MAX_PERCENTAGE` 언급은 상수명이 아니라 `CouponModel` 의 것이므로 건드리지 않는다.
 
-- [ ] **Step 3: 나머지 참조를 일괄 치환한다**
+- [x] **Step 3: 나머지 참조를 일괄 치환한다**
 
 ```bash
 cd /Users/choeseongang/IdeaProjects/study-project/loop-pack-be-l2-vol3-kotlin
@@ -211,7 +211,7 @@ grep -rl 'FIXED_AMOUNT\|PERCENTAGE' apps/commerce-api/src http/ \
 주의: `MAX_PERCENTAGE` 는 `\bPERCENTAGE\b` 의 단어 경계에 걸리지 않으므로 보존된다.
 치환 후 반드시 다음 단계로 확인한다.
 
-- [ ] **Step 4: 옛 이름이 남지 않았는지 확인한다**
+- [x] **Step 4: 옛 이름이 남지 않았는지 확인한다**
 
 ```bash
 cd /Users/choeseongang/IdeaProjects/study-project/loop-pack-be-l2-vol3-kotlin
@@ -228,7 +228,7 @@ grep -rn 'MAX_PERCENTAGE' apps/commerce-api/src
 
 기대: `CouponModel.kt` 와 `CouponModelTest.kt` 에 그대로 남아 있다.
 
-- [ ] **Step 5: 컴파일과 린트를 확인한다**
+- [x] **Step 5: 컴파일과 린트를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:compileKotlin :apps:commerce-api:compileTestKotlin :apps:commerce-api:ktlintCheck
@@ -236,7 +236,7 @@ grep -rn 'MAX_PERCENTAGE' apps/commerce-api/src
 
 기대: BUILD SUCCESSFUL
 
-- [ ] **Step 6: 전체 스위트를 실행한다**
+- [x] **Step 6: 전체 스위트를 실행한다**
 
 ```bash
 ./gradlew :apps:commerce-api:cleanTest :apps:commerce-api:test
@@ -245,7 +245,7 @@ grep -rn 'MAX_PERCENTAGE' apps/commerce-api/src
 기대: **712 tests / 0 failures.** 개명뿐이므로 테스트 수가 변하지 않아야 한다.
 수가 달라졌다면 치환이 테스트 메서드 이름을 건드린 것이다 — Step 3 의 diff 를 확인한다.
 
-- [ ] **Step 7: 커밋**
+- [x] **Step 7: 커밋**
 
 ```bash
 git add apps/commerce-api/src http/
@@ -279,7 +279,7 @@ git commit -m "refactor : 할인 타입 상수를 요구사항 명세의 FIXED /
 두 테이블 모두에 두는 이유는 정책 삭제가 발급분을 건드리지 않기 때문이다 (2026-09-01 설계 문서 5.5 장).
 정책 행이 사라져도 쿠폰이 살아남으므로 조건을 스스로 들고 있어야 한다.
 
-- [ ] **Step 1: 실패하는 테스트를 쓴다 — `CouponModelTest`**
+- [x] **Step 1: 실패하는 테스트를 쓴다 — `CouponModelTest`**
 
 `test/.../domain/coupon/CouponModelTest.kt` 에 `@Nested` 클래스를 추가한다.
 
@@ -346,7 +346,7 @@ import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
 ```
 
-- [ ] **Step 2: 실패를 확인한다**
+- [x] **Step 2: 실패를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.domain.coupon.CouponModelTest'
@@ -355,7 +355,7 @@ import com.loopers.support.error.ErrorType
 기대: 컴파일 실패 — `No parameter with name 'minOrderAmount' found` 또는
 `Unresolved reference: minOrderAmount`
 
-- [ ] **Step 3: `CouponModel` 에 필드를 더한다**
+- [x] **Step 3: `CouponModel` 에 필드를 더한다**
 
 생성자 파라미터·프로퍼티·`create`·`init` 검증·`@Check` 제약을 함께 바꾼다.
 
@@ -430,7 +430,7 @@ companion 에 검증을 더한다. `validateDiscount` 와 나란히 둔다.
         }
 ```
 
-- [ ] **Step 4: 통과를 확인한다**
+- [x] **Step 4: 통과를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.domain.coupon.CouponModelTest'
@@ -438,7 +438,7 @@ companion 에 검증을 더한다. `validateDiscount` 와 나란히 둔다.
 
 기대: PASS
 
-- [ ] **Step 5: 실패하는 테스트를 쓴다 — `UserCouponModelTest` 스냅샷**
+- [x] **Step 5: 실패하는 테스트를 쓴다 — `UserCouponModelTest` 스냅샷**
 
 ```kotlin
 @DisplayName("최소 주문 금액도 스냅샷으로 복사된다.")
@@ -461,7 +461,7 @@ fun copiesMinOrderAmount_whenIssued() {
 }
 ```
 
-- [ ] **Step 6: 실패를 확인한다**
+- [x] **Step 6: 실패를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.domain.coupon.UserCouponModelTest'
@@ -469,7 +469,7 @@ fun copiesMinOrderAmount_whenIssued() {
 
 기대: 컴파일 실패 — `Unresolved reference: minOrderAmount`
 
-- [ ] **Step 7: `UserCouponModel` 에 스냅샷 필드를 더한다**
+- [x] **Step 7: `UserCouponModel` 에 스냅샷 필드를 더한다**
 
 생성자·프로퍼티·`init`·`issue`·`@Check` 를 함께 바꾼다.
 
@@ -523,7 +523,7 @@ class UserCouponModel private constructor(
         )
 ```
 
-- [ ] **Step 8: 통과를 확인하고 영속화 테스트도 본다**
+- [x] **Step 8: 통과를 확인하고 영속화 테스트도 본다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.domain.coupon.*'
@@ -532,7 +532,7 @@ class UserCouponModel private constructor(
 기대: PASS. `UserCouponModelPersistenceTest` 가 새 컬럼 때문에 깨지면
 그 테스트의 단언에 `minOrderAmount` 를 더한다 (기본값 `0L` 확인).
 
-- [ ] **Step 9: 전체 스위트와 린트**
+- [x] **Step 9: 전체 스위트와 린트**
 
 ```bash
 ./gradlew :apps:commerce-api:cleanTest :apps:commerce-api:test :apps:commerce-api:ktlintCheck
@@ -540,7 +540,7 @@ class UserCouponModel private constructor(
 
 기대: 0 failures. 테스트 수는 712 + 4 = **716** 이다.
 
-- [ ] **Step 10: 커밋**
+- [x] **Step 10: 커밋**
 
 ```bash
 git add apps/commerce-api/src
@@ -586,7 +586,7 @@ git commit -m "feat : 쿠폰에 최소 주문 금액 조건을 더한다"
 `getUserCoupon` 이라는 이름을 유지하는 이유는, 이 변경 이후 발급 쿠폰을 지목하는 경로가
 `(정책 ID, 회원 ID)` 하나뿐이라 수식어가 불필요해지기 때문이다.
 
-- [ ] **Step 1: 실패하는 테스트를 쓴다 — 저장소 계약**
+- [x] **Step 1: 실패하는 테스트를 쓴다 — 저장소 계약**
 
 `test/.../domain/coupon/CouponServiceIntegrationTest.kt` 에 추가한다.
 기존 테스트가 쓰는 픽스처 헬퍼(`savedCoupon` 등)의 이름은 파일을 열어 확인하고 그대로 쓴다.
@@ -643,7 +643,7 @@ inner class UseByCouponId {
 }
 ```
 
-- [ ] **Step 2: 실패를 확인한다**
+- [x] **Step 2: 실패를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.domain.coupon.CouponServiceIntegrationTest'
@@ -651,7 +651,7 @@ inner class UseByCouponId {
 
 기대: 컴파일 실패 — `No parameter with name 'couponId' found` (현재 시그니처는 `use(userCouponId, userId)`)
 
-- [ ] **Step 3: JPA 저장소의 조회 키를 바꾼다**
+- [x] **Step 3: JPA 저장소의 조회 키를 바꾼다**
 
 `infrastructure/coupon/UserCouponJpaRepository.kt`.
 `findByIdAndUserIdAndDeletedAtIsNull` 을 **삭제하고** 정책 ID 판 조회를 넣는다.
@@ -707,7 +707,7 @@ inner class UseByCouponId {
     ): Int
 ```
 
-- [ ] **Step 4: 도메인 저장소 인터페이스와 구현을 맞춘다**
+- [x] **Step 4: 도메인 저장소 인터페이스와 구현을 맞춘다**
 
 `domain/coupon/UserCouponRepository.kt`:
 
@@ -739,7 +739,7 @@ inner class UseByCouponId {
     }
 ```
 
-- [ ] **Step 5: `CouponService` 를 맞춘다**
+- [x] **Step 5: `CouponService` 를 맞춘다**
 
 ```kotlin
     /** 없거나 남의 쿠폰이면 null 이다. 404 로 볼지는 유스케이스가 정한다. */
@@ -761,7 +761,7 @@ inner class UseByCouponId {
     }
 ```
 
-- [ ] **Step 6: 통과를 확인한다**
+- [x] **Step 6: 통과를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.domain.coupon.CouponServiceIntegrationTest'
@@ -770,7 +770,7 @@ inner class UseByCouponId {
 기대: PASS. `OrderFacade` 등 호출자가 아직 안 고쳐졌다면 **테스트 컴파일 실패**가 먼저 난다 —
 그 경우 Step 7 을 먼저 수행한 뒤 이 명령을 다시 돌린다.
 
-- [ ] **Step 7: `OrderCommand` · `OrderFacade` · `OrderV1Dto` 를 전파한다**
+- [x] **Step 7: `OrderCommand` · `OrderFacade` · `OrderV1Dto` 를 전파한다**
 
 `domain/order/OrderCommand.kt` — 필드명만 바뀐다.
 
@@ -888,7 +888,7 @@ inner class UseByCouponId {
     }
 ```
 
-- [ ] **Step 8: 기존 테스트의 호출부를 옮긴다**
+- [x] **Step 8: 기존 테스트의 호출부를 옮긴다**
 
 컴파일 오류가 안내한다. 각 파일에서 아래를 바꾼다.
 
@@ -926,7 +926,7 @@ arrange 에서 정책을 변수로 잡아 둔다. 현재는 `savedCoupon().id` �
 `userCouponId` 를 `couponId` 로 바꾸고, 넘기는 값을 **발급 ID 에서 정책 ID 로** 바꾼다.
 값까지 바꿔야 한다는 점이 중요하다 — 이름만 바꾸면 컴파일은 되고 테스트는 `404` 로 실패한다.
 
-- [ ] **Step 9: 전체 스위트를 확인한다**
+- [x] **Step 9: 전체 스위트를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:cleanTest :apps:commerce-api:test :apps:commerce-api:ktlintCheck
@@ -934,7 +934,7 @@ arrange 에서 정책을 변수로 잡아 둔다. 현재는 `savedCoupon().id` �
 
 기대: 0 failures. 테스트 수는 716 + 3 = **719** 다.
 
-- [ ] **Step 10: 의도적 변이로 회귀 방지선을 검증한다**
+- [x] **Step 10: 의도적 변이로 회귀 방지선을 검증한다**
 
 이 단계가 태스크 3 의 핵심이다. `WHERE` 절이 통째로 다시 쓰였으므로,
 초록은 새 `WHERE` 가 옳다는 증거가 아니라 테스트가 그것과 모순되지 않는다는 증거일 뿐이다.
@@ -969,7 +969,7 @@ rm /tmp/UserCouponJpaRepository.kt.orig
 이 파일은 어차피 diff 에 뜨고(조회 키 전환 자체가 이 파일의 변경이다), 지운 한 줄이 돌아왔는지는
 그 안에 묻힌다. 판정 대상은 "이 파일이 변했는가" 가 아니라 "변이 직전 상태로 정확히 돌아왔는가" 다.
 
-- [ ] **Step 11: 커밋**
+- [x] **Step 11: 커밋**
 
 ```bash
 git add apps/commerce-api/src
@@ -997,7 +997,7 @@ git commit -m "feat : 주문이 정책 ID 로 쿠폰을 지목하도록 조회 �
 같은 쿠폰으로 금액을 올려 다시 요청하면 성공한다. 사용·만료와 달리 **호출자의 행동이 갈리므로**
 구분할 값어치가 있다. (2026-09-01 설계 문서 6.4 장)
 
-- [ ] **Step 1: 실패하는 테스트를 쓴다**
+- [x] **Step 1: 실패하는 테스트를 쓴다**
 
 `test/.../application/order/OrderFacadeIntegrationTest.kt` 에 추가한다.
 픽스처 헬퍼 이름은 파일을 열어 기존 것을 그대로 쓴다.
@@ -1092,7 +1092,7 @@ inner class MinOrderAmount {
 **주의:** `saveCoupon` 헬퍼가 `minOrderAmount` 인자를 받지 않으면 먼저 추가한다.
 헬퍼가 없으면 파일의 기존 픽스처 관례를 따라 만든다.
 
-- [ ] **Step 2: 실패를 확인한다**
+- [x] **Step 2: 실패를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.application.order.OrderFacadeIntegrationTest'
@@ -1101,7 +1101,7 @@ inner class MinOrderAmount {
 기대: `throwsBadRequest_whenTotalIsBelowMinimum` 이 실패한다.
 현재는 판정이 없어 주문이 성공하므로 `CoreException` 이 던져지지 않는다.
 
-- [ ] **Step 3: 판정을 더한다**
+- [x] **Step 3: 판정을 더한다**
 
 `useCouponOrThrow` 의 선조회 직후, 할인 계산 **앞에** 둔다.
 계산 앞에 두는 이유는 쓸 수 없는 쿠폰의 할인을 계산할 이유가 없기 때문이다.
@@ -1131,7 +1131,7 @@ inner class MinOrderAmount {
  * 최소 주문 금액은 조건부 UPDATE 가 아니라 이 파사드가 판정한다. 경합하지 않는 조건이기 때문이다. (2026-09-01 설계 문서 6.3 장)
 ```
 
-- [ ] **Step 4: 통과를 확인한다**
+- [x] **Step 4: 통과를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.application.order.OrderFacadeIntegrationTest'
@@ -1139,7 +1139,7 @@ inner class MinOrderAmount {
 
 기대: PASS
 
-- [ ] **Step 5: 전체 스위트와 린트**
+- [x] **Step 5: 전체 스위트와 린트**
 
 ```bash
 ./gradlew :apps:commerce-api:cleanTest :apps:commerce-api:test :apps:commerce-api:ktlintCheck
@@ -1148,7 +1148,7 @@ inner class MinOrderAmount {
 기대: 0 failures. 테스트 수는 719 + 3 = **722** 다.
 `customMessage` 줄이 130 자를 넘지 않는지 `ktlintCheck` 로 확인한다.
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 git add apps/commerce-api/src
@@ -1180,7 +1180,7 @@ git commit -m "feat : 최소 주문 금액에 미달하는 쿠폰 사용을 400 
 발급 ID(`id`)를 빼는 이유는 Task 3 이후 클라이언트가 쓸 곳이 없어졌기 때문이다.
 내보내면 "이 값은 어디에 쓰나" 라는 질문만 남는다. (2026-09-01 설계 문서 4.5 장)
 
-- [ ] **Step 1: 실패하는 테스트를 쓴다**
+- [x] **Step 1: 실패하는 테스트를 쓴다**
 
 `test/.../interfaces/api/UserCouponV1ApiE2ETest.kt` 의 기존 단언을 새 필드명으로 옮기고,
 `minOrderAmount` 확인을 더한다. 파일의 `ParameterizedTypeReference` 는 그대로 쓴다.
@@ -1219,7 +1219,7 @@ fun respondsWithSpecFieldNames() {
 `saveCoupon` · `issue` · `headersOf` 헬퍼 이름은 파일의 기존 것을 확인해 그대로 쓴다.
 `type` 의 기대값은 그 헬퍼가 만드는 정책의 할인 타입에 맞춘다.
 
-- [ ] **Step 2: 실패를 확인한다**
+- [x] **Step 2: 실패를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.interfaces.api.UserCouponV1ApiE2ETest'
@@ -1227,7 +1227,7 @@ fun respondsWithSpecFieldNames() {
 
 기대: 컴파일 실패 — `Unresolved reference: type` / `value` / `expiredAt` / `minOrderAmount`
 
-- [ ] **Step 3: `CouponInfo` 를 고친다**
+- [x] **Step 3: `CouponInfo` 를 고친다**
 
 ```kotlin
 /**
@@ -1273,7 +1273,7 @@ data class CouponInfo(
 }
 ```
 
-- [ ] **Step 4: `CouponV1Dto` 를 고친다**
+- [x] **Step 4: `CouponV1Dto` 를 고친다**
 
 ```kotlin
 class CouponV1Dto {
@@ -1312,12 +1312,12 @@ class CouponV1Dto {
 }
 ```
 
-- [ ] **Step 5: 나머지 호출부를 옮긴다**
+- [x] **Step 5: 나머지 호출부를 옮긴다**
 
 컴파일 오류가 안내한다. `CouponV1ApiSpec` · `UserCouponV1ApiSpec` 의 `@Schema` 설명에
 발급 ID 언급이 남아 있으면 함께 고친다.
 
-- [ ] **Step 6: 통과를 확인한다**
+- [x] **Step 6: 통과를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:cleanTest :apps:commerce-api:test :apps:commerce-api:ktlintCheck
@@ -1325,7 +1325,7 @@ class CouponV1Dto {
 
 기대: 0 failures. 테스트 수는 722 + 1 = **723** 이다.
 
-- [ ] **Step 7: 커밋**
+- [x] **Step 7: 커밋**
 
 ```bash
 git add apps/commerce-api/src
@@ -1369,7 +1369,7 @@ git commit -m "refactor : 쿠폰 응답 필드명을 요구사항 명세에 맞�
 어드민 조회가 삭제분을 포함하는 것은 `ProductRepository.findAllIncludingDeleted` 와 같다.
 목록에서 빼면 "삭제됨" 과 "없음" 이 같은 표현으로 뭉개진다.
 
-- [ ] **Step 1: 실패하는 테스트를 쓴다 — `CouponModel.change`**
+- [x] **Step 1: 실패하는 테스트를 쓴다 — `CouponModel.change`**
 
 `test/.../domain/coupon/CouponModelTest.kt` 에 추가한다.
 
@@ -1441,7 +1441,7 @@ inner class Change {
 }
 ```
 
-- [ ] **Step 2: 실패를 확인한다**
+- [x] **Step 2: 실패를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.domain.coupon.CouponModelTest'
@@ -1449,7 +1449,7 @@ inner class Change {
 
 기대: 컴파일 실패 — `Unresolved reference: change`
 
-- [ ] **Step 3: `CouponModel.change` 를 더한다**
+- [x] **Step 3: `CouponModel.change` 를 더한다**
 
 클래스 본문에, companion 앞에 둔다. **검증을 대입보다 먼저 한다** — 그래야 실패한 수정이
 절반만 반영되는 상태가 생기지 않는다.
@@ -1497,7 +1497,7 @@ inner class Change {
  */
 ```
 
-- [ ] **Step 4: 통과를 확인한다**
+- [x] **Step 4: 통과를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.domain.coupon.CouponModelTest'
@@ -1505,7 +1505,7 @@ inner class Change {
 
 기대: PASS
 
-- [ ] **Step 5: `CouponCommand` 를 만든다**
+- [x] **Step 5: `CouponCommand` 를 만든다**
 
 `domain/coupon/CouponCommand.kt` 를 새로 만든다. `ProductCommand` 의 형판이다.
 
@@ -1542,7 +1542,7 @@ class CouponCommand {
 }
 ```
 
-- [ ] **Step 6: 저장소를 확장한다**
+- [x] **Step 6: 저장소를 확장한다**
 
 `infrastructure/coupon/CouponJpaRepository.kt`:
 
@@ -1613,7 +1613,7 @@ interface CouponRepository {
 
 `import org.springframework.data.domain.PageRequest` 를 더한다.
 
-- [ ] **Step 7: 실패하는 테스트를 쓴다 — `CouponService` 어드민 유스케이스**
+- [x] **Step 7: 실패하는 테스트를 쓴다 — `CouponService` 어드민 유스케이스**
 
 `test/.../domain/coupon/CouponServiceIntegrationTest.kt` 에 추가한다.
 
@@ -1729,7 +1729,7 @@ inner class ManagePolicy {
 
 `couponRepository` 가 이 테스트 클래스에 주입돼 있지 않으면 생성자에 더한다.
 
-- [ ] **Step 8: 실패를 확인한다**
+- [x] **Step 8: 실패를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.domain.coupon.CouponServiceIntegrationTest'
@@ -1737,7 +1737,7 @@ inner class ManagePolicy {
 
 기대: 컴파일 실패 — `Unresolved reference: register` 등
 
-- [ ] **Step 9: `CouponService` 에 어드민 유스케이스를 더한다**
+- [x] **Step 9: `CouponService` 에 어드민 유스케이스를 더한다**
 
 기존 메서드 뒤에 붙인다.
 
@@ -1818,7 +1818,7 @@ inner class ManagePolicy {
     }
 ```
 
-- [ ] **Step 10: 통과와 전체 스위트를 확인한다**
+- [x] **Step 10: 통과와 전체 스위트를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:cleanTest :apps:commerce-api:test :apps:commerce-api:ktlintCheck
@@ -1826,7 +1826,7 @@ inner class ManagePolicy {
 
 기대: 0 failures. 테스트 수는 723 + 7 = **730** 이다.
 
-- [ ] **Step 11: 커밋**
+- [x] **Step 11: 커밋**
 
 ```bash
 git add apps/commerce-api/src
@@ -1870,7 +1870,7 @@ git commit -m "feat : 쿠폰 정책의 등록·수정·삭제를 도메인에 �
 목록은 Task 8 에서 붙인다. 집계 메서드는 여기서 만들되 단일 정책에도 같은 것을 쓴다 —
 메서드를 둘로 나누면 같은 질문에 두 가지 답변 경로가 생긴다.
 
-- [ ] **Step 1: 발급 건수 집계를 만든다**
+- [x] **Step 1: 발급 건수 집계를 만든다**
 
 `infrastructure/coupon/CouponIssueCount.kt` (인터페이스 프로젝션):
 
@@ -1942,7 +1942,7 @@ interface CouponIssueCount {
     }
 ```
 
-- [ ] **Step 2: `CouponAdminInfo` 를 만든다**
+- [x] **Step 2: `CouponAdminInfo` 를 만든다**
 
 ```kotlin
 package com.loopers.application.admin.coupon
@@ -1994,7 +1994,7 @@ data class CouponAdminInfo(
 }
 ```
 
-- [ ] **Step 3: `CouponAdminFacade` 를 만든다**
+- [x] **Step 3: `CouponAdminFacade` 를 만든다**
 
 목록(`getCoupons`)은 Task 8 에서 더한다.
 
@@ -2051,7 +2051,7 @@ class CouponAdminFacade(
 }
 ```
 
-- [ ] **Step 4: `CouponAdminV1Dto` 를 만든다**
+- [x] **Step 4: `CouponAdminV1Dto` 를 만든다**
 
 ```kotlin
 package com.loopers.interfaces.api.admin.coupon
@@ -2149,7 +2149,7 @@ class CouponAdminV1Dto {
 }
 ```
 
-- [ ] **Step 5: `CouponAdminV1ApiSpec` 과 컨트롤러를 만든다**
+- [x] **Step 5: `CouponAdminV1ApiSpec` 과 컨트롤러를 만든다**
 
 `ProductAdminV1ApiSpec` 의 형식을 따른다. 목록(`getCoupons`)과 발급 내역(`getIssues`)은
 Task 8 · 9 에서 더하므로 여기서는 넷만 선언한다.
@@ -2270,7 +2270,7 @@ class CouponAdminV1Controller(
 }
 ```
 
-- [ ] **Step 6: E2E 테스트를 쓴다**
+- [x] **Step 6: E2E 테스트를 쓴다**
 
 `test/.../interfaces/api/admin/CouponAdminV1ApiE2ETest.kt` 를 만든다.
 `ProductAdminV1ApiE2ETest` 의 구조를 그대로 따른다.
@@ -2572,7 +2572,7 @@ class CouponAdminV1ApiE2ETest @Autowired constructor(
 }
 ```
 
-- [ ] **Step 7: 전체 스위트와 린트**
+- [x] **Step 7: 전체 스위트와 린트**
 
 ```bash
 ./gradlew :apps:commerce-api:cleanTest :apps:commerce-api:test :apps:commerce-api:ktlintCheck
@@ -2580,7 +2580,7 @@ class CouponAdminV1ApiE2ETest @Autowired constructor(
 
 기대: 0 failures. 테스트 수는 730 + 8 = **738** 이다.
 
-- [ ] **Step 8: 커밋**
+- [x] **Step 8: 커밋**
 
 ```bash
 git add apps/commerce-api/src
@@ -2609,7 +2609,7 @@ git commit -m "feat : 쿠폰 정책 어드민 등록·조회·수정·삭제 API
 **정책 2 개일 때와 6 개일 때의 쿼리 수가 같다** 로 확인한다. 절대값은 구현 세부에 따라 흔들리지만
 증가 여부는 흔들리지 않는다.
 
-- [ ] **Step 1: 실패하는 N+1 테스트를 쓴다**
+- [x] **Step 1: 실패하는 N+1 테스트를 쓴다**
 
 `test/.../application/admin/coupon/CouponAdminFacadeIntegrationTest.kt` 를 새로 만든다.
 **N+1 검증은 이 저장소의 기존 관례를 따른다** — `@MockitoSpyBean` 으로 협력자를 감싸고
@@ -2710,7 +2710,7 @@ class CouponAdminFacadeIntegrationTest @Autowired constructor(
 }
 ```
 
-- [ ] **Step 2: 실패를 확인한다**
+- [x] **Step 2: 실패를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.application.admin.coupon.CouponAdminFacadeIntegrationTest'
@@ -2718,7 +2718,7 @@ class CouponAdminFacadeIntegrationTest @Autowired constructor(
 
 기대: 컴파일 실패 — `Unresolved reference: getCoupons`
 
-- [ ] **Step 3: 파사드에 목록을 더한다**
+- [x] **Step 3: 파사드에 목록을 더한다**
 
 `CouponAdminFacade` 에 추가한다. `import` 로 `PageQuery` · `PageResult` 를 더한다.
 
@@ -2740,7 +2740,7 @@ class CouponAdminFacadeIntegrationTest @Autowired constructor(
     }
 ```
 
-- [ ] **Step 4: 통과를 확인한다**
+- [x] **Step 4: 통과를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.application.admin.coupon.CouponAdminFacadeIntegrationTest'
@@ -2749,7 +2749,7 @@ class CouponAdminFacadeIntegrationTest @Autowired constructor(
 기대: PASS. `queriesIssuedCountOnlyOnce_regardlessOfCouponCount` 가 실패하면
 `getCoupons` 가 정책마다 집계를 부르고 있는 것이다.
 
-- [ ] **Step 5: 엔드포인트를 붙인다**
+- [x] **Step 5: 엔드포인트를 붙인다**
 
 `CouponAdminV1ApiSpec` 에 추가:
 
@@ -2785,7 +2785,7 @@ class CouponAdminFacadeIntegrationTest @Autowired constructor(
 
 `import` 로 `PageQuery` · `PageResponse` · `RequestParam` 을 더한다.
 
-- [ ] **Step 6: E2E 를 더한다**
+- [x] **Step 6: E2E 를 더한다**
 
 `CouponAdminV1ApiE2ETest` 에 `@Nested` 를 추가한다.
 클래스 필드에 페이지 타입을 더한다.
@@ -2829,7 +2829,7 @@ class CouponAdminFacadeIntegrationTest @Autowired constructor(
 
 `import com.loopers.interfaces.api.PageResponse` 를 더한다.
 
-- [ ] **Step 7: 전체 스위트와 린트**
+- [x] **Step 7: 전체 스위트와 린트**
 
 ```bash
 ./gradlew :apps:commerce-api:cleanTest :apps:commerce-api:test :apps:commerce-api:ktlintCheck
@@ -2837,7 +2837,7 @@ class CouponAdminFacadeIntegrationTest @Autowired constructor(
 
 기대: 0 failures. 테스트 수는 738 + 3 = **741** 이다.
 
-- [ ] **Step 8: 커밋**
+- [x] **Step 8: 커밋**
 
 ```bash
 git add apps/commerce-api/src
@@ -2874,7 +2874,7 @@ git commit -m "feat : 쿠폰 정책 목록에 발급 건수를 한 번에 채워
 회원 정보는 `id` 와 `loginId` 만 담는다. `OrderAdminInfo.User` 와 같은 판단이며,
 `IN` 절 한 번으로 채워 N+1 을 막는다. (2026-09-01 설계 문서 7.3 장)
 
-- [ ] **Step 1: 인덱스를 더한다**
+- [x] **Step 1: 인덱스를 더한다**
 
 `domain/coupon/UserCouponModel.kt` 의 `@Table` 을 고친다.
 
@@ -2893,7 +2893,7 @@ git commit -m "feat : 쿠폰 정책 목록에 발급 건수를 한 번에 채워
 )
 ```
 
-- [ ] **Step 2: 저장소에 조회를 더한다**
+- [x] **Step 2: 저장소에 조회를 더한다**
 
 `infrastructure/coupon/UserCouponJpaRepository.kt`:
 
@@ -2945,7 +2945,7 @@ git commit -m "feat : 쿠폰 정책 목록에 발급 건수를 한 번에 채워
     }
 ```
 
-- [ ] **Step 3: `CouponIssueAdminInfo` 를 만든다**
+- [x] **Step 3: `CouponIssueAdminInfo` 를 만든다**
 
 ```kotlin
 package com.loopers.application.admin.coupon
@@ -3000,7 +3000,7 @@ data class CouponIssueAdminInfo(
 }
 ```
 
-- [ ] **Step 4: 파사드에 발급 내역을 더한다**
+- [x] **Step 4: 파사드에 발급 내역을 더한다**
 
 `CouponAdminFacade` 의 생성자에 `userService: UserService` 를 더한다.
 
@@ -3041,7 +3041,7 @@ data class CouponIssueAdminInfo(
 
 `import` 로 `UserService` · `PageQuery` · `PageResult` · `ZonedDateTime` 을 더한다.
 
-- [ ] **Step 5: DTO 와 엔드포인트를 더한다**
+- [x] **Step 5: DTO 와 엔드포인트를 더한다**
 
 `CouponAdminV1Dto` 에 추가:
 
@@ -3108,7 +3108,7 @@ data class CouponIssueAdminInfo(
     }
 ```
 
-- [ ] **Step 6: E2E 와 파사드 테스트를 쓴다**
+- [x] **Step 6: E2E 와 파사드 테스트를 쓴다**
 
 `CouponAdminV1ApiE2ETest` 에 추가한다. 회원 발급이 필요하므로 `CouponFacade` 와
 회원 가입 헬퍼를 주입한다. 기존 E2E 파일의 회원 생성 방식을 확인해 그대로 쓴다.
@@ -3232,7 +3232,7 @@ data class CouponIssueAdminInfo(
     }
 ```
 
-- [ ] **Step 7: 인덱스가 실제로 생성됐는지 확인한다**
+- [x] **Step 7: 인덱스가 실제로 생성됐는지 확인한다**
 
 Hibernate 가 DDL 을 만드는 환경이므로 애노테이션만으로 붙지만, 오타가 있으면 조용히 안 붙는다.
 
@@ -3243,7 +3243,7 @@ Hibernate 가 DDL 을 만드는 환경이므로 애노테이션만으로 붙지�
 통과 후 `UserCouponModel.kt` 의 `columnList = "coupon_id, created_at"` 이
 **컬럼명(스네이크 케이스)** 인지 확인한다. 프로퍼티명(`couponId`)을 쓰면 DDL 생성이 실패한다.
 
-- [ ] **Step 8: 전체 스위트와 린트**
+- [x] **Step 8: 전체 스위트와 린트**
 
 ```bash
 ./gradlew :apps:commerce-api:cleanTest :apps:commerce-api:test :apps:commerce-api:ktlintCheck
@@ -3251,7 +3251,7 @@ Hibernate 가 DDL 을 만드는 환경이므로 애노테이션만으로 붙지�
 
 기대: 0 failures. 테스트 수는 741 + 4 = **745** 다.
 
-- [ ] **Step 9: 커밋**
+- [x] **Step 9: 커밋**
 
 ```bash
 git add apps/commerce-api/src
@@ -3273,7 +3273,7 @@ git commit -m "feat : 쿠폰 정책별 발급 내역 조회 API 를 추가한다
 **배경:** 시드 정책 하나에 **0 이 아닌 최소 주문 금액**을 주어 미달 케이스를 수동으로 확인할 수 있게 한다.
 만료된 정책을 남기는 이유는 배치 없이 `EXPIRED` 를 확인할 유일한 방법이기 때문이다. (2026-09-01 설계 문서 9 장)
 
-- [ ] **Step 1: 시더를 고친다**
+- [x] **Step 1: 시더를 고친다**
 
 `LocalDataSeeder` 의 쿠폰 정책 셋에 `minOrderAmount` 를 더한다.
 정책의 이름과 만료일은 그대로 두고 조건만 붙인다.
@@ -3307,7 +3307,7 @@ git commit -m "feat : 쿠폰 정책별 발급 내역 조회 API 를 추가한다
         )
 ```
 
-- [ ] **Step 2: 앱을 띄우고 시드를 확인한다**
+- [x] **Step 2: 앱을 띄우고 시드를 확인한다**
 
 ```bash
 docker compose -f docker/infra-compose.yml up -d
@@ -3316,7 +3316,7 @@ docker compose -f docker/infra-compose.yml up -d
 
 로그에 `로컬 시드 데이터 생성 완료 : ... 쿠폰 정책 3개` 가 찍히는지 확인한다.
 
-- [ ] **Step 3: `.http` 파일에 어드민 요청 여섯을 더한다**
+- [x] **Step 3: `.http` 파일에 어드민 요청 여섯을 더한다**
 
 `http/commerce-api/coupon-v1.http` 의 기존 대고객 요청은 필드명 변경(`userCouponId` → `couponId`)만
 반영하고, 아래 구획을 파일 앞부분에 더한다. 기존 파일의 변수 선언 관례를 그대로 따른다.
@@ -3374,7 +3374,7 @@ X-Loopers-LdapId: admin
 X-Loopers-LdapPw: admin1234
 ```
 
-- [ ] **Step 4: 최소 주문 금액 미달 케이스를 더한다**
+- [x] **Step 4: 최소 주문 금액 미달 케이스를 더한다**
 
 대고객 구획 끝에 붙인다. 상품 10 번은 10,000 원이고 정책 2 번은 최소 주문 금액 20,000 원이다.
 
@@ -3409,7 +3409,7 @@ Content-Type: application/json
 `GET {{host}}/api/v1/products/10` 으로 확인한 뒤 주석의 금액을 맞춘다.
 계산이 어긋나면 주석만 거짓이 되고 요청은 성공하므로 **테스트가 잡아주지 않는다.**
 
-- [ ] **Step 5: `.http` 요청을 실제로 실행한다**
+- [x] **Step 5: `.http` 요청을 실제로 실행한다**
 
 IDE 의 HTTP 클라이언트나 `curl` 로 위 요청을 순서대로 보낸다.
 각 요청의 주석이 약속한 응답과 실제 응답이 일치하는지 눈으로 확인한다.
@@ -3419,13 +3419,13 @@ IDE 의 HTTP 클라이언트나 `curl` 로 위 요청을 순서대로 보낸다.
 2. 최소 주문 금액 미달 주문이 **400** 이고 메시지에 금액이 들어 있는가
 3. 정책을 삭제한 뒤에도 **기발급 쿠폰으로 주문이 성공**하는가 (2026-09-01 설계 문서 5.5 장)
 
-- [ ] **Step 6: 컨테이너를 정리한다**
+- [x] **Step 6: 컨테이너를 정리한다**
 
 ```bash
 docker compose -f docker/infra-compose.yml down
 ```
 
-- [ ] **Step 7: 최종 회귀 — 의도적 변이를 다시 확인한다**
+- [x] **Step 7: 최종 회귀 — 의도적 변이를 다시 확인한다**
 
 Task 3 이후 여러 태스크가 쌓였으므로 재사용 불가 보장을 마지막에 한 번 더 확인한다.
 절차는 태스크 3 Step 10 과 같다 — 원본을 보관하고, 변이시키고, **되돌림을 `diff` 로 판정한다.**
@@ -3455,7 +3455,7 @@ rm /tmp/UserCouponJpaRepository.kt.orig
 여기서는 태스크 3 과 달리 이 파일이 이미 커밋돼 있고 태스크 10 이 건드리지 않으므로,
 `git diff -- "$SRC"` 의 출력이 비어 있는 것으로도 판정할 수 있다.
 
-- [ ] **Step 8: 전체 스위트와 린트**
+- [x] **Step 8: 전체 스위트와 린트**
 
 ```bash
 ./gradlew :apps:commerce-api:cleanTest :apps:commerce-api:test :apps:commerce-api:ktlintCheck
@@ -3466,7 +3466,7 @@ git status --porcelain -- apps/ http/
 경로를 거는 이유는 Git 루트가 상위 `study-project/` 라 `gradlew` 모드 변경과 `.serena/` 가
 함께 딸려 나오기 때문이다. 둘 다 이 계획의 것이 아니다 (기준선 참고).
 
-- [ ] **Step 9: 커밋**
+- [x] **Step 9: 커밋**
 
 ```bash
 git add apps/commerce-api/src http/
