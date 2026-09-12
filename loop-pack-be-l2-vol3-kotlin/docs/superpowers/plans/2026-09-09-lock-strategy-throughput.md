@@ -1781,27 +1781,33 @@ cd /Users/choeseongang/IdeaProjects/study-project/loop-pack-be-l2-vol3-kotlin
 전체 스위트가 0 failures 인 것을 최종 확인한 뒤에만 다음으로 간다. 태스크 1~5 중 하나라도
 실패 상태로 남아 있으면 이 측정은 신뢰할 수 없다.
 
-세 전략의 jar 를 만든다. `application.yml` 의 `loopers.stock.lock-strategy` 를 바꿔 가며 빌드한다.
+**jar 는 하나만 만든다.** 전략마다 따로 빌드하지 않는다 — 설계 문서 5.1 장의 공정성 조건 첫 행이
+"같은 jar" 를 요구하고, 그 이유를 **"jar 를 나누면 컴파일 산출물이 변수로 남는다"** 고 적어 두었다.
 
 ```bash
-# conditional-update (기본값 — 수정 없이 빌드)
 ./gradlew :apps:commerce-api:bootJar
-cp apps/commerce-api/build/libs/commerce-api-*.jar \
-   apps/commerce-api/build/libs/commerce-api-conditional-update.jar
-
-# application.yml 의 lock-strategy: optimistic 로 바꾼 뒤
-./gradlew :apps:commerce-api:bootJar
-cp apps/commerce-api/build/libs/commerce-api-*.jar \
-   apps/commerce-api/build/libs/commerce-api-optimistic.jar
-
-# application.yml 의 lock-strategy: pessimistic 로 바꾼 뒤
-./gradlew :apps:commerce-api:bootJar
-cp apps/commerce-api/build/libs/commerce-api-*.jar \
-   apps/commerce-api/build/libs/commerce-api-pessimistic.jar
+ls apps/commerce-api/build/libs/
 ```
 
-**빌드가 끝나면 `application.yml` 을 `conditional-update` 로 되돌려 둔다** — 이 값이 리포지토리에
-커밋된 기본 상태다.
+전략 전환은 **환경변수 하나**로 한다 (설계 문서 6.1 장 — "같은 jar, 환경변수 하나").
+`docker/loadtest-compose.yml` 이 `LOCK_STRATEGY` 를 받아 컨테이너의
+`LOOPERS_STOCK_LOCKSTRATEGY` 로 넘긴다. OS 환경변수는 jar 안의 프로필별 `application.yml` 보다
+우선순위가 높으므로 `application.yml` 을 고칠 필요가 없다.
+
+```bash
+LOCK_STRATEGY=optimistic APP_JAR=<jar 이름> docker compose -f docker/loadtest-compose.yml up -d
+```
+
+`application.yml` 은 **건드리지 않는다.** 커밋된 기본값 `conditional-update` 그대로 둔다 —
+`LOCK_STRATEGY` 를 주지 않으면 그 값으로 뜨므로 기존 동작과 같다.
+
+⚠️ **전환이 실제로 일어났는지는 기동 로그로 확인한다.** 태스크 1~3 이 각 전략 구현의 `init` 에
+`재고 차감 전략 선택 : <전략>` 을 찍어 두었다. 칸을 재기 전에 매번 이 줄을 눈으로 본다 —
+환경변수를 안 바꾸고 두 번 재는 사고를 잡는 유일한 장치다.
+
+```bash
+docker compose -f docker/loadtest-compose.yml logs commerce-api | grep "재고 차감 전략 선택"
+```
 
 - [ ] **Step 2: 공정성 조건을 체크리스트로 확인한다 (설계 문서 5.1 장)**
 
