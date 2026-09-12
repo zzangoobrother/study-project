@@ -145,7 +145,7 @@ JUnit 5 · AssertJ · Mockito(mockito-kotlin) / Testcontainers / k6
 | 1 | 락 전략 전환 스위치 | `StockDecreaseStrategy` + 조건부 UPDATE 를 전략으로 이관 | 기준선 + 1 |
 | 2 | 낙관적 락 | `@Version`, 재시도 3 회, 트랜잭션 경계 밖 | 이전 + 4 |
 | 3 | 비관적 락 | `SELECT ... FOR UPDATE`, 항목마다 왕복 2 | 이전 + 1 |
-| 4 | 세 전략 공통 계약 테스트 | 계약 테스트 + 기존 동시성 테스트를 세 전략에서 실행 | 이전 + 약 23 |
+| 4 | 세 전략 공통 계약 테스트 | 계약 테스트 + 기존 동시성 테스트를 세 전략에서 실행 | 이전 + 약 29 |
 | 5 | 부하 하네스 다중 항목 시나리오 | `ITEMS_PER_ORDER`, `LABEL` 컨벤션 문서화 | 이전 (변화 없음 — k6 는 Gradle 테스트가 아니다) |
 | 6 | 측정 실행과 문서 반영 | 9 칸 실측, 설계 문서 3 장 갱신 | 이전 (변화 없음 — 코드 변경 없음) |
 
@@ -1103,12 +1103,14 @@ import com.loopers.domain.brand.BrandModel
 import com.loopers.domain.brand.BrandName
 import com.loopers.domain.brand.BrandRepository
 import com.loopers.utils.DatabaseCleanUp
+import kotlin.reflect.KClass
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.transaction.support.TransactionTemplate
 
 /**
  * 세 락 전략이 공통으로 지켜야 하는 계약. (2026-09-09 설계 문서 6.4 장)
@@ -1132,11 +1134,40 @@ abstract class AbstractStockDecreaseContractTest {
     private lateinit var brandRepository: BrandRepository
 
     @Autowired
+    private lateinit var stockDecreaseStrategy: StockDecreaseStrategy
+
+    @Autowired
+    private lateinit var transactionTemplate: TransactionTemplate
+
+    @Autowired
     private lateinit var databaseCleanUp: DatabaseCleanUp
+
+    /** 서브클래스가 자기 properties 로 올라와야 하는 전략을 선언한다. */
+    protected abstract val expectedStrategy: KClass<out StockDecreaseStrategy>
 
     @AfterEach
     fun tearDown() {
         databaseCleanUp.truncateAllTables()
+    }
+
+    /**
+     * 차감을 트랜잭션 안에서 부른다. ProductRepositoryImpl 에는 Transactional 이 없고 프로덕션에서는
+     * ProductService.decreaseStock 이 경계를 만든다 — 테스트가 저장소를 직접 부르면 그 경계가 없다.
+     * 낙관적 락의 entityManager.flush() 와 비관적 락의 PESSIMISTIC_WRITE 는 활성 트랜잭션을 요구하므로,
+     * 감싸지 않으면 세 전략이 같은 조건에서 비교되지 않는다.
+     */
+    private fun decreaseStock(productId: Long, quantity: Int): Int =
+        transactionTemplate.execute { productRepository.decreaseStock(productId, quantity) }!!
+
+    /**
+     * 이 계약 테스트가 정말 의도한 전략 위에서 도는지 확인한다.
+     * properties 문자열에 오타가 나면 matchIfMissing = true 인 조건부 UPDATE 가 조용히 올라와,
+     * 세 클래스가 같은 전략을 세 번 검증하면서 "세 전략이 같은 계약을 만족한다" 는 결론을 낸다.
+     */
+    @DisplayName("이 계약 테스트는 의도한 전략 위에서 돈다.")
+    @Test
+    fun runsOnExpectedStrategy() {
+        assertThat(stockDecreaseStrategy).isInstanceOf(expectedStrategy.java)
     }
 
     protected fun saveProduct(stock: Long): ProductModel {
@@ -1158,7 +1189,7 @@ abstract class AbstractStockDecreaseContractTest {
         val product = saveProduct(stock = 10)
 
         // act
-        val affected = productRepository.decreaseStock(product.id, 3)
+        val affected = decreaseStock(product.id, 3)
 
         // assert
         assertAll(
@@ -1174,7 +1205,7 @@ abstract class AbstractStockDecreaseContractTest {
         val product = saveProduct(stock = 5)
 
         // act
-        val affected = productRepository.decreaseStock(product.id, 5)
+        val affected = decreaseStock(product.id, 5)
 
         // assert
         assertAll(
@@ -1191,7 +1222,7 @@ abstract class AbstractStockDecreaseContractTest {
         val product = saveProduct(stock = 2)
 
         // act
-        val affected = productRepository.decreaseStock(product.id, 3)
+        val affected = decreaseStock(product.id, 3)
 
         // assert
         assertAll(
@@ -1208,7 +1239,7 @@ abstract class AbstractStockDecreaseContractTest {
         productService.delete(product.id)
 
         // act
-        val affected = productRepository.decreaseStock(product.id, 1)
+        val affected = decreaseStock(product.id, 1)
 
         // assert
         assertThat(affected).isEqualTo(0)
@@ -1218,7 +1249,7 @@ abstract class AbstractStockDecreaseContractTest {
     @Test
     fun returnsZero_whenProductDoesNotExist() {
         // act
-        val affected = productRepository.decreaseStock(999_999L, 1)
+        val affected = decreaseStock(999_999L, 1)
 
         // assert
         assertThat(affected).isEqualTo(0)
@@ -1231,28 +1262,37 @@ abstract class AbstractStockDecreaseContractTest {
 ```kotlin
 package com.loopers.domain.product
 
+import com.loopers.infrastructure.product.ConditionalUpdateStockDecreaseStrategy
 import org.springframework.boot.test.context.SpringBootTest
 
 @SpringBootTest(properties = ["loopers.stock.lock-strategy=conditional-update"])
-class ConditionalUpdateStockDecreaseContractTest : AbstractStockDecreaseContractTest()
+class ConditionalUpdateStockDecreaseContractTest : AbstractStockDecreaseContractTest() {
+    override val expectedStrategy = ConditionalUpdateStockDecreaseStrategy::class
+}
 ```
 
 ```kotlin
 package com.loopers.domain.product
 
+import com.loopers.infrastructure.product.OptimisticLockStockDecreaseStrategy
 import org.springframework.boot.test.context.SpringBootTest
 
 @SpringBootTest(properties = ["loopers.stock.lock-strategy=optimistic"])
-class OptimisticLockStockDecreaseContractTest : AbstractStockDecreaseContractTest()
+class OptimisticLockStockDecreaseContractTest : AbstractStockDecreaseContractTest() {
+    override val expectedStrategy = OptimisticLockStockDecreaseStrategy::class
+}
 ```
 
 ```kotlin
 package com.loopers.domain.product
 
+import com.loopers.infrastructure.product.PessimisticLockStockDecreaseStrategy
 import org.springframework.boot.test.context.SpringBootTest
 
 @SpringBootTest(properties = ["loopers.stock.lock-strategy=pessimistic"])
-class PessimisticLockStockDecreaseContractTest : AbstractStockDecreaseContractTest()
+class PessimisticLockStockDecreaseContractTest : AbstractStockDecreaseContractTest() {
+    override val expectedStrategy = PessimisticLockStockDecreaseStrategy::class
+}
 ```
 
 - [ ] **Step 2: 실패(또는 컴파일 오류)를 확인한다**
@@ -1280,7 +1320,7 @@ class PessimisticLockStockDecreaseContractTest : AbstractStockDecreaseContractTe
         val before = productRepository.findById(product.id)!!.updatedAt
 
         // act
-        productRepository.decreaseStock(product.id, 1)
+        decreaseStock(product.id, 1)
 
         // assert — raw UPDATE 문은 BaseEntity.preUpdate 콜백을 타지 않는다 (2026-08-24 설계 문서 6.3 장)
         assertThat(productRepository.findById(product.id)!!.updatedAt).isEqualTo(before)
@@ -1332,8 +1372,21 @@ abstract class AbstractOrderFacadeConcurrencyTest {
 
     @Autowired
     private lateinit var databaseCleanUp: DatabaseCleanUp
+
+    @Autowired
+    private lateinit var stockDecreaseStrategy: StockDecreaseStrategy
+
+    /** 서브클래스가 자기 properties 로 올라와야 하는 전략을 선언한다. 계약 테스트와 같은 이유다. */
+    protected abstract val expectedStrategy: KClass<out StockDecreaseStrategy>
+
+    @DisplayName("이 동시성 테스트는 의도한 전략 위에서 돈다.")
+    @Test
+    fun runsOnExpectedStrategy() {
+        assertThat(stockDecreaseStrategy).isInstanceOf(expectedStrategy.java)
+    }
 ```
 
+임포트에 `com.loopers.domain.product.StockDecreaseStrategy` 와 `kotlin.reflect.KClass` 를 더한다.
 `@SpringBootTest` 애노테이션은 지운다 — 구체 클래스가 각자 다른 `properties` 로 붙인다.
 `import org.springframework.boot.test.context.SpringBootTest` 도 더 안 쓰이면 지운다
 (`ktlintCheck` 가 미사용 임포트를 잡는다).
@@ -1358,28 +1411,37 @@ abstract class AbstractOrderFacadeConcurrencyTest {
 ```kotlin
 package com.loopers.application.order
 
+import com.loopers.infrastructure.product.ConditionalUpdateStockDecreaseStrategy
 import org.springframework.boot.test.context.SpringBootTest
 
 @SpringBootTest(properties = ["loopers.stock.lock-strategy=conditional-update"])
-class ConditionalUpdateOrderFacadeConcurrencyTest : AbstractOrderFacadeConcurrencyTest()
+class ConditionalUpdateOrderFacadeConcurrencyTest : AbstractOrderFacadeConcurrencyTest() {
+    override val expectedStrategy = ConditionalUpdateStockDecreaseStrategy::class
+}
 ```
 
 ```kotlin
 package com.loopers.application.order
 
+import com.loopers.infrastructure.product.OptimisticLockStockDecreaseStrategy
 import org.springframework.boot.test.context.SpringBootTest
 
 @SpringBootTest(properties = ["loopers.stock.lock-strategy=optimistic"])
-class OptimisticLockOrderFacadeConcurrencyTest : AbstractOrderFacadeConcurrencyTest()
+class OptimisticLockOrderFacadeConcurrencyTest : AbstractOrderFacadeConcurrencyTest() {
+    override val expectedStrategy = OptimisticLockStockDecreaseStrategy::class
+}
 ```
 
 ```kotlin
 package com.loopers.application.order
 
+import com.loopers.infrastructure.product.PessimisticLockStockDecreaseStrategy
 import org.springframework.boot.test.context.SpringBootTest
 
 @SpringBootTest(properties = ["loopers.stock.lock-strategy=pessimistic"])
-class PessimisticLockOrderFacadeConcurrencyTest : AbstractOrderFacadeConcurrencyTest()
+class PessimisticLockOrderFacadeConcurrencyTest : AbstractOrderFacadeConcurrencyTest() {
+    override val expectedStrategy = PessimisticLockStockDecreaseStrategy::class
+}
 ```
 
 - [ ] **Step 5: 세 전략 모두 통과하는지 확인한다**
@@ -1388,7 +1450,7 @@ class PessimisticLockOrderFacadeConcurrencyTest : AbstractOrderFacadeConcurrency
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.application.order.*OrderFacadeConcurrencyTest'
 ```
 
-기대: 9 건(3 전략 × 3 테스트) 전부 PASS.
+기대: 12 건(3 전략 × (기존 3 테스트 + 전략 확인 1)) 전부 PASS.
 
 **낙관적 락에서 실패한다면 먼저 의심할 것 — `sellsExactlyStock_whenMoreUsersOrderConcurrently` 는
 재시도 상한 3 회 안에서 경합이 해소되지 못하면 실패로 보일 수 있다.** 재고 9, 동시 요청 10 이라
@@ -1405,8 +1467,9 @@ class PessimisticLockOrderFacadeConcurrencyTest : AbstractOrderFacadeConcurrency
 ./gradlew :apps:commerce-api:ktlintCheck
 ```
 
-기대: 0 failures. 테스트 수는 **이전 + 약 23**
-(계약 테스트 5 × 3 = 15, `updated_at` 전용 2, 동시성 재편으로 늘어난 순증 6 — 기존 3 건이
+기대: 0 failures. 테스트 수는 **이전 + 약 29**
+(계약 테스트 5 × 3 = 15, 계약 쪽 전략 확인 3, `updated_at` 전용 2, 동시성 쪽 전략 확인 3,
+동시성 재편으로 늘어난 순증 6 — 기존 3 건이
 `ConditionalUpdate` 서브클래스로 그대로 옮겨가고 `OptimisticLock` · `PessimisticLock` 서브클래스가
 각각 3 건씩 새로 돈다).
 
