@@ -44,6 +44,10 @@ JUnit 5 · AssertJ · Mockito(mockito-kotlin) / Testcontainers / k6
 - **`ktlintFormat` 을 실행하지 않는다.** 무관한 파일까지 건드린다. 검증은 `ktlintCheck` 로 한다.
 - **ktlint 최대 줄 길이 130 자** (유니코드 문자 수 기준). `*Test.kt` 는 예외다.
 - **블록 주석 안에 `/**` 를 쓰지 않는다.** Kotlin 은 블록 주석이 중첩되어 `Unclosed comment` 로 컴파일이 깨진다.
+- **Java 애노테이션의 배열 속성에는 배열 리터럴을 준다.** `@ConditionalOnProperty(name = ["..."])` —
+  `name` 의 Java 시그니처가 `String[]` 이고, Kotlin 은 Java 호출과 달리 단일 문자열을 배열로
+  암묵 변환하지 않는다. 저장소 선례는 `apps/commerce-batch` 의 `DemoJobConfig.kt` 다.
+  (태스크 1 에서 실제로 컴파일이 깨진 자리이며, 태스크 2 · 3 의 코드에도 같은 형태가 있었다)
 - **주석은 "무엇" 이 아니라 "왜" 를 적는다.** 설계 문서를 인용할 때는 **항상 날짜를 밝힌다.**
   이 계획이 새로 쓰는 인용은 전부 `(2026-09-09 설계 문서 N 장)` 형식이다. 다른 문서를 가리킬 때는
   `(2026-08-24 설계 문서 N 장)` 처럼 그 문서의 날짜를 쓴다. **날짜 없는 `(설계 문서 N 장)` 을 새로 쓰지 않는다.**
@@ -236,7 +240,7 @@ import org.springframework.stereotype.Repository
  */
 @Repository
 @ConditionalOnProperty(
-    name = "loopers.stock.lock-strategy",
+    name = ["loopers.stock.lock-strategy"],
     havingValue = "conditional-update",
     matchIfMissing = true,
 )
@@ -633,7 +637,7 @@ import org.springframework.stereotype.Repository
  * (설계 문서 6.2 장) 이 클래스는 실패를 예외로 알리기만 하고 재시도는 모른다.
  */
 @Repository
-@ConditionalOnProperty(name = "loopers.stock.lock-strategy", havingValue = "optimistic")
+@ConditionalOnProperty(name = ["loopers.stock.lock-strategy"], havingValue = "optimistic")
 class OptimisticLockStockDecreaseStrategy(
     private val productJpaRepository: ProductJpaRepository,
     private val entityManager: EntityManager,
@@ -919,7 +923,7 @@ import org.springframework.stereotype.Repository
  * 여러 문장이 순차로 락을 잡으므로 순서가 통일되지 않으면 데드락이 난다.
  */
 @Repository
-@ConditionalOnProperty(name = "loopers.stock.lock-strategy", havingValue = "pessimistic")
+@ConditionalOnProperty(name = ["loopers.stock.lock-strategy"], havingValue = "pessimistic")
 class PessimisticLockStockDecreaseStrategy(
     private val productJpaRepository: ProductJpaRepository,
 ) : StockDecreaseStrategy {
