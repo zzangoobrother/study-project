@@ -107,6 +107,7 @@ JUnit 5 · AssertJ · Mockito(mockito-kotlin) / Testcontainers / k6
 | `infrastructure/product/PessimisticLockStockDecreaseStrategy.kt` | `SELECT ... FOR UPDATE` → 앱 검사 → `UPDATE` |
 | `infrastructure/product/ConditionalUpdateStockLockStrategySwitchTest.kt` | 기본값이 조건부 UPDATE 인지 확인 |
 | `infrastructure/product/OptimisticLockStockLockStrategySwitchTest.kt` | 속성이 낙관적 락을 올리는지 확인 |
+| `infrastructure/product/OptimisticLockExceptionTranslationTest.kt` | JPA 낙관적 락 예외가 스프링 표준 예외로 번역되는지 확인 (태스크 2 Step 8) |
 | `infrastructure/product/PessimisticLockStockLockStrategySwitchTest.kt` | 속성이 비관적 락을 올리는지 확인 |
 | `domain/product/AbstractStockDecreaseContractTest.kt` | 세 전략 공통 계약(설계 문서 6.4 장) |
 | `domain/product/ConditionalUpdateStockDecreaseContractTest.kt` | 위 추상 클래스의 조건부 UPDATE 실행 |
@@ -142,7 +143,7 @@ JUnit 5 · AssertJ · Mockito(mockito-kotlin) / Testcontainers / k6
 | # | 태스크 | 산출물 | 기대 테스트 수 변화 (기준선 실측 전까지 상대값) |
 |---|---|---|---|
 | 1 | 락 전략 전환 스위치 | `StockDecreaseStrategy` + 조건부 UPDATE 를 전략으로 이관 | 기준선 + 1 |
-| 2 | 낙관적 락 | `@Version`, 재시도 3 회, 트랜잭션 경계 밖 | 이전 + 3 |
+| 2 | 낙관적 락 | `@Version`, 재시도 3 회, 트랜잭션 경계 밖 | 이전 + 4 |
 | 3 | 비관적 락 | `SELECT ... FOR UPDATE`, 항목마다 왕복 2 | 이전 + 1 |
 | 4 | 세 전략 공통 계약 테스트 | 계약 테스트 + 기존 동시성 테스트를 세 전략에서 실행 | 이전 + 약 23 |
 | 5 | 부하 하네스 다중 항목 시나리오 | `ITEMS_PER_ORDER`, `LABEL` 컨벤션 문서화 | 이전 (변화 없음 — k6 는 Gradle 테스트가 아니다) |
@@ -775,23 +776,104 @@ class OptimisticLockStockLockStrategySwitchTest @Autowired constructor(
 }
 ```
 
-- [ ] **Step 8: 예외 번역을 실제로 확인한다**
+- [ ] **Step 8: 예외 번역을 실제 DB 로 검증한다**
 
 Step 4 의 KDoc 이 세운 가정 — raw `OptimisticLockException` 이 `ObjectOptimisticLockingFailureException`
-으로 번역된다 — 을 목이 아니라 진짜 DB 로 확인한다. 두 스레드가 같은 상품을 동시에 주문하게 하고
-한쪽이 CONFLICT(재시도 3 회 소진)로 끝나는지 본다. 이 테스트는 태스크 4 가 정식 동시성 테스트로
-승격시키므로 여기서는 임시로 돌려서 확인만 한다.
+으로 번역된다 — 을 목이 아니라 진짜 DB 로 확인한다.
 
-```bash
-SPRING_PROFILES_ACTIVE=test -Dloopers.stock.lock-strategy=optimistic \
-  ./gradlew :apps:commerce-api:test --tests 'com.loopers.application.order.OrderFacadeConcurrencyTest' \
-  -Dloopers.stock.lock-strategy=optimistic
+**이 단계를 건너뛰면 태스크 2 는 전부 초록인 채로 고장날 수 있다.** Step 1 의 단위 테스트는
+`thenThrow(ObjectOptimisticLockingFailureException(...))` 로 **이미 번역된 예외를 직접 스텁**하므로
+번역이 실패해도 통과한다. 번역이 없으면 Step 5 의 `catch` 가 예외를 알아보지 못해 모든 버전 충돌이
+재시도 없이 500 이 되고, 태스크 6 에서 낙관적 락은 에러율 폭발로 나온다 — **구현 버그를 전략의
+성질로 오독하게 된다.** 설계 문서 4.3 장이 경고한 "남의 집에서 측정되는 셈" 이 실제로 벌어지는 자리다.
+
+동시성으로 재현하지 않는다. **한 트랜잭션 안에서 결정론적으로** 버전을 어긋나게 만들 수 있다 —
+엔티티를 1 차 캐시에 올린 뒤 같은 행의 `version` 을 raw SQL 로 밀어 올리면, Hibernate 가 발행하는
+`UPDATE ... WHERE id = ? AND version = ?` 이 0 행이 된다. 스레드도 슬립도 없다.
+
+`apps/commerce-api/src/test/kotlin/com/loopers/infrastructure/product/OptimisticLockExceptionTranslationTest.kt`
+
+```kotlin
+package com.loopers.infrastructure.product
+
+import com.loopers.domain.product.Price
+import com.loopers.domain.product.ProductModel
+import com.loopers.domain.product.ProductName
+import com.loopers.domain.product.Stock
+import com.loopers.domain.product.StockDecreaseStrategy
+import com.loopers.utils.DatabaseCleanUp
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.orm.ObjectOptimisticLockingFailureException
+import org.springframework.transaction.support.TransactionTemplate
+
+/**
+ * Step 4 KDoc 의 가정을 증명한다 — Repository 스테레오타입이 붙은 전략이 던지는
+ * jakarta.persistence.OptimisticLockException 이 스프링 표준
+ * ObjectOptimisticLockingFailureException 으로 번역되는가.
+ *
+ * 이 번역이 없으면 OrderFacade 의 재시도 catch 가 예외를 알아보지 못해 낙관적 락이 재시도 없이
+ * 전부 실패한다. 단위 테스트는 이미 번역된 예외를 스텁하므로 그 고장을 잡지 못한다.
+ * (2026-09-09 설계 문서 6.2 장)
+ */
+@SpringBootTest(properties = ["loopers.stock.lock-strategy=optimistic"])
+class OptimisticLockExceptionTranslationTest @Autowired constructor(
+    private val stockDecreaseStrategy: StockDecreaseStrategy,
+    private val productJpaRepository: ProductJpaRepository,
+    private val transactionTemplate: TransactionTemplate,
+    private val jdbcTemplate: JdbcTemplate,
+    private val databaseCleanUp: DatabaseCleanUp,
+) {
+    @AfterEach
+    fun tearDown() {
+        databaseCleanUp.truncateAllTables()
+    }
+
+    @DisplayName("버전이 어긋난 채 차감하면, 스프링 표준 낙관적 락 예외로 번역되어 올라온다.")
+    @Test
+    fun translatesToSpringException_whenVersionConflicts() {
+        // arrange
+        val saved = productJpaRepository.save(
+            ProductModel.create(
+                brandId = 1L,
+                name = ProductName("운동화"),
+                price = Price(39_000),
+                stock = Stock(10),
+            ),
+        )
+
+        // act
+        val thrown = assertThrows<Exception> {
+            transactionTemplate.execute {
+                // 엔티티를 1 차 캐시에 올린다 (version = 0).
+                productJpaRepository.findByIdAndDeletedAtIsNull(saved.id)
+
+                // Hibernate 가 모르는 경로로 같은 행의 version 을 밀어 올린다.
+                // 이제 1 차 캐시의 version(0) 과 DB 의 version(1) 이 어긋난다.
+                jdbcTemplate.update("UPDATE products SET version = version + 1 WHERE id = ?", saved.id)
+
+                // 전략이 stock 을 줄이고 flush 하면 UPDATE ... WHERE version = 0 이 0 행이 된다.
+                stockDecreaseStrategy.decreaseStock(productId = saved.id, quantity = 1)
+            }
+        }
+
+        // assert
+        // 여기서 jakarta.persistence.OptimisticLockException 이 잡히면 번역이 동작하지 않는 것이다.
+        assertThat(thrown)
+            .describedAs("번역이 없으면 OrderFacade 의 재시도 catch 가 이 예외를 알아보지 못한다")
+            .isInstanceOf(ObjectOptimisticLockingFailureException::class.java)
+    }
+}
 ```
 
-**이 명령은 참고용이다.** Gradle 의 `test` 태스크는 `-D` 를 포크된 테스트 JVM에 자동으로 넘기지
-않을 수 있다 — 넘어가지 않으면 기본값(conditional-update)으로 돈다. 확실한 확인은 태스크 4 에서
-`@SpringBootTest(properties = [...])` 로 컨텍스트를 직접 지정해서 한다. 여기서는 최소한
-`ConditionalUpdateStockLockStrategySwitchTest` 류가 통과했다는 사실로 배선 자체는 검증됐다고 본다.
+**이 테스트가 실패하면 그 자리에서 멈춘다.** 번역이 동작하지 않는 상태로 태스크 3 이후로 넘어가면
+9 칸 중 낙관적 락 세 칸이 통째로 의미를 잃는다.
 
 - [ ] **Step 9: 전체 회귀와 린트**
 
@@ -800,7 +882,7 @@ SPRING_PROFILES_ACTIVE=test -Dloopers.stock.lock-strategy=optimistic \
 ./gradlew :apps:commerce-api:ktlintCheck
 ```
 
-기대: 0 failures. 테스트 수는 **이전 + 3**(재시도 단위 테스트 2, 스위치 확인 1).
+기대: 0 failures. 테스트 수는 **이전 + 4**(재시도 단위 테스트 2, 스위치 확인 1, 예외 번역 1).
 
 - [ ] **Step 10: 커밋**
 
@@ -809,7 +891,8 @@ git add apps/commerce-api/src/main/kotlin/com/loopers/domain/product/ProductMode
         apps/commerce-api/src/main/kotlin/com/loopers/application/order/OrderFacade.kt \
         apps/commerce-api/src/main/kotlin/com/loopers/infrastructure/product/OptimisticLockStockDecreaseStrategy.kt \
         apps/commerce-api/src/test/kotlin/com/loopers/application/order/OrderFacadeTest.kt \
-        apps/commerce-api/src/test/kotlin/com/loopers/infrastructure/product/OptimisticLockStockLockStrategySwitchTest.kt
+        apps/commerce-api/src/test/kotlin/com/loopers/infrastructure/product/OptimisticLockStockLockStrategySwitchTest.kt \
+        apps/commerce-api/src/test/kotlin/com/loopers/infrastructure/product/OptimisticLockExceptionTranslationTest.kt
 git commit -m "feat : 낙관적 락 재고 차감 전략과 재시도 래퍼를 추가한다"
 ```
 
