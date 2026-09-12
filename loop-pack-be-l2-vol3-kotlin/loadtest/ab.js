@@ -32,6 +32,15 @@ const P95_THRESHOLD_MS = Number(__ENV.P95_THRESHOLD_MS || 200);
 const SEED_USERS = ['seeduser01', 'seeduser02', 'seeduser03'];
 const PRODUCT_COUNT = 137;
 
+// 주문 한 건에 담을 항목 수. 기본 1 은 2026-09-06 측정과 같은 조건이다 — 그래야 비교할 수 있다.
+// 2 이상이면 재고 차감이 여러 행을 건드리므로, 세 락 전략이 갈라지는 축이 이 스크립트에서 드러난다.
+// (2026-09-09 설계 문서 3.5 장 · 5.3 장)
+const ITEMS_PER_ORDER = Number(__ENV.ITEMS_PER_ORDER || 1);
+
+if (ITEMS_PER_ORDER < 1 || ITEMS_PER_ORDER > PRODUCT_COUNT) {
+    throw new Error('ITEMS_PER_ORDER 는 1 이상 ' + PRODUCT_COUNT + ' 이하여야 한다. 받은 값: ' + ITEMS_PER_ORDER);
+}
+
 // ── VU 풀 크기 ──────────────────────────────────────────────────────────
 // 락 대기로 응답이 늦어져도(설계 문서 12.3 장 — 핫스팟 800 TPS 에서 p95 2.48초 관측) 도착률을 유지하려면
 // VU 가 충분히 있어야 한다. 부족하면 k6 가 반복을 건너뛰어(dropped_iterations) 실제 도착률이
@@ -100,6 +109,22 @@ export const options = {
     discardResponseBodies: true,
 };
 
+// 핫스팟은 productId=1 을 반드시 포함한다. 다중 항목에서 무작위로만 뽑으면 핫 행이 빠진 주문이
+// 섞여 "단일 행 직렬화" 를 재는 실험이 아니게 된다. (2026-09-09 설계 문서 5.3 장)
+// 중복 productId 는 서버가 400 으로 막으므로 반드시 제거한다.
+function pickProductIds() {
+    const ids = SCENARIO_NAME === 'spread' ? [] : [1];
+
+    while (ids.length < ITEMS_PER_ORDER) {
+        const candidate = Math.floor(Math.random() * PRODUCT_COUNT) + 1;
+        if (ids.indexOf(candidate) === -1) {
+            ids.push(candidate);
+        }
+    }
+
+    return ids;
+}
+
 export function placeOrder() {
     const phase = exec.scenario.name; // 'warmup' | 'measurement'
 
@@ -107,14 +132,14 @@ export function placeOrder() {
     // 테스트 전체로 보면 세 회원에 고르게 분산된다.
     const user = SEED_USERS[exec.vu.idInInstance % SEED_USERS.length];
 
-    // hotspot: 항상 productId=1 (단일 행 배타 락 직렬화를 본다)
+    // hotspot: productId=1 을 반드시 포함 (단일 행 배타 락 직렬화를 본다)
     // spread : 137개 중 랜덤 (커넥션 풀 고갈을 본다) — 설계 문서 3.4 장
-    const productId = SCENARIO_NAME === 'spread' ? Math.floor(Math.random() * PRODUCT_COUNT) + 1 : 1;
-
     // couponId 는 보내지 않는다. user_coupons 는 1인 1매·1회용이라 두 번째 요청부터 409 가 나
     // 지속 부하를 걸 수 없다(설계 문서 12.2 장). 쿠폰 경로는 이 스크립트의 측정 대상이 아니다.
     const payload = JSON.stringify({
-        items: [{ productId: productId, quantity: 1 }],
+        items: pickProductIds().map(function (id) {
+            return { productId: id, quantity: 1 };
+        }),
     });
 
     const res = http.post(BASE_URL + '/api/v1/orders', payload, {
@@ -188,7 +213,8 @@ function buildConsoleSummary(data) {
 
     const lines = [];
     lines.push('================================================================');
-    lines.push(' 주문 처리량 A/B 부하 테스트 — ' + SCENARIO_NAME + ' / label=' + LABEL + ' / target=' + TARGET_TPS + ' TPS');
+    lines.push(' 주문 처리량 락 전략 비교 부하 테스트 — ' + SCENARIO_NAME + ' / label=' + LABEL +
+        ' / target=' + TARGET_TPS + ' TPS / items=' + ITEMS_PER_ORDER);
     lines.push('================================================================');
     lines.push(' 측정 구간(warmup ' + WARMUP + ' 제외, duration=' + DURATION + '): 요청 수=' + total + ', 달성 TPS=' + achievedTps);
     if (durValues !== null) {

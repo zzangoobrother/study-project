@@ -3,6 +3,7 @@ package com.loopers.infrastructure.product
 import com.loopers.domain.product.ProductCriteria
 import com.loopers.domain.product.ProductModel
 import com.loopers.domain.product.ProductRepository
+import com.loopers.domain.product.StockDecreaseStrategy
 import com.loopers.domain.support.PageResult
 import org.springframework.stereotype.Component
 
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component
 class ProductRepositoryImpl(
     private val productJpaRepository: ProductJpaRepository,
     private val productQueryDslRepository: ProductQueryDslRepository,
+    private val stockDecreaseStrategy: StockDecreaseStrategy,
 ) : ProductRepository {
     override fun saveAll(products: List<ProductModel>): List<ProductModel> {
         return productJpaRepository.saveAll(products)
@@ -48,7 +50,8 @@ class ProductRepositoryImpl(
     }
 
     override fun decreaseStock(productId: Long, quantity: Int): Int {
-        return productJpaRepository.decreaseStock(productId = productId, quantity = quantity)
+        // 실제 전략(조건부 UPDATE·낙관적 락·비관적 락)은 기동 시 빈으로 결정된다. (2026-09-09 설계 문서 6.1 장)
+        return stockDecreaseStrategy.decreaseStock(productId = productId, quantity = quantity)
     }
 
     override fun findAllByIds(ids: List<Long>): List<ProductModel> {

@@ -16,16 +16,24 @@ import com.loopers.domain.user.UserService
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
 import java.time.LocalDate
+import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionTemplate
 
 /**
  * 회원 · 상품 · 주문 세 애그리거트를 조합하는 유스케이스.
  *
- * LikeFacade 와 달리 평범한 @Transactional 을 쓴다. (설계 문서 6.8 장)
- * 좋아요가 TransactionTemplate 을 쓴 이유는 경합 예외를 트랜잭션 경계 밖에서 흡수해야 했기 때문인데,
- * 주문은 흡수하지 않는다 — 재고 부족은 409 로 그대로 나가고 그때 롤백되는 것이 정답이다.
- * 흡수할 것이 없으므로 경계를 밖으로 뺄 이유가 없다.
+ * place() 는 지금 TransactionTemplate 을 쓴다. 원래는 LikeFacade 와 달리 평범한 @Transactional 이었고
+ * (설계 문서 6.8 장), 그때의 근거는 "주문에는 흡수할 경합 예외가 없다 — 재고 부족은 409 로 그대로
+ * 나가고 그때 롤백되는 것이 정답이다" 였다. 그 근거는 조건부 UPDATE 에서는 여전히 옳다.
+ *
+ * 바뀐 이유는 낙관적 락 측정 때문이다. 낙관적 락은 버전 충돌을 재시도해야 하고, 재시도는 트랜잭션
+ * 경계 밖이어야 한다 — 안에 두면 롤백되지 않은 트랜잭션 위에서 다시 시도하게 된다. 그래서 LikeFacade
+ * 와 같은 구조(얇은 래퍼 + transactionTemplate.execute)를 빌려 왔다. (2026-09-09 설계 문서 6.2 장)
+ *
+ * 세 전략 비교가 끝나 조건부 UPDATE 가 채택되면 이 래퍼는 걷히고 @Transactional 로 돌아간다.
+ * (2026-09-09 설계 문서 6.5 장) 그때 위 첫 문단의 근거가 다시 그대로 유효해진다.
  *
  * 주의: 이 API 는 인증을 수행하지 않는다. 헤더 값의 형식만 검증할 뿐 요청자가 본인인지 확인하지 않으므로,
  * 로그인 ID 를 아는 누구나 타인 명의로 주문할 수 있다. 좋아요와 같은 구조지만 결과의 무게가 다르다 —
@@ -42,9 +50,37 @@ class OrderFacade(
     private val productService: ProductService,
     private val orderService: OrderService,
     private val couponService: CouponService,
+    private val transactionTemplate: TransactionTemplate,
 ) {
-    @Transactional
     fun place(command: OrderCommand.Place): OrderInfo {
+        repeat(MAX_OPTIMISTIC_LOCK_ATTEMPTS) { attempt ->
+            try {
+                return transactionTemplate.execute { placeInTransaction(command) }!!
+            } catch (e: ObjectOptimisticLockingFailureException) {
+                // 백오프 없음 — 넣으면 지연이 경합의 산물인지 정책의 산물인지 구분할 수 없다.
+                // (2026-09-09 설계 문서 6.2 장) 다른 두 전략에서는 이 예외가 나지 않으므로
+                // 이 catch 는 그 전략들에서 한 번도 실행되지 않는다 — 핫패스에 분기를 더하지 않는다.
+                if (attempt == MAX_OPTIMISTIC_LOCK_ATTEMPTS - 1) {
+                    throw CoreException(
+                        errorType = ErrorType.CONFLICT,
+                        customMessage = "[productIds = ${command.items.map { it.productId }}] " +
+                            "동시 갱신 충돌로 재고 차감에 실패했습니다 " +
+                            "(재시도 $MAX_OPTIMISTIC_LOCK_ATTEMPTS 회 초과).",
+                    )
+                }
+            }
+        }
+        error("도달할 수 없다 — 위 루프가 성공 시 반환하거나 재시도 초과 시 예외를 던진다")
+    }
+
+    /**
+     * 실제 주문 처리. place() 와 분리된 이유는 재시도가 트랜잭션 경계 밖에 있어야 하기 때문이다
+     * (2026-09-09 설계 문서 6.2 장) — 재시도를 @Transactional 안에 두면 실패한 트랜잭션이 롤백되지
+     * 않은 채로 다시 시도하게 된다. LikeFacade 가 같은 문제를 TransactionTemplate 으로 푼 전례를
+     * 그대로 따른다 — "얇은 래퍼 + @Transactional 컴포넌트" 로 클래스를 쪼개지 않는 이유는
+     * LikeFacade KDoc 참고.
+     */
+    private fun placeInTransaction(command: OrderCommand.Place): OrderInfo {
         val user = getUserOrThrow(command.loginId)
 
         // 정렬이 데드락을 막는다. 저장되는 항목의 순서는 요청 순서 그대로이므로 정렬한 것은 차감 순서뿐이다.
@@ -228,5 +264,10 @@ class OrderFacade(
         }
 
         return products
+    }
+
+    private companion object {
+        /** 낙관적 락 외 전략에서는 영향을 주지 않는다 — 그 전략들은 첫 시도에서 항상 끝난다. */
+        const val MAX_OPTIMISTIC_LOCK_ATTEMPTS = 3
     }
 }

@@ -14,8 +14,21 @@
 **기술 스택:** Kotlin 2.0 / Spring Boot 3.4 / Spring Data JPA / QueryDSL / MySQL 8.0 /
 JUnit 5 · AssertJ · Mockito / Testcontainers / k6
 
-**설계 문서:** `docs/superpowers/specs/2026-09-09-batch-stock-decrease-design.md`
+**설계 문서:** `docs/superpowers/specs/2026-09-11-batch-stock-decrease-design.md`
 (이 계획은 설계 문서를 근거로 삼는다. 실행자는 둘 다 읽는다. 어긋나면 설계 문서가 기준이다.)
+
+> ## ⛔ 이 계획은 보류 상태다
+>
+> **[2026-09-09 락 전략 처리량 비교](../specs/2026-09-09-lock-strategy-throughput-design.md)가
+> 끝나 전략이 정해지기 전에는 착수하지 않는다.**
+>
+> 단일 문장화는 조건부 `UPDATE` 에만 적용되는 최적화다. 비교보다 먼저 하면 한쪽만 최적화한
+> 상태로 세 전략을 재게 되어, 재는 것이 전략이 아니라 "접은 것 vs 안 접은 것" 이 된다.
+>
+> 비교에서 **다른 전략이 이기면 이 계획은 통째로 다시 써야 한다.** Task 2 의 `CASE` 조립은
+> 조건부 `UPDATE` 의 `WHERE` 절을 넓히는 기법이라 낙관적 락·비관적 락에 그대로 옮길 수 없다.
+>
+> 부하 하네스(`ITEMS_PER_ORDER`)는 비교 계획이 먼저 만든다. 여기서 다시 만들지 않는다.
 
 ---
 
@@ -34,7 +47,7 @@ JUnit 5 · AssertJ · Mockito / Testcontainers / k6
 - **ktlint 최대 줄 길이 130 자** (유니코드 문자 수 기준). `*Test.kt` 는 예외다.
 - **블록 주석 안에 `/**` 를 쓰지 않는다.** Kotlin 은 블록 주석이 중첩되어 `Unclosed comment` 로 컴파일이 깨진다.
 - **주석은 "무엇" 이 아니라 "왜" 를 적는다.** 설계 문서를 인용할 때는 **항상 날짜를 밝힌다.**
-  이 계획이 새로 쓰는 인용은 전부 `(2026-09-09 설계 문서 N 장)` 형식이다. 앞선 문서를 가리킬 때는
+  이 계획이 새로 쓰는 인용은 전부 `(2026-09-11 설계 문서 N 장)` 형식이다. 앞선 문서를 가리킬 때는
   `(2026-09-06 설계 문서 N 장)` · `(2026-08-24 설계 문서 N 장)` 로 적는다.
   **날짜 없는 `(설계 문서 N 장)` 을 새로 쓰지 않는다.**
 - **기존 주석의 날짜 없는 인용은 건드리지 않는다.** 그 파일을 지배하던 문서를 가리키므로 여전히 옳다.
@@ -56,15 +69,18 @@ JUnit 5 · AssertJ · Mockito / Testcontainers / k6
 
 작업 시작 전 상태다. 회귀 판정의 기준이 된다.
 
-- 브랜치 `feature/order`, HEAD `8bb505d`
+- 브랜치 `feature/order`, HEAD `6b99574` (이 계획과 설계 문서가 커밋된 시점)
 - `./gradlew :apps:commerce-api:test` → **747 tests / 0 failures** (2026-09-06 리포트 기준)
   - **Task 1 을 시작하기 전에 한 번 실측해 확인한다.** 이후 모든 태스크의 기대 테스트 수
     (752 → 759 → 759 → 754 → 756)가 이 값에 물려 있어, 어긋나면 전부 보정해야 한다.
 - **작업 트리는 깨끗하지 않다.** `loop-pack-be-l2-vol3-kotlin/` 안은 비어 있지만, Git 루트인
   상위 `study-project/` 에 이 계획과 무관한 변경이 남아 있다.
-  - `gradlew` 파일 모드 변경 — 상위 저장소의 것이다. **되돌리지 않고 그대로 둔다.**
-  - `docs/superpowers/plans/2026-09-01-coupon-admin.md` 수정분 — 이 계획과 무관하다.
-  - 여러 미추적 디렉터리(`.serena/`, `chat-client/data/` 등)
+  - `gradlew` 파일 모드 변경(`100644` → `100755`) — 상위 저장소의 것이다.
+    **되돌리지 않고 그대로 둔다.**
+  - 여러 미추적 디렉터리 — `.serena/`, `chat-client/data/`, `chat-study/docker/data/`,
+    `fastcampus-coupon-core/src/main/generated/` 등 전부 생성물이다.
+  - ⚠️ `fcm-project/src/main/resources/` 에 Firebase 서비스 계정 **비공개 키**가 미추적으로 있다.
+    `.gitignore` 가 막지 않으므로 **`git add -A` 를 쓰면 그대로 올라간다.**
 
   이것들은 자기 변경이 아니므로 **커밋할 때 경로를 명시해 스테이징한다.** `git add -A` 를 쓰지 않는다.
 
@@ -92,8 +108,6 @@ JUnit 5 · AssertJ · Mockito / Testcontainers / k6
 | `test/.../domain/product/ProductServiceIntegrationTest.kt` | `DecreaseStock` 중첩 클래스를 `DecreaseStocks` 로 이관 |
 | `test/.../application/order/OrderFacadeTest.kt` | 스텁·검증을 새 시그니처로 |
 | `test/.../application/order/OrderFacadeConcurrencyTest.kt` | 다중 항목 동시성 테스트 추가 |
-| `loadtest/ab.js` | `ITEMS_PER_ORDER` 시나리오 추가 |
-| `loadtest/README.md` | 새 환경변수 문서화 |
 
 ---
 
@@ -106,7 +120,6 @@ JUnit 5 · AssertJ · Mockito / Testcontainers / k6
 | 3 | `OrderFacade` 전환 | 759 (변화 없음 — 테스트를 더하지 않고 바꾼다) |
 | 4 | 옛 단일 차감 API 제거 | 759 → 754 |
 | 5 | 다중 항목 동시성 테스트 | 754 → 756 |
-| 6 | 부하 하네스 다중 항목 시나리오 | 756 (변화 없음 — k6 는 Gradle 테스트가 아니다) |
 
 **태스크 2 가 이 계획의 중심이다.** 초과 판매 방지가 걸린 `WHERE` 절이 통째로 다시 쓰인다.
 `stock >= :quantity` 가 **상품마다 다른 값으로** 평가되지 않으면 조용히 초과 판매가 난다.
@@ -234,7 +247,7 @@ import com.loopers.support.error.ErrorType
  * 알게 되기 때문이다. 상품은 주문을 모르는 쪽이 옳다. 같은 규칙(1 이상)을 여기서 다시 세운다.
  *
  * 이 객체가 만들어졌다는 사실이 검증 통과를 의미하므로, 차감 쿼리는 값을 다시 확인하지 않는다.
- * (2026-09-09 설계 문서 4.5 장)
+ * (2026-09-11 설계 문서 4.5 장)
  */
 data class StockDecrease(val productId: Long, val quantity: Int) {
     init {
@@ -475,7 +488,7 @@ QueryDSL 도 쓰지 않는다 — `CaseBuilder` 체인은 최종 SQL 의 모양�
      * 여러 상품의 재고를 한 문장으로 차감한다. 반환값은 영향 행 수다.
      *
      * 상품마다 stock >= quantity 를 따로 판정하므로, 한 상품이라도 모자라면 그 행만 갱신되지 않는다.
-     * 따라서 호출자는 반환값이 items.size 와 같은지로 전체 성공을 판정한다. (2026-09-09 설계 문서 4.2 장)
+     * 따라서 호출자는 반환값이 items.size 와 같은지로 전체 성공을 판정한다. (2026-09-11 설계 문서 4.2 장)
      *
      * 한 문장인 것이 이 계약의 핵심이다. 상품마다 UPDATE 를 따로 보내면 첫 UPDATE 가 잡은 배타 락이
      * 나머지 왕복을 전부 기다려, 락 보유 시간이 항목 수에 비례해 늘어난다. (같은 문서 3.1 장)
@@ -500,7 +513,7 @@ import org.springframework.stereotype.Component
  * 여러 상품의 재고를 한 문장으로 차감한다.
  *
  * 항목 수가 요청마다 달라 CASE 절의 길이가 고정되지 않으므로, Query 애노테이션으로는 표현할 수 없다.
- * (2026-09-09 설계 문서 4.5 장)
+ * (2026-09-11 설계 문서 4.5 장)
  *
  * QueryDSL 을 쓰지 않는 이유는 이 쿼리가 초과 판매 방지를 직접 지고 있기 때문이다.
  * CaseBuilder 체인은 최종 SQL 의 모양을 가리는데, 여기서는 WHERE 절에 항목별 수량이 실제로
@@ -591,14 +604,14 @@ class ProductRepositoryImpl(
      * false 는 두 가지를 뜻한다 — 어느 상품의 재고가 모자랐거나, 그 사이 삭제됐거나.
      * 어느 상품인지도 구분하지 않는다. 영향 행 수는 몇 개가 실패했는지만 알려주고 어느 것인지는 모른다.
      * 알아내려면 다시 조회해야 하는데, 그 조회는 같은 경합을 겪으면서 롤백될 값을 읽는다.
-     * (2026-09-09 설계 문서 4.6 장)
+     * (2026-09-11 설계 문서 4.6 장)
      *
      * decreaseStock 과 달리 부분 차감이 남을 수 있다. 호출자는 반드시 이 값을 보고 롤백해야 한다.
      */
     @Transactional
     fun decreaseStocks(items: List<StockDecrease>): Boolean {
         // CASE 는 한 행에 한 번만 매칭되므로 중복이 조용히 무시된다. 영향 행 수로는 구분할 수 없어
-        // 쿼리에 닿기 전에 막는다. (2026-09-09 설계 문서 4.3 장)
+        // 쿼리에 닿기 전에 막는다. (2026-09-11 설계 문서 4.3 장)
         if (items.map { it.productId }.distinct().size != items.size) {
             throw CoreException(ErrorType.BAD_REQUEST, "같은 상품을 여러 번 차감할 수 없습니다.")
         }
@@ -661,7 +674,7 @@ git commit -m "feat : 여러 상품의 재고를 한 문장으로 차감하는 �
 `sortedBy { it.productId }` 는 **남긴다.** 한 문장이 되면서 MySQL 이 인덱스 순서로 락을 잡으므로
 데드락 방지의 필수 요건은 아니게 됐지만, 비용이 없고 이 구조가 되돌려질 때 다시 필요해진다.
 **성격이 바뀌었다는 사실을 주석에 남기지 않으면 다음 사람이 "쓸모없는 정렬" 로 보고 지운다.**
-(2026-09-09 설계 문서 4.4 장 · 7.3 장)
+(2026-09-11 설계 문서 4.4 장 · 7.3 장)
 
 - [ ] **Step 1: `OrderFacade` 를 바꾼다**
 
@@ -669,7 +682,7 @@ git commit -m "feat : 여러 상품의 재고를 한 문장으로 차감하는 �
 
 ```kotlin
         // 재고 차감을 한 문장으로 보낸다. 상품마다 UPDATE 를 따로 보내면 첫 UPDATE 가 잡은 배타 락이
-        // 나머지 왕복을 전부 기다려, 락 보유 시간이 항목 수에 비례해 늘어난다. (2026-09-09 설계 문서 3.1 장)
+        // 나머지 왕복을 전부 기다려, 락 보유 시간이 항목 수에 비례해 늘어난다. (2026-09-11 설계 문서 3.1 장)
         //
         // 0 행은 재고 부족과 상품 소멸을 함께 뜻한다. 어느 상품인지도 구분하지 않는다 —
         // 주문할 수 없다는 결론이 같고, 나누려면 다시 조회해야 하는데 그 조회도 같은 경합을 겪는다.
@@ -688,8 +701,25 @@ git commit -m "feat : 여러 상품의 재고를 한 문장으로 차감하는 �
         // 정렬은 이제 필수가 아니라 이중 안전장치다. 차감이 한 문장이 되면서 MySQL 이 인덱스 순서로
         // 락을 잡으므로 데드락 방지는 엔진이 보장한다. 그럼에도 남기는 것은 비용이 없고, 이 구조가
         // 되돌려지거나 다른 경로가 상품을 여러 번 갱신하게 될 때 다시 필요해지기 때문이다.
-        // (2026-09-09 설계 문서 4.4 장) 저장되는 항목의 순서는 요청 순서 그대로다.
+        // (2026-09-11 설계 문서 4.4 장) 저장되는 항목의 순서는 요청 순서 그대로다.
         val sorted = command.items.sortedBy { it.productId }
+```
+
+**`OrderInfo.of(order)` 위의 ⚠️ 주석도 바꾼다.** 옛 이름(`ProductJpaRepository.decreaseStock`)과
+사라질 애노테이션(`@Modifying(clearAutomatically = true)`)을 가리키고 있어, 태스크 4 이후
+**존재하지 않는 심볼을 설명하는 주석**이 된다. 경고 자체는 여전히 유효하다 — 새 인프라 클래스가
+`entityManager.clear()` 로 같은 일을 하기 때문이다. **그 사실을 함께 남긴다.**
+
+```kotlin
+        // ⚠️ OrderInfo 변환을 재고 차감보다 반드시 먼저 한다. ProductStockJpqlRepository.decreaseStocks 가
+        // 차감 뒤 entityManager.clear() 로 영속성 컨텍스트를 통째로 비우고, 그러면 방금 저장한 order 가
+        // detach 된다. 차감을 먼저 하고 order.items 를 나중에 읽으면 컬렉션 초기화 여부에 따라
+        // 실패할 수 있다. "변환은 마지막에 하는 게 자연스럽다" 며 이 순서를 되돌리면 이 자리가 조용히 깨진다.
+        //
+        // 옛 decreaseStock 은 @Modifying(clearAutomatically = true) 가 같은 일을 했다.
+        // 애노테이션이 사라졌을 뿐 비우는 동작은 그대로이므로 이 경고는 그대로 유효하다.
+        // (2026-09-11 설계 문서 4.5 장)
+        val orderInfo = OrderInfo.of(order)
 ```
 
 `com.loopers.domain.product.StockDecrease` 임포트를 추가한다.
@@ -712,10 +742,10 @@ whenever(productService.decreaseStock(any(), any())).thenReturn(true)
 
 whenever(productService.decreaseStock(any(), any())).thenReturn(false)
   → whenever(productService.decreaseStocks(any())).thenReturn(false)         (2 곳)
-
-whenever(productService.decreaseStock(productId = eq(1L), quantity = any())).thenReturn(false)
-  → whenever(productService.decreaseStocks(any())).thenReturn(false)         (1 곳)
 ```
+
+파일에는 `eq(1L)` 형태의 스텁이 하나 더 있다(`stopsDecreasingStock_whenEarlierItemFails` 안).
+**여기서 바꾸지 않는다** — Step 5 가 그 테스트를 통째로 교체하면서 함께 사라진다.
 
 `never()` 검증 4 곳도 바꾼다.
 
@@ -724,11 +754,20 @@ verify(productService, never()).decreaseStock(any(), any())
   → verify(productService, never()).decreaseStocks(any())
 ```
 
+`eq(2L)` 형태의 `never()` 검증 하나도 같은 테스트 안에 있다. 역시 Step 5 가 처리한다.
+
 `inOrder` 검증 2 곳도 바꾼다.
 
 ```
 ordered.verify(productService).decreaseStock(productId = any(), quantity = any())
   → ordered.verify(productService).decreaseStocks(any())
+```
+
+**주석 하나도 옛 이름을 가리킨다.** 태스크 4 이후 존재하지 않는 심볼이 되므로 함께 바꾼다.
+
+```
+// loadProductsOrThrow 의 존재 검증이 decreaseStock 차감 루프보다 먼저 실행된다는 순서 계약이 핵심이다.
+  → // loadProductsOrThrow 의 존재 검증이 decreaseStocks 차감보다 먼저 실행된다는 순서 계약이 핵심이다.
 ```
 
 - [ ] **Step 4: 순서·수량 검증을 인자 캡처로 바꾼다**
@@ -748,7 +787,7 @@ arrange · act 는 그대로 두고 스텁 한 줄만 Step 3 대로 바뀐다.
 ```kotlin
             // assert
             // OrderFacade 의 데드락 방지 계약 — 이제 한 문장이 되어 MySQL 이 인덱스 순서로 락을 잡지만,
-            // 정렬은 이중 안전장치로 남아 있다. (2026-09-09 설계 문서 4.4 장)
+            // 정렬은 이중 안전장치로 남아 있다. (2026-09-11 설계 문서 4.4 장)
             // 통합 테스트로는 차감 순서를 관찰할 수 없어 이 단위 테스트가 계약을 고정한다.
             // 아래 "요청 순서 그대로 저장" 케이스와 짝이다 — 정렬한 것은 차감 순서뿐이라는 계약의 반쪽씩이다.
             val captor = argumentCaptor<List<StockDecrease>>()
@@ -784,7 +823,7 @@ import org.mockito.kotlin.argumentCaptor
 ```kotlin
         /**
          * 이 단언이 이번 개선의 계약이다. 차감을 상품마다 보내면 첫 UPDATE 가 잡은 배타 락이 나머지
-         * 왕복을 전부 기다려, 락 보유 시간이 항목 수에 비례해 늘어난다. (2026-09-09 설계 문서 3.1 장)
+         * 왕복을 전부 기다려, 락 보유 시간이 항목 수에 비례해 늘어난다. (2026-09-11 설계 문서 3.1 장)
          * 누군가 루프로 되돌리면 여기서 걸린다.
          *
          * 통합 테스트로는 이 계약을 관찰할 수 없다 — DB 최종 상태는 한 문장으로 보내든 나눠 보내든 같다.
@@ -893,7 +932,14 @@ grep -rn "decreaseStock\b" --include="*.kt" apps/
 ```
 
 기대: **출력 없음.** (`decreaseStocks` 는 `\b` 경계에 걸리지 않는다.)
-하나라도 남으면 컴파일이 깨지므로 반드시 0 이어야 한다.
+
+**출력이 있다면 둘 중 하나다.** 호출부가 남은 것이라면 컴파일이 깨지므로 어차피 드러난다.
+문제는 나머지 쪽이다 — **주석에 남은 옛 이름은 컴파일을 깨지 않고 조용히 살아남는다.**
+그런 주석이 두 곳 있고(`OrderFacade` 의 ⚠️ 블록, `OrderFacadeTest` 의 순서 계약 주석)
+**태스크 3 Step 1 · Step 3 이 이미 바꾼다.** 여기서 주석이 잡힌다면 그 단계를 빠뜨린 것이다.
+
+이 검사를 "컴파일이 알려주니 형식적인 것" 으로 보지 않는다. 이 grep 이 실제로 잡아내는 것은
+컴파일러가 못 보는 쪽이다.
 
 - [ ] **Step 7: 전체 회귀와 린트**
 
@@ -991,7 +1037,7 @@ git commit -m "refactor : 단일 상품 재고 차감 API 를 제거한다"
             { assertThat(stockOf(scarce.id)).isEqualTo(0L) },
             {
                 // 실패한 6 건이 넉넉한 상품을 차감한 채 남으면 여기서 96 이 아닌 값이 나온다.
-                // 부분 차감을 되돌리는 것은 호출자의 트랜잭션이라는 계약(2026-09-09 설계 문서 4.2 장)의 증거다.
+                // 부분 차감을 되돌리는 것은 호출자의 트랜잭션이라는 계약(2026-09-11 설계 문서 4.2 장)의 증거다.
                 assertThat(stockOf(plenty.id)).describedAs("실패한 주문의 부분 차감이 남지 않아야 한다").isEqualTo(96L)
             },
         )
@@ -1027,123 +1073,6 @@ git commit -m "test : 다중 항목 주문의 동시성 테스트를 추가한�
 
 ---
 
-### Task 6: 부하 하네스 다중 항목 시나리오
-
-**파일:**
-- 수정: `loadtest/ab.js`
-- 수정: `loadtest/README.md`
-
-**인터페이스:**
-- 사용: 없음 (Gradle 테스트와 무관하다)
-- 제공: 환경변수 `ITEMS_PER_ORDER` (기본 `1`)
-
-**배경:** 이 태스크가 없으면 **개선 효과를 잴 방법이 없다.** 항목 1 개 주문에서는 태스크 3 의 변경이
-아무것도 바꾸지 않기 때문이다 (2026-09-09 설계 문서 8.1 장).
-
-기본값이 `1` 이어야 한다. 그래야 2026-09-06 문서의 기존 결과와 같은 조건으로 비교할 수 있다.
-
-**핫 상품이 반드시 포함돼야 한다.** 다중 항목이 되면 상품을 여럿 고르므로 그냥 무작위로 뽑으면
-핫스팟과 분산의 경계가 흐려진다. 핫스팟 시나리오는 "핫 상품 1 개 + 무작위 N−1 개" 로 고정한다.
-
-- [ ] **Step 1: 환경변수와 상품 선택 함수를 추가한다**
-
-`ab.js` 의 환경변수 블록에서 `P95_THRESHOLD_MS` 선언 **아래**에 추가한다.
-
-```javascript
-// 주문 한 건에 담을 항목 수. 기본 1 은 2026-09-06 측정과 같은 조건이다 — 그래야 비교할 수 있다.
-// 2 이상이면 재고 차감이 여러 행을 건드리므로, 배치 차감의 효과가 이 축에서 드러난다.
-// (2026-09-09 설계 문서 8.1 장)
-const ITEMS_PER_ORDER = Number(__ENV.ITEMS_PER_ORDER || 1);
-
-if (ITEMS_PER_ORDER < 1 || ITEMS_PER_ORDER > PRODUCT_COUNT) {
-    throw new Error('ITEMS_PER_ORDER 는 1 이상 ' + PRODUCT_COUNT + ' 이하여야 한다. 받은 값: ' + ITEMS_PER_ORDER);
-}
-```
-
-**`PRODUCT_COUNT` 선언보다 뒤에 두어야 한다.** 위 검사가 그 값을 읽는다.
-
-- [ ] **Step 2: 상품 선택을 함수로 뽑는다**
-
-`placeOrder` 함수 **위**에 추가한다.
-
-```javascript
-// 핫스팟은 productId=1 을 반드시 포함한다. 다중 항목에서 무작위로만 뽑으면 핫 행이 빠진 주문이
-// 섞여 "단일 행 직렬화" 를 재는 실험이 아니게 된다. (2026-09-09 설계 문서 8.1 장)
-// 중복 productId 는 서버가 400 으로 막으므로(2026-08-24 설계 문서 6.7 장) 반드시 제거한다.
-function pickProductIds() {
-    const ids = SCENARIO_NAME === 'spread' ? [] : [1];
-
-    while (ids.length < ITEMS_PER_ORDER) {
-        const candidate = Math.floor(Math.random() * PRODUCT_COUNT) + 1;
-        if (ids.indexOf(candidate) === -1) {
-            ids.push(candidate);
-        }
-    }
-
-    return ids;
-}
-```
-
-- [ ] **Step 3: 페이로드를 바꾼다**
-
-기존 `productId` 계산 줄과 `payload` 를 교체한다.
-
-```javascript
-    // couponId 는 보내지 않는다. user_coupons 는 1인 1매·1회용이라 두 번째 요청부터 409 가 나
-    // 지속 부하를 걸 수 없다(2026-09-06 설계 문서 12.2 장). 쿠폰 경로는 이 스크립트의 측정 대상이 아니다.
-    const payload = JSON.stringify({
-        items: pickProductIds().map(function (id) {
-            return { productId: id, quantity: 1 };
-        }),
-    });
-```
-
-- [ ] **Step 4: 요약에 항목 수를 찍는다**
-
-`buildConsoleSummary` 의 제목 줄에 더한다. **어떤 조건의 측정인지 결과 파일만 보고 알 수 있어야 한다.**
-
-```javascript
-    lines.push(' 주문 처리량 A/B 부하 테스트 — ' + SCENARIO_NAME + ' / label=' + LABEL +
-        ' / target=' + TARGET_TPS + ' TPS / items=' + ITEMS_PER_ORDER);
-```
-
-- [ ] **Step 5: 하위 호환을 확인한다**
-
-앱을 띄우지 않고 스크립트만 검사한다.
-
-```bash
-k6 inspect loadtest/ab.js
-```
-
-기대: 오류 없이 시나리오 정의가 출력된다.
-
-`ITEMS_PER_ORDER` 를 주지 않았을 때 핫스팟이 `[1]` 하나만 담는지 확인한다 —
-그래야 2026-09-06 결과와 비교할 수 있다.
-
-- [ ] **Step 6: README 를 갱신한다**
-
-환경변수 표에 한 줄 추가한다.
-
-```markdown
-| `ITEMS_PER_ORDER` | `1` | 주문 한 건의 항목 수. 기본 1 은 2026-09-06 측정과 같은 조건이다. 2 이상이면 배치 차감의 효과를 재는 실험이 된다 (2026-09-09 설계 문서 8.1 장) |
-```
-
-"알려진 제약" 절에 한 줄 추가한다.
-
-```markdown
-- 다중 항목(`ITEMS_PER_ORDER` 2 이상) 결과를 항목 1 개 결과와 같은 표에 놓고 비교하지 않는다.
-  서로 다른 실험이다 (2026-09-09 설계 문서 8.3 장).
-```
-
-- [ ] **Step 7: 커밋**
-
-```bash
-git add loadtest/ab.js loadtest/README.md
-git commit -m "test : 부하 하네스에 다중 항목 주문 시나리오를 추가한다"
-```
-
----
-
 ## 계획 밖
 
 - **측정 실행과 그 결과의 문서 반영.** 하네스는 태스크 6 이 준비하지만, 실제 A/B 측정은 사람이
@@ -1152,6 +1081,6 @@ git commit -m "test : 부하 하네스에 다중 항목 주문 시나리오를 �
   **그 전까지 추정을 실측처럼 쓰지 않는다.**
 - **`binlog_group_commit_sync_delay` 검토.** 인프라 결정이며 2026-09-06 문서 12.6 장의 주제다.
 - **주문 항목 수 상한.** `OrderCommand.Place` 는 항목 수를 제한하지 않아 `CASE` 절의 크기가
-  요청에 비례한다 (2026-09-09 설계 문서 7.1 장). 상한을 둘지는 별도 판단이 필요하다.
+  요청에 비례한다 (2026-09-11 설계 문서 6.1 장). 상한을 둘지는 별도 판단이 필요하다.
   부하 하네스에는 태스크 6 이 검사를 넣지만, 그것은 스크립트 방어이지 API 계약이 아니다.
 - **재고 행 분할.** 핫스팟 상한 자체를 올리는 유일한 방법이지만 과제 범위 밖이다.

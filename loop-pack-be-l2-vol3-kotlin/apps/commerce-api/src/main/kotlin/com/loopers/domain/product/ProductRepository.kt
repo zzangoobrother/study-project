@@ -53,6 +53,10 @@ interface ProductRepository {
      *
      * 확인과 차감이 한 문장 안에서 원자적으로 일어나는 것이 이 계약의 핵심이다. (설계 문서 6.3 장)
      * 읽어서 뺀 값을 쓰면 동시 주문 두 건이 같은 재고를 읽고 같은 값을 써서 초과 판매가 된다.
+     *
+     * 실제 구현은 StockDecreaseStrategy 로 위임된다. 기동 시 loopers.stock.lock-strategy 에 따라
+     * 조건부 UPDATE · 낙관적 락 · 비관적 락 중 하나가 선택되지만, 이 계약과 반환값의 뜻은 셋 모두 같다.
+     * (2026-09-09 설계 문서 6.1 · 6.4 장)
      */
     fun decreaseStock(productId: Long, quantity: Int): Int
 

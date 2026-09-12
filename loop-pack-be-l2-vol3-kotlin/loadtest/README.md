@@ -119,6 +119,7 @@ SCENARIO=spread TARGET_TPS=2400 DURATION=60s WARMUP=10s LABEL=before \
 | `LABEL` | `run` | 결과 파일명 라벨. `before` / `after` 등 |
 | `BASE_URL` | `http://localhost:8080` | |
 | `P95_THRESHOLD_MS` | `200` | 응답시간 임계값(ms). TARGET_TPS·시나리오에 맞춰 조정 |
+| `ITEMS_PER_ORDER` | `1` | 주문 한 건의 항목 수. 기본 1 은 2026-09-06 측정과 같은 조건이다. 2 이상이면 세 락 전략이 갈라지는 축을 재는 실험이 된다 (2026-09-09 설계 문서 3.5 · 5.3 장) |
 
 ### 5. 결과 확인
 
@@ -134,6 +135,29 @@ APP_JAR=commerce-api-after-5d8249c.jar \
   docker compose -f docker/loadtest-compose.yml up -d
 # → 2단계(헬스체크) ~ 5단계(결과 확인) 반복, LABEL=after 로
 ```
+
+## 락 전략 비교 절차 (2026-09-09 설계 문서 5 장)
+
+3 전략(`conditional-update` / `optimistic` / `pessimistic`) × 3 시나리오(hotspot / spread /
+items=3) = 9 칸을 채운다. `docker/loadtest-compose.yml` 은 jar 하나만 올리므로, 전략을 바꾸려면
+`apps/commerce-api/src/main/resources/application.yml` 의 `loopers.stock.lock-strategy` 를 고쳐
+**다시 빌드**해야 한다 — 세 전략의 jar 를 각각 만들어 둔다(예: `commerce-api-conditional-update.jar`,
+`commerce-api-optimistic.jar`, `commerce-api-pessimistic.jar`).
+
+**`LABEL` 을 전략 이름으로 준다.** 별도의 전략 환경변수는 없다 — 기존 `LABEL` 이 결과 파일명과
+콘솔 요약 제목에 이미 찍히므로, `LABEL=optimistic` 처럼 전략 이름 그 자체를 준다.
+
+```bash
+SCENARIO=hotspot TARGET_TPS=400 LABEL=optimistic k6 run loadtest/ab.js
+SCENARIO=hotspot TARGET_TPS=400 LABEL=optimistic ITEMS_PER_ORDER=3 k6 run loadtest/ab.js
+```
+
+**한 시나리오의 세 전략을 같은 세션 안에서 연달아 잰다.** 날을 나눠 재면 배경 부하·디스크 상태·
+컨테이너 스케줄링이 달라져 전략 차이보다 환경 차이가 커질 수 있다(2026-09-06 문서 12.7 장).
+세 전략을 가로질러 비교하는 표는 항상 같은 세션에서 나온 값이어야 한다.
+
+**한 칸이라도 채우지 못하면 그 시나리오의 표를 만들지 않는다.** 두 전략만 재고 세 번째를
+추론으로 채우면 이 비교가 없애려던 것 — 재 보지 않고 순서를 말하는 일 — 로 돌아간다.
 
 ## A/B 조건 통일 체크리스트
 
@@ -163,3 +187,5 @@ APP_JAR=commerce-api-after-5d8249c.jar \
 - 절대 수치는 이 환경(Docker Desktop VM 5 CPU/6GB, macOS)의 것이다. 설계 문서 12.1 장과 같은 이유로
   **의미가 있는 것은 개선 전후의 상대 비교**다.
 - 쿠폰 경로는 측정하지 않는다(`couponId` 를 보내지 않는다) — 설계 문서 12.2 장.
+- 다중 항목(`ITEMS_PER_ORDER` 2 이상) 결과를 항목 1 개 결과와 같은 표에 놓고 비교하지 않는다.
+  서로 다른 실험이다 (2026-09-09 설계 문서 5.5 장).

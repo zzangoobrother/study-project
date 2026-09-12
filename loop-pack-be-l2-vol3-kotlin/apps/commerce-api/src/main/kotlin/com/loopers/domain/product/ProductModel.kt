@@ -9,6 +9,7 @@ import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
 import jakarta.persistence.Index
 import jakarta.persistence.Table
+import jakarta.persistence.Version
 import org.hibernate.annotations.Check
 
 /**
@@ -67,6 +68,17 @@ class ProductModel private constructor(
     var stock: Stock = stock
         protected set
 
+    /**
+     * 낙관적 락 측정 전용 컬럼. 세 전략 비교가 끝나면 컬럼째 사라진다. (2026-09-09 설계 문서 6.5 장)
+     *
+     * BaseEntity 가 아니라 여기 두는 이유는 modules/jpa 가 세 앱이 공유하고, 그 클래스가 스스로
+     * "이 외의 컬럼이나 동작은 추가하지 않는다" 고 선언했기 때문이다. (2026-09-09 설계 문서 2 장)
+     */
+    @Version
+    @Column(name = "version", nullable = false)
+    var version: Long = 0
+        protected set
+
     init {
         // brandId 만 값 객체가 아니라 원시 타입이므로(설계 문서 5.2 장) 이 검증만 애그리거트가 직접 한다.
         // 브랜드 ID 라는 개념은 BrandModel 쪽에 속하며, 상품이 그것을 감싸는 타입을 따로 정의하면
@@ -88,12 +100,29 @@ class ProductModel private constructor(
      *
      * stock 이 매개변수에 들어온 것은 재고가 상품의 속성이기 때문이다. (설계 문서 5.6 장)
      * PUT 은 전체 교체이므로 재고도 교체 대상이다.
-     * 주문에 의한 차감은 이 경로를 타지 않는다 — 그쪽은 조건부 UPDATE 이며 엔티티를 거치지 않는다.
+     * 주문에 의한 차감은 이 경로를 타지 않는다 — 조건부 UPDATE·비관적 락은 엔티티를 거치지 않고,
+     * 낙관적 락(측정용)은 decreaseStockForOptimisticLock 이라는 별도 경로를 쓴다. 이 change() 는
+     * PUT 수정 전용이며 세 전략 중 어느 것도 거치지 않는다. (2026-09-09 설계 문서 6.2 장)
      */
     fun change(name: ProductName, price: Price, stock: Stock) {
         this.name = name
         this.price = price
         this.stock = stock
+    }
+
+    /**
+     * 낙관적 락 측정 전용 차감. Stock 에 decrease() 를 두지 않는 이유(설계 문서 5.4 장)와 겉보기로
+     * 모순되지만, 실제 방어는 이 메서드가 아니라 @Version 이 flush 시점에 거는 검사다. 여기서 stock
+     * 을 줄인 뒤 버전이 어긋나면 이 UPDATE 는 0 행이 되고 OptimisticLockException 이 던져져
+     * 롤백되므로, "읽고 → 빼고 → 쓰기" 가 초과 판매로 이어지지 않는다.
+     *
+     * 호출자(OptimisticLockStockDecreaseStrategy)가 stock.value >= quantity 를 미리 확인했다는
+     * 전제 위에 있다 — 이 메서드 자신은 그 확인을 반복하지 않는다.
+     *
+     * 측정용이며 채택되지 않으면 @Version 컬럼과 함께 사라진다. (2026-09-09 설계 문서 6.5 장)
+     */
+    fun decreaseStockForOptimisticLock(quantity: Int) {
+        this.stock = Stock(this.stock.value - quantity)
     }
 
     companion object {

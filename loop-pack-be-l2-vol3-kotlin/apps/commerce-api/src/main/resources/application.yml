@@ -40,6 +40,8 @@ loopers:
     stub-credentials:
       - id: admin
         password: admin1234
+  stock:
+    lock-strategy: conditional-update
 
 ---
 spring:
