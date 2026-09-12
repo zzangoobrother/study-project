@@ -40,9 +40,13 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.test.util.ReflectionTestUtils
+import org.springframework.transaction.support.TransactionCallback
+import org.springframework.transaction.support.TransactionTemplate
 
 /**
  * OrderFacade 의 순수 단위 테스트. UserService / ProductService / OrderService 를 목으로 대체해 DB 없이
@@ -61,7 +65,21 @@ class OrderFacadeTest {
     private val productService = mock<ProductService>()
     private val orderService = mock<OrderService>()
     private val couponService = mock<CouponService>()
-    private val orderFacade = OrderFacade(userService, productService, orderService, couponService)
+    private val transactionTemplate = mock<TransactionTemplate>()
+    private val orderFacade = OrderFacade(userService, productService, orderService, couponService, transactionTemplate)
+
+    init {
+        // OrderFacade.place() 가 transactionTemplate.execute { ... } 로 감싸는 것을 목에서도
+        // 실제로 콜백을 실행하도록 흉내 낸다. 그렇지 않으면 Mockito 기본값(null) 이 반환되어
+        // 이 파일의 기존 테스트가 전부 깨진다.
+        //
+        // execute<Any> 로 타입 파라미터를 고정해도 스텁은 모든 execute(...) 호출에 걸린다 — JVM 은
+        // 제네릭을 지워 이 메서드를 하나의 시그니처로만 본다.
+        whenever(transactionTemplate.execute<Any>(any())).thenAnswer { invocation ->
+            val callback = invocation.getArgument<TransactionCallback<*>>(0)
+            callback.doInTransaction(mock())
+        }
+    }
 
     /**
      * BaseEntity.id 는 `val id: Long = 0` 이라 영속화하지 않은 엔티티는 전부 id 가 0 이다.
@@ -618,6 +636,62 @@ class OrderFacadeTest {
                 { verify(productService, never()).decreaseStock(any(), any()) },
                 { verify(orderService, never()).place(any(), any(), any(), anyOrNull()) },
             )
+        }
+    }
+
+    @DisplayName("낙관적 락 충돌이 재시도 상한을 넘기면, ")
+    @Nested
+    inner class OptimisticLockRetry {
+        @DisplayName("CONFLICT 이고 재고 차감은 정확히 3 번만 시도된다.")
+        @Test
+        fun throwsConflict_afterExhaustingRetries() {
+            // arrange
+            val loggedInUser = user()
+            whenever(userService.getUser(LOGIN_ID)).thenReturn(loggedInUser)
+            whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L)))
+            whenever(orderService.place(any(), any(), any(), anyOrNull()))
+                .thenReturn(order(items = listOf(orderItem(1L))))
+            whenever(productService.decreaseStock(any(), any()))
+                .thenThrow(ObjectOptimisticLockingFailureException(ProductModel::class.java, 1L))
+
+            val command = OrderCommand.Place(
+                loginId = LOGIN_ID,
+                items = listOf(OrderCommand.Item(productId = 1L, quantity = Quantity(1))),
+            )
+
+            // act
+            val result = assertThrows<CoreException> { orderFacade.place(command) }
+
+            // assert
+            assertAll(
+                { assertThat(result.errorType).isEqualTo(ErrorType.CONFLICT) },
+                { verify(productService, times(3)).decreaseStock(any(), any()) },
+            )
+        }
+
+        @DisplayName("상한 이내에 해소되면, 예외 없이 정상 처리되고 그만큼만 시도된다.")
+        @Test
+        fun succeeds_whenConflictResolvesWithinRetryLimit() {
+            // arrange
+            val loggedInUser = user()
+            whenever(userService.getUser(LOGIN_ID)).thenReturn(loggedInUser)
+            whenever(productService.getProductsByIds(any())).thenReturn(listOf(product(1L)))
+            whenever(orderService.place(any(), any(), any(), anyOrNull()))
+                .thenReturn(order(items = listOf(orderItem(1L))))
+            // 처음 두 번은 버전 충돌, 세 번째에 성공한다.
+            whenever(productService.decreaseStock(any(), any()))
+                .thenThrow(ObjectOptimisticLockingFailureException(ProductModel::class.java, 1L))
+                .thenThrow(ObjectOptimisticLockingFailureException(ProductModel::class.java, 1L))
+                .thenReturn(true)
+
+            val command = OrderCommand.Place(
+                loginId = LOGIN_ID,
+                items = listOf(OrderCommand.Item(productId = 1L, quantity = Quantity(1))),
+            )
+
+            // act & assert — 예외 없이 끝나야 한다
+            orderFacade.place(command)
+            verify(productService, times(3)).decreaseStock(any(), any())
         }
     }
 }

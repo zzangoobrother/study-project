@@ -16,8 +16,10 @@ import com.loopers.domain.user.UserService
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
 import java.time.LocalDate
+import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionTemplate
 
 /**
  * 회원 · 상품 · 주문 세 애그리거트를 조합하는 유스케이스.
@@ -42,9 +44,37 @@ class OrderFacade(
     private val productService: ProductService,
     private val orderService: OrderService,
     private val couponService: CouponService,
+    private val transactionTemplate: TransactionTemplate,
 ) {
-    @Transactional
     fun place(command: OrderCommand.Place): OrderInfo {
+        repeat(MAX_OPTIMISTIC_LOCK_ATTEMPTS) { attempt ->
+            try {
+                return transactionTemplate.execute { placeInTransaction(command) }!!
+            } catch (e: ObjectOptimisticLockingFailureException) {
+                // 백오프 없음 — 넣으면 지연이 경합의 산물인지 정책의 산물인지 구분할 수 없다.
+                // (2026-09-09 설계 문서 6.2 장) 다른 두 전략에서는 이 예외가 나지 않으므로
+                // 이 catch 는 그 전략들에서 한 번도 실행되지 않는다 — 핫패스에 분기를 더하지 않는다.
+                if (attempt == MAX_OPTIMISTIC_LOCK_ATTEMPTS - 1) {
+                    throw CoreException(
+                        errorType = ErrorType.CONFLICT,
+                        customMessage = "[productIds = ${command.items.map { it.productId }}] " +
+                            "동시 갱신 충돌로 재고 차감에 실패했습니다 " +
+                            "(재시도 $MAX_OPTIMISTIC_LOCK_ATTEMPTS 회 초과).",
+                    )
+                }
+            }
+        }
+        error("도달할 수 없다 — 위 루프가 성공 시 반환하거나 재시도 초과 시 예외를 던진다")
+    }
+
+    /**
+     * 실제 주문 처리. place() 와 분리된 이유는 재시도가 트랜잭션 경계 밖에 있어야 하기 때문이다
+     * (2026-09-09 설계 문서 6.2 장) — 재시도를 @Transactional 안에 두면 실패한 트랜잭션이 롤백되지
+     * 않은 채로 다시 시도하게 된다. LikeFacade 가 같은 문제를 TransactionTemplate 으로 푼 전례를
+     * 그대로 따른다 — "얇은 래퍼 + @Transactional 컴포넌트" 로 클래스를 쪼개지 않는 이유는
+     * LikeFacade KDoc 참고.
+     */
+    private fun placeInTransaction(command: OrderCommand.Place): OrderInfo {
         val user = getUserOrThrow(command.loginId)
 
         // 정렬이 데드락을 막는다. 저장되는 항목의 순서는 요청 순서 그대로이므로 정렬한 것은 차감 순서뿐이다.
@@ -228,5 +258,10 @@ class OrderFacade(
         }
 
         return products
+    }
+
+    private companion object {
+        /** 낙관적 락 외 전략에서는 영향을 주지 않는다 — 그 전략들은 첫 시도에서 항상 끝난다. */
+        const val MAX_OPTIMISTIC_LOCK_ATTEMPTS = 3
     }
 }
