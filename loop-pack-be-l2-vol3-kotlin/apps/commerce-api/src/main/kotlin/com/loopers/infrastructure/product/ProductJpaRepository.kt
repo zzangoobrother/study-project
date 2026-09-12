@@ -1,7 +1,9 @@
 package com.loopers.infrastructure.product
 
 import com.loopers.domain.product.ProductModel
+import jakarta.persistence.LockModeType
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
@@ -55,4 +57,14 @@ interface ProductJpaRepository : JpaRepository<ProductModel, Long> {
         """,
     )
     fun decreaseStock(@Param("productId") productId: Long, @Param("quantity") quantity: Int): Int
+
+    /**
+     * 비관적 락 전략 전용. 행을 잠근 채 반환해 재고 검사를 호출자(앱)에게 맡긴다.
+     * (2026-09-09 설계 문서 6.3 장)
+     *
+     * 삭제된 상품은 잠글 이유가 없으므로 조회 대상에서 제외한다 — 다른 조회 메서드들과 같은 규칙이다.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM ProductModel p WHERE p.id = :productId AND p.deletedAt IS NULL")
+    fun findByIdForUpdate(@Param("productId") productId: Long): ProductModel?
 }
