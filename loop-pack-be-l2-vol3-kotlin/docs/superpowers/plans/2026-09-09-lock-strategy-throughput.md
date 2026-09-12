@@ -1632,7 +1632,9 @@ git commit -m "test : 세 락 전략의 공통 계약과 기존 동시성 테스
 
 - [ ] **Step 1: 환경변수와 상품 선택 함수를 추가한다**
 
-`ab.js` 의 환경변수 블록에서 `P95_THRESHOLD_MS` 선언 아래에 추가한다.
+`ab.js` 의 `PRODUCT_COUNT` 선언(33 줄) **바로 아래**에 추가한다. 환경변수 블록 안쪽
+(`P95_THRESHOLD_MS` 아래)에 두면 안 된다 — 그 자리는 `PRODUCT_COUNT` 보다 **앞**이라
+아래 검사가 TDZ 에 걸려 `ReferenceError` 로 스크립트가 로드되지 않는다.
 
 ```javascript
 // 주문 한 건에 담을 항목 수. 기본 1 은 2026-09-06 측정과 같은 조건이다 — 그래야 비교할 수 있다.
@@ -1645,7 +1647,6 @@ if (ITEMS_PER_ORDER < 1 || ITEMS_PER_ORDER > PRODUCT_COUNT) {
 }
 ```
 
-`PRODUCT_COUNT` 선언보다 뒤에 두어야 한다. 위 검사가 그 값을 읽는다.
 
 - [ ] **Step 2: 상품 선택을 함수로 뽑는다**
 
