@@ -1,40 +1,20 @@
 package com.loopers.application.order
 
-import com.loopers.domain.brand.BrandModel
-import com.loopers.domain.brand.BrandName
-import com.loopers.domain.brand.BrandRepository
-import com.loopers.domain.order.OrderCommand
-import com.loopers.domain.order.Quantity
-import com.loopers.domain.product.Price
-import com.loopers.domain.product.ProductModel
-import com.loopers.domain.product.ProductName
-import com.loopers.domain.product.ProductRepository
-import com.loopers.domain.product.Stock
-import com.loopers.domain.user.BirthDate
-import com.loopers.domain.user.Email
-import com.loopers.domain.user.LoginId
-import com.loopers.domain.user.RawPassword
-import com.loopers.domain.user.UserCommand
-import com.loopers.domain.user.UserModel
-import com.loopers.domain.user.UserName
-import com.loopers.domain.user.UserService
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
-import com.loopers.utils.DatabaseCleanUp
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 
 /**
- * 주문의 동시성 계약을 지키는 회귀 테스트.
+ * 기다렸다 성공하는 전략의 동시성 계약. (2026-09-09 설계 문서 3.2 장)
+ *
+ * 조건부 UPDATE 와 비관적 락은 경합하면 행 락에서 기다렸다가 성공하므로, 보낸 요청이 재고가
+ * 허락하는 한 전부 성사된다. 낙관적 락은 이 계약을 지키지 못하므로 상속하지 않는다 —
+ * updated_at 을 공통 계약에서 뺀 것과 같은 종류의 분기이며, 구현의 실수가 아니라 기법의 성질이다.
+ *
+ * 테스트 3 건의 본문은 조건부 UPDATE 에서 통과가 확인된 회귀 방지선이므로 한 글자도 바꾸지 않는다.
  *
  * Testcontainers 가 띄우는 진짜 MySQL 8.0 위에서 돌기 때문에 InnoDB 의 행 락과 데드락 감지가 실제로 동작한다.
  * 인메모리 DB 였다면 이 검증이 불가능했을 것이다.
@@ -42,92 +22,7 @@ import java.util.concurrent.TimeUnit
  * 각 테스트가 재고와 주문 성사 여부를 함께 단언하는 이유는,
  * 둘이 어긋나는 것 — 재고는 줄었는데 주문이 없거나 그 반대 — 이 확인 대상이기 때문이다.
  */
-@SpringBootTest
-class OrderFacadeConcurrencyTest @Autowired constructor(
-    private val orderFacade: OrderFacade,
-    private val userService: UserService,
-    private val brandRepository: BrandRepository,
-    private val productRepository: ProductRepository,
-    private val databaseCleanUp: DatabaseCleanUp,
-) {
-    companion object {
-        private const val CONCURRENT_USERS = 10
-    }
-
-    @AfterEach
-    fun tearDown() {
-        databaseCleanUp.truncateAllTables()
-    }
-
-    private fun signUp(loginId: String): UserModel =
-        userService.signUp(
-            UserCommand.SignUp(
-                loginId = LoginId(loginId),
-                password = RawPassword("Loopers1!"),
-                name = UserName("홍길동"),
-                birthDate = BirthDate.from("1990-01-01"),
-                email = Email("$loginId@loopers.com"),
-            ),
-        )
-
-    private fun saveProduct(name: String = "상품", stock: Long): ProductModel {
-        val brand = brandRepository.save(BrandModel.create(BrandName("루퍼스")))
-        return productRepository.save(
-            ProductModel.create(
-                brandId = brand.id,
-                name = ProductName(name),
-                price = Price(1_000),
-                stock = Stock(stock),
-            ),
-        )
-    }
-
-    private fun stockOf(productId: Long): Long = productRepository.findById(productId)!!.stock.value
-
-    private fun place(loginId: LoginId, vararg items: Pair<Long, Int>) =
-        orderFacade.place(
-            OrderCommand.Place(
-                loginId = loginId,
-                items = items.map { OrderCommand.Item(productId = it.first, quantity = Quantity(it.second)) },
-            ),
-        )
-
-    /**
-     * 모든 스레드를 같은 순간에 출발시킨다.
-     * 순차 실행이면 경합이 재현되지 않아 테스트가 있으나 마나가 되므로 시작 래치가 필요하다.
-     *
-     * 실패를 삼키지 않고 모아서 돌려준다. 어떤 테스트는 실패가 0 이어야 하고
-     * 어떤 테스트는 정확히 몇 건이어야 하므로, 판정은 호출자가 한다.
-     */
-    private fun runConcurrently(count: Int, task: (Int) -> Unit): List<Throwable> {
-        val executor = Executors.newFixedThreadPool(count)
-        val ready = CountDownLatch(count)
-        val start = CountDownLatch(1)
-        val done = CountDownLatch(count)
-        val failures = CopyOnWriteArrayList<Throwable>()
-
-        repeat(count) { index ->
-            executor.submit {
-                ready.countDown()
-                start.await()
-                try {
-                    task(index)
-                } catch (e: Throwable) {
-                    failures.add(e)
-                } finally {
-                    done.countDown()
-                }
-            }
-        }
-
-        ready.await(10, TimeUnit.SECONDS)
-        start.countDown()
-        done.await(30, TimeUnit.SECONDS)
-        executor.shutdown()
-
-        return failures.toList()
-    }
-
+abstract class AbstractOrderFacadeConcurrencyTest : AbstractOrderFacadeConcurrencySupport() {
     /**
      * 초과 판매 방지의 본체다.
      * 조건부 UPDATE 의 WHERE stock >= :quantity 를 빼면 재고가 음수가 되고 전원이 성공한다.
