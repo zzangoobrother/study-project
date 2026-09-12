@@ -113,9 +113,10 @@ JUnit 5 · AssertJ · Mockito(mockito-kotlin) / Testcontainers / k6
 | `domain/product/ConditionalUpdateStockDecreaseContractTest.kt` | 위 추상 클래스의 조건부 UPDATE 실행 |
 | `domain/product/OptimisticLockStockDecreaseContractTest.kt` | 위 추상 클래스의 낙관적 락 실행 |
 | `domain/product/PessimisticLockStockDecreaseContractTest.kt` | 위 추상 클래스의 비관적 락 실행 |
-| `application/order/AbstractOrderFacadeConcurrencyTest.kt` | 기존 `OrderFacadeConcurrencyTest.kt` 를 이름 변경 + `abstract` 화한 것 |
+| `application/order/AbstractOrderFacadeConcurrencySupport.kt` | 동시성 테스트의 주입·헬퍼. 단언은 없다 |
+| `application/order/AbstractOrderFacadeConcurrencyTest.kt` | 기존 `OrderFacadeConcurrencyTest.kt` 를 이름 변경한 것. 기다렸다 성공하는 두 전략의 계약 |
 | `application/order/ConditionalUpdateOrderFacadeConcurrencyTest.kt` | 위 추상 클래스의 조건부 UPDATE 실행 |
-| `application/order/OptimisticLockOrderFacadeConcurrencyTest.kt` | 위 추상 클래스의 낙관적 락 실행 |
+| `application/order/OptimisticLockOrderFacadeConcurrencyTest.kt` | 낙관적 락의 자기 계약 — 초과 판매 없음 + 재시도 상한 초과 실패 |
 | `application/order/PessimisticLockOrderFacadeConcurrencyTest.kt` | 위 추상 클래스의 비관적 락 실행 |
 
 ### 수정
@@ -145,7 +146,7 @@ JUnit 5 · AssertJ · Mockito(mockito-kotlin) / Testcontainers / k6
 | 1 | 락 전략 전환 스위치 | `StockDecreaseStrategy` + 조건부 UPDATE 를 전략으로 이관 | 기준선 + 1 |
 | 2 | 낙관적 락 | `@Version`, 재시도 3 회, 트랜잭션 경계 밖 | 이전 + 4 |
 | 3 | 비관적 락 | `SELECT ... FOR UPDATE`, 항목마다 왕복 2 | 이전 + 1 |
-| 4 | 세 전략 공통 계약 테스트 | 계약 테스트 + 기존 동시성 테스트를 세 전략에서 실행 | 이전 + 약 29 |
+| 4 | 세 전략 공통 계약 테스트 | 계약 테스트 + 동시성 테스트를 세 전략에서 실행(낙관적 락은 자기 계약) | 이전 + 28 |
 | 5 | 부하 하네스 다중 항목 시나리오 | `ITEMS_PER_ORDER`, `LABEL` 컨벤션 문서화 | 이전 (변화 없음 — k6 는 Gradle 테스트가 아니다) |
 | 6 | 측정 실행과 문서 반영 | 9 칸 실측, 설계 문서 3 장 갱신 | 이전 (변화 없음 — 코드 변경 없음) |
 
@@ -1060,6 +1061,7 @@ git commit -m "feat : 비관적 락 재고 차감 전략을 추가한다"
 - 생성: `apps/commerce-api/src/test/kotlin/com/loopers/domain/product/ConditionalUpdateStockDecreaseContractTest.kt`
 - 생성: `apps/commerce-api/src/test/kotlin/com/loopers/domain/product/OptimisticLockStockDecreaseContractTest.kt`
 - 생성: `apps/commerce-api/src/test/kotlin/com/loopers/domain/product/PessimisticLockStockDecreaseContractTest.kt`
+- 생성: `apps/commerce-api/src/test/kotlin/com/loopers/application/order/AbstractOrderFacadeConcurrencySupport.kt`
 - 생성(이름 변경): `apps/commerce-api/src/test/kotlin/com/loopers/application/order/AbstractOrderFacadeConcurrencyTest.kt`
 - 생성: `apps/commerce-api/src/test/kotlin/com/loopers/application/order/ConditionalUpdateOrderFacadeConcurrencyTest.kt`
 - 생성: `apps/commerce-api/src/test/kotlin/com/loopers/application/order/OptimisticLockOrderFacadeConcurrencyTest.kt`
@@ -1125,7 +1127,7 @@ import org.springframework.transaction.support.TransactionTemplate
  */
 abstract class AbstractStockDecreaseContractTest {
     @Autowired
-    private lateinit var productRepository: ProductRepository
+    protected lateinit var productRepository: ProductRepository
 
     @Autowired
     private lateinit var productService: ProductService
@@ -1155,8 +1157,11 @@ abstract class AbstractStockDecreaseContractTest {
      * ProductService.decreaseStock 이 경계를 만든다 — 테스트가 저장소를 직접 부르면 그 경계가 없다.
      * 낙관적 락의 entityManager.flush() 와 비관적 락의 PESSIMISTIC_WRITE 는 활성 트랜잭션을 요구하므로,
      * 감싸지 않으면 세 전략이 같은 조건에서 비교되지 않는다.
+     *
+     * productRepository 와 함께 protected 다 — Step 3 의 updated_at 테스트가 서브클래스에 있어서,
+     * private 이면 거기서 보이지 않는다. saveProduct 가 protected 인 것과 같은 이유다.
      */
-    private fun decreaseStock(productId: Long, quantity: Int): Int =
+    protected fun decreaseStock(productId: Long, quantity: Int): Int =
         transactionTemplate.execute { productRepository.decreaseStock(productId, quantity) }!!
 
     /**
@@ -1354,27 +1359,42 @@ class OrderFacadeConcurrencyTest @Autowired constructor(
 ) {
 ```
 
-위를 아래로 바꾼다.
+위를 **두 클래스로 나눈다.** 세 전략이 공유하는 것은 "어떻게 부하를 거는가"(헬퍼)뿐이고,
+"몇 건이 성사되는가"(단언)는 공유하지 않기 때문이다 — 아래 (나)의 KDoc 이 그 이유를 적는다.
+
+**(가) `AbstractOrderFacadeConcurrencySupport.kt` 를 새로 만든다** — 주입·헬퍼·정리만 담고 단언은 없다.
+기존 파일에서 필드 · `companion object` · `tearDown` · 헬퍼(`signUp` · `saveProduct` · `stockOf` ·
+`place` · `runConcurrently`)를 **본문 그대로** 옮기고, 상속이 두 단계가 되므로 접근자를
+`private` → `protected` 로 넓힌다. `companion object` 의 `CONCURRENT_USERS` 는 `private` 만 떼면 된다.
 
 ```kotlin
-abstract class AbstractOrderFacadeConcurrencyTest {
+package com.loopers.application.order
+
+/**
+ * 동시성 테스트가 공유하는 주입과 헬퍼. 단언은 여기 없다.
+ *
+ * 조건부 UPDATE 와 비관적 락은 경합하면 행 락에서 기다렸다가 자기 차례에 성공하지만, 낙관적 락은
+ * 기다린 뒤 실패한다 — 재시도 상한을 넘기면 CONFLICT 다. (2026-09-09 설계 문서 3.2 장)
+ * 성사 건수에 대한 단언이 전략마다 다른 이유이며, 그래서 단언은 아래 두 갈래가 나눠 갖는다.
+ */
+abstract class AbstractOrderFacadeConcurrencySupport {
     @Autowired
-    private lateinit var orderFacade: OrderFacade
+    protected lateinit var orderFacade: OrderFacade
 
     @Autowired
-    private lateinit var userService: UserService
+    protected lateinit var userService: UserService
 
     @Autowired
-    private lateinit var brandRepository: BrandRepository
+    protected lateinit var brandRepository: BrandRepository
 
     @Autowired
-    private lateinit var productRepository: ProductRepository
+    protected lateinit var productRepository: ProductRepository
 
     @Autowired
-    private lateinit var databaseCleanUp: DatabaseCleanUp
+    protected lateinit var databaseCleanUp: DatabaseCleanUp
 
     @Autowired
-    private lateinit var stockDecreaseStrategy: StockDecreaseStrategy
+    protected lateinit var stockDecreaseStrategy: StockDecreaseStrategy
 
     /** 서브클래스가 자기 properties 로 올라와야 하는 전략을 선언한다. 계약 테스트와 같은 이유다. */
     protected abstract val expectedStrategy: KClass<out StockDecreaseStrategy>
@@ -1384,10 +1404,35 @@ abstract class AbstractOrderFacadeConcurrencyTest {
     fun runsOnExpectedStrategy() {
         assertThat(stockDecreaseStrategy).isInstanceOf(expectedStrategy.java)
     }
+
+    // companion object · tearDown · signUp · saveProduct · stockOf · place · runConcurrently 를
+    // 기존 파일에서 본문 그대로 옮긴다. 헬퍼는 protected 로 넓힌다.
+}
+```
+
+**(나) `AbstractOrderFacadeConcurrencyTest.kt` 에는 기존 3 건만 남긴다.** `git mv` 로 히스토리가
+붙은 파일이므로 **원래 단언이 있는 쪽**을 이 파일에 남겨야 이력이 뜻을 갖는다.
+
+```kotlin
+/**
+ * 기다렸다 성공하는 전략의 동시성 계약. (2026-09-09 설계 문서 3.2 장)
+ *
+ * 조건부 UPDATE 와 비관적 락은 경합하면 행 락에서 기다렸다가 성공하므로, 보낸 요청이 재고가
+ * 허락하는 한 전부 성사된다. 낙관적 락은 이 계약을 지키지 못하므로 상속하지 않는다 —
+ * updated_at 을 공통 계약에서 뺀 것과 같은 종류의 분기이며, 구현의 실수가 아니라 기법의 성질이다.
+ *
+ * 테스트 3 건의 본문은 조건부 UPDATE 에서 통과가 확인된 회귀 방지선이므로 한 글자도 바꾸지 않는다.
+ */
+abstract class AbstractOrderFacadeConcurrencyTest : AbstractOrderFacadeConcurrencySupport() {
+    // sellsExactlyStock_whenMoreUsersOrderConcurrently
+    // decreasesExactSum_whenManyUsersOrderConcurrently
+    // doesNotDeadlock_whenOrdersLockProductsInOppositeOrder
+    // — 세 건을 본문 그대로 둔다.
+}
 ```
 
 임포트에 `com.loopers.domain.product.StockDecreaseStrategy` 와 `kotlin.reflect.KClass` 를 더한다.
-`@SpringBootTest` 애노테이션은 지운다 — 구체 클래스가 각자 다른 `properties` 로 붙인다.
+`@SpringBootTest` 애노테이션은 두 클래스 모두에서 지운다 — 구체 클래스가 각자 다른 `properties` 로 붙인다.
 `import org.springframework.boot.test.context.SpringBootTest` 도 더 안 쓰이면 지운다
 (`ktlintCheck` 가 미사용 임포트를 잡는다).
 
@@ -1420,17 +1465,87 @@ class ConditionalUpdateOrderFacadeConcurrencyTest : AbstractOrderFacadeConcurren
 }
 ```
 
+낙관적 락만 **`AbstractOrderFacadeConcurrencyTest` 를 상속하지 않고** `Support` 를 직접 상속해
+자기 계약을 갖는다.
+
 ```kotlin
 package com.loopers.application.order
 
 import com.loopers.infrastructure.product.OptimisticLockStockDecreaseStrategy
 import org.springframework.boot.test.context.SpringBootTest
 
+/**
+ * 낙관적 락의 동시성 계약.
+ *
+ * AbstractOrderFacadeConcurrencyTest 의 3 건은 "재고가 허락하는 한 전부 성사된다" 를 단언하는데,
+ * 재시도 상한이 있는 낙관적 락은 그것을 지키지 못한다. 백오프 없이 10 스레드가 한 행을 다투면
+ * 라운드마다 승자가 1 명이므로 상한 3 회 안에 성사되는 것은 최대 3 건이다 — 재고가 넉넉해도 그렇다.
+ * (2026-09-09 설계 문서 3.2 장 · 4.1 장)
+ *
+ * 그래서 여기서는 전략과 무관하게 지켜져야 하는 것만 단언한다 — 초과 판매가 없고, 회계가 맞고,
+ * 실패는 전부 CONFLICT 다.
+ */
 @SpringBootTest(properties = ["loopers.stock.lock-strategy=optimistic"])
-class OptimisticLockOrderFacadeConcurrencyTest : AbstractOrderFacadeConcurrencyTest() {
+class OptimisticLockOrderFacadeConcurrencyTest : AbstractOrderFacadeConcurrencySupport() {
     override val expectedStrategy = OptimisticLockStockDecreaseStrategy::class
+
+    /** 재시도가 소진돼 실패하는 것은 허용되지만, 재고보다 많이 팔리는 것은 허용되지 않는다. */
+    @DisplayName("재시도가 소진돼 일부가 실패해도, 초과 판매는 일어나지 않는다.")
+    @Test
+    fun doesNotOversell_whenRetriesAreExhausted() {
+        // arrange
+        val stock = (CONCURRENT_USERS - 1).toLong()
+        val users = (1..CONCURRENT_USERS).map { signUp("user$it") }
+        val product = saveProduct(stock = stock)
+
+        // act
+        val failures = runConcurrently(CONCURRENT_USERS) { index -> place(users[index].loginId, product.id to 1) }
+
+        // assert
+        val succeeded = (CONCURRENT_USERS - failures.size).toLong()
+        assertAll(
+            { assertThat(failures).allMatch { it is CoreException && it.errorType == ErrorType.CONFLICT } },
+            { assertThat(succeeded).describedAs("재고보다 많이 팔릴 수 없다").isLessThanOrEqualTo(stock) },
+            {
+                assertThat(stockOf(product.id))
+                    .describedAs("재고는 성사된 건수만큼만 줄어야 한다")
+                    .isEqualTo(stock - succeeded)
+            },
+        )
+    }
+
+    /**
+     * 이 단언이 낙관적 락의 계약을 고정한다. 재고가 넉넉해 논리적 충돌이 전혀 없는데도 순수 락
+     * 경합만으로 일부가 실패한다 — 이것이 이 전략의 비용이며 다른 두 전략에는 없다.
+     * 실패가 사라진다면 재시도 상한이나 백오프가 바뀐 것이므로 측정 조건이 달라진 것이다.
+     * (재시도 상한 3 · 백오프 없음 — 2026-09-09 설계 문서 5.1 장의 공정성 조건)
+     */
+    @DisplayName("재고가 넉넉해도, 경합이 재시도 상한을 넘기면 일부가 CONFLICT 로 실패한다.")
+    @Test
+    fun failsSomeRequests_whenContentionExceedsRetryLimit() {
+        // arrange
+        val initialStock = 100L
+        val users = (1..CONCURRENT_USERS).map { signUp("user$it") }
+        val product = saveProduct(stock = initialStock)
+
+        // act
+        val failures = runConcurrently(CONCURRENT_USERS) { index -> place(users[index].loginId, product.id to 1) }
+
+        // assert
+        assertAll(
+            { assertThat(failures).describedAs("재고가 남아도 경합만으로 실패가 난다").isNotEmpty() },
+            { assertThat(failures).allMatch { it is CoreException && it.errorType == ErrorType.CONFLICT } },
+            {
+                assertThat(stockOf(product.id))
+                    .describedAs("실패한 요청은 재고를 건드리지 않는다")
+                    .isEqualTo(initialStock - (CONCURRENT_USERS - failures.size))
+            },
+        )
+    }
 }
 ```
+
+`CoreException` · `ErrorType` · `assertAll` 임포트를 더한다.
 
 ```kotlin
 package com.loopers.application.order
@@ -1450,7 +1565,7 @@ class PessimisticLockOrderFacadeConcurrencyTest : AbstractOrderFacadeConcurrency
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.application.order.*OrderFacadeConcurrencyTest'
 ```
 
-기대: 12 건(3 전략 × (기존 3 테스트 + 전략 확인 1)) 전부 PASS.
+기대: 11 건 전부 PASS — 조건부 UPDATE 4, 비관적 락 4(기존 3 + 전략 확인 1), 낙관적 락 3(자기 계약 2 + 전략 확인 1).
 
 **낙관적 락에서 실패한다면 먼저 의심할 것 — `sellsExactlyStock_whenMoreUsersOrderConcurrently` 는
 재시도 상한 3 회 안에서 경합이 해소되지 못하면 실패로 보일 수 있다.** 재고 9, 동시 요청 10 이라
@@ -1467,9 +1582,9 @@ class PessimisticLockOrderFacadeConcurrencyTest : AbstractOrderFacadeConcurrency
 ./gradlew :apps:commerce-api:ktlintCheck
 ```
 
-기대: 0 failures. 테스트 수는 **이전 + 약 29**
-(계약 테스트 5 × 3 = 15, 계약 쪽 전략 확인 3, `updated_at` 전용 2, 동시성 쪽 전략 확인 3,
-동시성 재편으로 늘어난 순증 6 — 기존 3 건이
+기대: 0 failures. 테스트 수는 **이전 + 28**
+(계약 테스트 5 × 3 = 15, 계약 쪽 전략 확인 3, `updated_at` 전용 2, 동시성 순증 8 — 동시성이
+총 11 건(4 + 4 + 3)이 되고 기존 3 건이 그 안에 흡수된다 — 기존 3 건이
 `ConditionalUpdate` 서브클래스로 그대로 옮겨가고 `OptimisticLock` · `PessimisticLock` 서브클래스가
 각각 3 건씩 새로 돈다).
 
@@ -1480,6 +1595,7 @@ git add apps/commerce-api/src/test/kotlin/com/loopers/domain/product/AbstractSto
         apps/commerce-api/src/test/kotlin/com/loopers/domain/product/ConditionalUpdateStockDecreaseContractTest.kt \
         apps/commerce-api/src/test/kotlin/com/loopers/domain/product/OptimisticLockStockDecreaseContractTest.kt \
         apps/commerce-api/src/test/kotlin/com/loopers/domain/product/PessimisticLockStockDecreaseContractTest.kt \
+        apps/commerce-api/src/test/kotlin/com/loopers/application/order/AbstractOrderFacadeConcurrencySupport.kt \
         apps/commerce-api/src/test/kotlin/com/loopers/application/order/AbstractOrderFacadeConcurrencyTest.kt \
         apps/commerce-api/src/test/kotlin/com/loopers/application/order/ConditionalUpdateOrderFacadeConcurrencyTest.kt \
         apps/commerce-api/src/test/kotlin/com/loopers/application/order/OptimisticLockOrderFacadeConcurrencyTest.kt \
