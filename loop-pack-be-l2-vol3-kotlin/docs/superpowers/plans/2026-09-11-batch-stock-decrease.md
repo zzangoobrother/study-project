@@ -17,18 +17,17 @@ JUnit 5 · AssertJ · Mockito / Testcontainers / k6
 **설계 문서:** `docs/superpowers/specs/2026-09-11-batch-stock-decrease-design.md`
 (이 계획은 설계 문서를 근거로 삼는다. 실행자는 둘 다 읽는다. 어긋나면 설계 문서가 기준이다.)
 
-> ## ⛔ 이 계획은 보류 상태다
+> ## ✅ 착수 조건이 충족됐다 (2026-09-13)
 >
-> **[2026-09-09 락 전략 처리량 비교](../specs/2026-09-09-lock-strategy-throughput-design.md)가
-> 끝나 전략이 정해지기 전에는 착수하지 않는다.**
+> [2026-09-09 락 전략 처리량 비교](../specs/2026-09-09-lock-strategy-throughput-design.md)가
+> 끝났고 **조건부 `UPDATE` 가 유지됐다.** 이 계획의 `CASE` 조립은 조건부 `UPDATE` 의 `WHERE` 절을
+> 넓히는 기법이라 그 전략 위에서만 성립하는데, 그 전제가 실측으로 확인됐다.
 >
-> 단일 문장화는 조건부 `UPDATE` 에만 적용되는 최적화다. 비교보다 먼저 하면 한쪽만 최적화한
-> 상태로 세 전략을 재게 되어, 재는 것이 전략이 아니라 "접은 것 vs 안 접은 것" 이 된다.
+> 비교가 이 개선의 자리도 함께 보여줬다. 핫스팟에 항목 3 개를 얹으니 조건부 `UPDATE` 의 p95 가
+> 400 TPS 에서 2.6 → 4.0ms, 600 TPS 에서 3.8 → 11.6ms 가 됐다 (비교 문서 3.7 장).
+> **항목 수에 비례해 붙는 이 비용이 이 계획이 걷어내려는 것이다.**
 >
-> 비교에서 **다른 전략이 이기면 이 계획은 통째로 다시 써야 한다.** Task 2 의 `CASE` 조립은
-> 조건부 `UPDATE` 의 `WHERE` 절을 넓히는 기법이라 낙관적 락·비관적 락에 그대로 옮길 수 없다.
->
-> 부하 하네스(`ITEMS_PER_ORDER`)는 비교 계획이 먼저 만든다. 여기서 다시 만들지 않는다.
+> 부하 하네스(`ITEMS_PER_ORDER`)는 비교 계획 Task 5 가 이미 만들었다. 여기서 다시 만들지 않는다.
 
 ---
 
@@ -70,9 +69,11 @@ JUnit 5 · AssertJ · Mockito / Testcontainers / k6
 작업 시작 전 상태다. 회귀 판정의 기준이 된다.
 
 - 브랜치 `feature/order`, HEAD `6b99574` (이 계획과 설계 문서가 커밋된 시점)
-- `./gradlew :apps:commerce-api:test` → **747 tests / 0 failures** (2026-09-06 리포트 기준)
-  - **Task 1 을 시작하기 전에 한 번 실측해 확인한다.** 이후 모든 태스크의 기대 테스트 수
-    (752 → 759 → 759 → 754 → 756)가 이 값에 물려 있어, 어긋나면 전부 보정해야 한다.
+- `./gradlew :apps:commerce-api:test` → ~~747 tests~~ → **락 전략 비교 작업으로 781 tests 가 됐다
+  (2026-09-13 실측).** 이 계획이 쓰인 뒤 태스크 1~6 이 테스트를 34 건 더했다.
+  - **아래 절대값은 전부 낡았다.** 태스크 개요 표의 `752 → 759 → 759 → 754 → 756` 은
+    747 기준이므로 **각각 +34 해야 한다** (786 → 793 → 793 → 788 → 790).
+  - **Task 1 을 시작하기 전에 다시 실측해 확인한다.** 그 사이 다른 작업이 더 들어갔을 수 있다.
 - **작업 트리는 깨끗하지 않다.** `loop-pack-be-l2-vol3-kotlin/` 안은 비어 있지만, Git 루트인
   상위 `study-project/` 에 이 계획과 무관한 변경이 남아 있다.
   - `gradlew` 파일 모드 변경(`100644` → `100755`) — 상위 저장소의 것이다.
@@ -155,7 +156,7 @@ JUnit 5 · AssertJ · Mockito / Testcontainers / k6
 ./gradlew :apps:commerce-api:test
 ```
 
-기대: `747 tests / 0 failures`. **다르면 이 계획의 모든 기대 테스트 수를 그 차이만큼 보정한다.**
+기대: **781 tests / 0 failures** (2026-09-13 실측). 다르면 이 계획의 모든 기대 테스트 수를 그 차이만큼 보정한다.
 
 - [ ] **Step 2: 실패하는 테스트를 쓴다**
 
@@ -892,6 +893,29 @@ git commit -m "refactor : 주문의 재고 차감을 한 문장으로 보낸다"
 
 ### Task 4: 옛 단일 차감 API 제거
 
+> ## ⚠️ 이 태스크는 다시 써야 한다 (2026-09-13)
+>
+> 이 계획이 쓰인 뒤 락 전략 비교 작업이 `decreaseStock` **위에 계층을 하나 얹었다.**
+>
+> ```
+> ProductRepositoryImpl.decreaseStock
+>    └→ StockDecreaseStrategy.decreaseStock          ← 인터페이스 (태스크 1 이 추가)
+>         ├─ ConditionalUpdateStockDecreaseStrategy
+>         ├─ OptimisticLockStockDecreaseStrategy      ← 측정 전용
+>         └─ PessimisticLockStockDecreaseStrategy     ← 측정 전용
+> ```
+>
+> 아래 Step 1~5 대로 `decreaseStock` 을 지우면 **전략 계층 전체가 고아가 된다.** Step 6 의
+> `grep -rn "decreaseStock\b"` 도 "출력 없음" 이 아니라 전략 구현 셋과 계약 테스트를 잡는다.
+>
+> **선행 작업이 있다.** [2026-09-09 설계 6.5 장](../specs/2026-09-09-lock-strategy-throughput-design.md)이
+> **"측정이 끝나면 둘을 지운다"** 고 정해 뒀다 — 이긴 전략 하나만 남기고 낙관적 락 · 비관적 락
+> 구현과 스위치, `@Version` 컬럼을 걷어내는 작업이다. 측정은 끝났고 결과도 문서에 반영됐으므로
+> (그 문서 3.7 · 3.8 장) 그 정리를 **먼저** 해야 한다.
+>
+> 정리 후에 전략 계층이 남을지 사라질지에 따라 이 태스크의 대상이 달라진다.
+> **정리 방식이 정해지기 전에는 이 태스크를 실행하지 않는다.**
+
 **파일:**
 - 수정: `apps/commerce-api/src/main/kotlin/com/loopers/domain/product/ProductRepository.kt`
 - 수정: `apps/commerce-api/src/main/kotlin/com/loopers/domain/product/ProductService.kt`
@@ -1075,12 +1099,13 @@ git commit -m "test : 다중 항목 주문의 동시성 테스트를 추가한�
 
 ## 계획 밖
 
-- **측정 실행과 그 결과의 문서 반영.** 하네스는 태스크 6 이 준비하지만, 실제 A/B 측정은 사람이
+- **측정 실행과 그 결과의 문서 반영.** 하네스는 **2026-09-09 계획 Task 5** 가 준비했고 측정도 끝났지만, 이 개선의 A/B 측정은 사람이
   Docker 를 띄우고 판단할 일이다. 2026-09-06 문서 3.5 장의 가드를 그대로 따른다.
 - **설계 문서의 3.3 장 추정 표 갱신.** 실측이 나오면 추정을 실측으로 바꾼다.
   **그 전까지 추정을 실측처럼 쓰지 않는다.**
 - **`binlog_group_commit_sync_delay` 검토.** 인프라 결정이며 2026-09-06 문서 12.6 장의 주제다.
 - **주문 항목 수 상한.** `OrderCommand.Place` 는 항목 수를 제한하지 않아 `CASE` 절의 크기가
   요청에 비례한다 (2026-09-11 설계 문서 6.1 장). 상한을 둘지는 별도 판단이 필요하다.
-  부하 하네스에는 태스크 6 이 검사를 넣지만, 그것은 스크립트 방어이지 API 계약이 아니다.
+  부하 하네스에는 **2026-09-09 계획 Task 5** 가 `ITEMS_PER_ORDER` 범위 검사를 넣었지만,
+  그것은 스크립트 방어이지 API 계약이 아니다.
 - **재고 행 분할.** 핫스팟 상한 자체를 올리는 유일한 방법이지만 과제 범위 밖이다.
