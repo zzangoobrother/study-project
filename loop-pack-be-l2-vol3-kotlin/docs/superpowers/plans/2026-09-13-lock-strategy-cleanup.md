@@ -102,8 +102,8 @@ Mockito / Testcontainers
 
 | # | 태스크 | 기대 테스트 수 |
 |---|---|---|
-| 1 | `OrderFacade` 를 `@Transactional` 로 되돌린다 | 781 → 779 |
-| 2 | 동시성 테스트를 단일 클래스로 되돌린다 | 779 → 771 |
+| 1 | `OrderFacade` 를 `@Transactional` 로 되돌린다 (+ 낙관적 락 동시성 테스트) | 781 → 776 |
+| 2 | 동시성 테스트를 단일 클래스로 되돌린다 | 776 → 771 |
 | 3 | 계약·스위치·번역 테스트를 지운다 | 771 → 747 |
 | 4 | 낙관적 락 구현과 `@Version` 을 지운다 | 747 (변화 없음) |
 | 5 | 비관적 락 구현과 `findByIdForUpdate` 를 지운다 | 747 (변화 없음) |
@@ -121,6 +121,7 @@ Mockito / Testcontainers
 **파일:**
 - 수정: `apps/commerce-api/src/main/kotlin/com/loopers/application/order/OrderFacade.kt`
 - 수정: `apps/commerce-api/src/test/kotlin/com/loopers/application/order/OrderFacadeTest.kt`
+- 삭제: `apps/commerce-api/src/test/kotlin/com/loopers/application/order/OptimisticLockOrderFacadeConcurrencyTest.kt`
 
 **인터페이스:**
 - 사용: 없음 (첫 태스크)
@@ -210,6 +211,21 @@ import org.springframework.transaction.support.TransactionTemplate
 더 안 쓰이는 임포트를 지운다 — `doAnswer` · `ObjectOptimisticLockingFailureException` ·
 `TransactionCallback` · `TransactionTemplate`. **`ktlintCheck` 가 미사용 임포트를 잡는다.**
 
+- [ ] **Step 4b: 낙관적 락 동시성 테스트를 지운다** (2026-09-13 판정으로 추가)
+
+```bash
+git rm apps/commerce-api/src/test/kotlin/com/loopers/application/order/OptimisticLockOrderFacadeConcurrencyTest.kt
+```
+
+**왜 태스크 2 가 아니라 여기인가.** 이 파일의 두 테스트
+(`doesNotOversell_whenRetriesAreExhausted` · `failsSomeRequests_whenContentionExceedsRetryLimit`)는
+**재시도 소진이 `CoreException(CONFLICT)` 로 나온다**는 전제 위에 있다. 그 변환을 하는 것이 바로
+Step 2 에서 지우는 재시도 래퍼다. 래퍼가 사라지면 `ObjectOptimisticLockingFailureException` 이
+그대로 새어 나가 단언이 깨진다.
+
+**테스트와 그것이 고정하던 기능은 같은 태스크에서 사라져야 한다.** 태스크 2 로 미루면 태스크 1
+종료 시점에 회귀가 빨간 상태가 되고, 이 계획이 세운 "태스크마다 회귀를 확인한다" 는 전제가 깨진다.
+
 - [ ] **Step 5: 통과를 확인한다**
 
 ```bash
@@ -226,14 +242,15 @@ import org.springframework.transaction.support.TransactionTemplate
 ./gradlew :apps:commerce-api:ktlintCheck
 ```
 
-기대: **779 tests / 0 failures** (재시도 테스트 2 건 감소)
+기대: **776 tests / 0 failures** (재시도 단위 테스트 2 + 낙관적 락 동시성 3 = 5 건 감소)
 
 - [ ] **Step 7: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/application/order/OrderFacade.kt \
-        apps/commerce-api/src/test/kotlin/com/loopers/application/order/OrderFacadeTest.kt
-git commit -m "refactor : 주문의 낙관적 락 재시도 래퍼를 걷어낸다"
+        apps/commerce-api/src/test/kotlin/com/loopers/application/order/OrderFacadeTest.kt \
+        apps/commerce-api/src/test/kotlin/com/loopers/application/order/OptimisticLockOrderFacadeConcurrencyTest.kt
+git commit -m "refactor : 주문의 낙관적 락 재시도 래퍼와 그 계약 테스트를 걷어낸다"
 ```
 
 ---
@@ -244,7 +261,6 @@ git commit -m "refactor : 주문의 낙관적 락 재시도 래퍼를 걷어낸�
 - 이름 변경: `AbstractOrderFacadeConcurrencyTest.kt` → `OrderFacadeConcurrencyTest.kt`
 - 삭제: `AbstractOrderFacadeConcurrencySupport.kt`
 - 삭제: `ConditionalUpdateOrderFacadeConcurrencyTest.kt`
-- 삭제: `OptimisticLockOrderFacadeConcurrencyTest.kt`
 - 삭제: `PessimisticLockOrderFacadeConcurrencyTest.kt`
 
 **인터페이스:**
@@ -295,8 +311,13 @@ class OrderFacadeConcurrencyTest @Autowired constructor(
 ```bash
 git rm apps/commerce-api/src/test/kotlin/com/loopers/application/order/AbstractOrderFacadeConcurrencySupport.kt \
        apps/commerce-api/src/test/kotlin/com/loopers/application/order/ConditionalUpdateOrderFacadeConcurrencyTest.kt \
-       apps/commerce-api/src/test/kotlin/com/loopers/application/order/OptimisticLockOrderFacadeConcurrencyTest.kt \
        apps/commerce-api/src/test/kotlin/com/loopers/application/order/PessimisticLockOrderFacadeConcurrencyTest.kt
+```
+
+**`OptimisticLockOrderFacadeConcurrencyTest.kt` 는 태스크 1 이 이미 지웠다** — 그 파일은 재시도
+래퍼의 계약을 고정하던 것이라 래퍼와 함께 사라졌다 (2026-09-13 판정).
+
+```bash
 ```
 
 - [ ] **Step 4: 통과를 확인한다**
@@ -314,7 +335,7 @@ git rm apps/commerce-api/src/test/kotlin/com/loopers/application/order/AbstractO
 ./gradlew :apps:commerce-api:ktlintCheck
 ```
 
-기대: **771 tests / 0 failures** (동시성 11 → 3, 8 건 감소)
+기대: **771 tests / 0 failures** (동시성 8 → 3, 5 건 감소 — 낙관적 락 3 건은 태스크 1 이 이미 뺐다)
 
 - [ ] **Step 6: 커밋**
 
