@@ -68,11 +68,16 @@ JUnit 5 · AssertJ · Mockito / Testcontainers / k6
 
 작업 시작 전 상태다. 회귀 판정의 기준이 된다.
 
-- 브랜치 `feature/order`, HEAD `6b99574` (이 계획과 설계 문서가 커밋된 시점)
-- `./gradlew :apps:commerce-api:test` → ~~747 tests~~ → **락 전략 비교 작업으로 781 tests 가 됐다
-  (2026-09-13 실측).** 이 계획이 쓰인 뒤 태스크 1~6 이 테스트를 34 건 더했다.
-  - **아래 절대값은 전부 낡았다.** 태스크 개요 표의 `752 → 759 → 759 → 754 → 756` 은
-    747 기준이므로 **각각 +34 해야 한다** (786 → 793 → 793 → 788 → 790).
+- 브랜치 `feature/order`, HEAD `c550d1a2` (2026-09-13 락 전략 정리가 끝난 시점)
+- `./gradlew :apps:commerce-api:test` → **748 tests** (2026-09-13 정리 완료 후 실측)
+  - 이 계획이 쓰인 시점은 747 이었다. 락 전략 비교가 34 건을 더했다가
+    [2026-09-13 정리 계획](2026-09-13-lock-strategy-cleanup.md)이 전부 걷어냈고,
+    그 과정에서 **1 건만 보존**해 748 이 됐다.
+  - 보존한 것은 `doesNotTouchUpdatedAt` 이다. 측정 비계 안에서 태어났지만 2026-08-24 설계
+    6.3 장의 도메인 규약(`products` 를 갱신하는 `UPDATE` 는 `updated_at` 을 건드리지 않는다)을
+    고정하는 테스트였다. 지금 `ProductServiceIntegrationTest` 의 `DecreaseStock` 중첩 클래스
+    안에 있고, **태스크 4 가 그 클래스를 지운다** — 그래서 태스크 4 가 이 1 건을 이관한다.
+  - 아래 태스크 개요 표는 **748 기준으로 갱신했다.**
   - **Task 1 을 시작하기 전에 다시 실측해 확인한다.** 그 사이 다른 작업이 더 들어갔을 수 있다.
 - **작업 트리는 깨끗하지 않다.** `loop-pack-be-l2-vol3-kotlin/` 안은 비어 있지만, Git 루트인
   상위 `study-project/` 에 이 계획과 무관한 변경이 남아 있다.
@@ -116,11 +121,11 @@ JUnit 5 · AssertJ · Mockito / Testcontainers / k6
 
 | # | 태스크 | 기대 테스트 수 |
 |---|---|---|
-| 1 | `StockDecrease` 값 객체 | 747 → 752 |
-| 2 | 배치 차감 쿼리와 계약 | 752 → 759 |
-| 3 | `OrderFacade` 전환 | 759 (변화 없음 — 테스트를 더하지 않고 바꾼다) |
-| 4 | 옛 단일 차감 API 제거 | 759 → 754 |
-| 5 | 다중 항목 동시성 테스트 | 754 → 756 |
+| 1 | `StockDecrease` 값 객체 | 748 → 753 |
+| 2 | 배치 차감 쿼리와 계약 | 753 → 760 |
+| 3 | `OrderFacade` 전환 | 760 (변화 없음 — 테스트를 더하지 않고 바꾼다) |
+| 4 | 옛 단일 차감 API 제거 | 760 → 755 (6 건 삭제 · 1 건 이관) |
+| 5 | 다중 항목 동시성 테스트 | 755 → 757 |
 
 **태스크 2 가 이 계획의 중심이다.** 초과 판매 방지가 걸린 `WHERE` 절이 통째로 다시 쓰인다.
 `stock >= :quantity` 가 **상품마다 다른 값으로** 평가되지 않으면 조용히 초과 판매가 난다.
@@ -156,7 +161,7 @@ JUnit 5 · AssertJ · Mockito / Testcontainers / k6
 ./gradlew :apps:commerce-api:test
 ```
 
-기대: **781 tests / 0 failures** (2026-09-13 실측). 다르면 이 계획의 모든 기대 테스트 수를 그 차이만큼 보정한다.
+기대: **748 tests / 0 failures** (2026-09-13 락 전략 정리 완료 후 실측). 다르면 이 계획의 모든 기대 테스트 수를 그 차이만큼 보정한다.
 
 - [ ] **Step 2: 실패하는 테스트를 쓴다**
 
@@ -893,28 +898,25 @@ git commit -m "refactor : 주문의 재고 차감을 한 문장으로 보낸다"
 
 ### Task 4: 옛 단일 차감 API 제거
 
-> ## ⚠️ 이 태스크는 다시 써야 한다 (2026-09-13)
+> ## ✅ 선행 작업 완료 — 이 태스크는 실행 가능하다 (2026-09-13 갱신)
 >
-> 이 계획이 쓰인 뒤 락 전략 비교 작업이 `decreaseStock` **위에 계층을 하나 얹었다.**
+> 이 계획이 쓰인 뒤 락 전략 비교가 `decreaseStock` 위에 전략 계층을 얹었고, 그대로 두면
+> 아래 Step 1~5 가 그 계층 전체를 고아로 만들 상황이었다. 그래서 이 태스크를 보류했었다.
+>
+> [2026-09-13 정리 계획](2026-09-13-lock-strategy-cleanup.md)이 그 계층을 **전부 걷어냈다**
+> (커밋 `687ef77d`~`f67d4ece`). 지금 차감 경로는 비교 이전과 같은 모양이다.
 >
 > ```
 > ProductRepositoryImpl.decreaseStock
->    └→ StockDecreaseStrategy.decreaseStock          ← 인터페이스 (태스크 1 이 추가)
->         ├─ ConditionalUpdateStockDecreaseStrategy
->         ├─ OptimisticLockStockDecreaseStrategy      ← 측정 전용
->         └─ PessimisticLockStockDecreaseStrategy     ← 측정 전용
+>    └→ productJpaRepository.decreaseStock          ← 간접 층 없음
 > ```
 >
-> 아래 Step 1~5 대로 `decreaseStock` 을 지우면 **전략 계층 전체가 고아가 된다.** Step 6 의
-> `grep -rn "decreaseStock\b"` 도 "출력 없음" 이 아니라 전략 구현 셋과 계약 테스트를 잡는다.
+> 따라서 **Step 1~5 는 원래 적힌 대로 유효하다.** Step 6 의 `grep -rn "decreaseStock\b"` 도
+> 이제 전략 구현을 잡지 않는다.
 >
-> **선행 작업이 있다.** [2026-09-09 설계 6.5 장](../specs/2026-09-09-lock-strategy-throughput-design.md)이
-> **"측정이 끝나면 둘을 지운다"** 고 정해 뒀다 — 이긴 전략 하나만 남기고 낙관적 락 · 비관적 락
-> 구현과 스위치, `@Version` 컬럼을 걷어내는 작업이다. 측정은 끝났고 결과도 문서에 반영됐으므로
-> (그 문서 3.7 · 3.8 장) 그 정리를 **먼저** 해야 한다.
->
-> 정리 후에 전략 계층이 남을지 사라질지에 따라 이 태스크의 대상이 달라진다.
-> **정리 방식이 정해지기 전에는 이 태스크를 실행하지 않는다.**
+> **한 가지만 바뀌었다 — Step 5 를 보라.** 정리 과정에서 `doesNotTouchUpdatedAt` 1 건을
+> `DecreaseStock` 중첩 클래스로 옮겨 보존했다. 그래서 그 클래스는 5 건이 아니라 **6 건**이고,
+> 그 1 건은 지우는 것이 아니라 **이관한다.**
 
 **파일:**
 - 수정: `apps/commerce-api/src/main/kotlin/com/loopers/domain/product/ProductRepository.kt`
@@ -930,8 +932,15 @@ git commit -m "refactor : 주문의 재고 차감을 한 문장으로 보낸다"
 **배경:** 두 경로를 남기면 누군가 단일 API 를 루프로 감싼다. **차감 경로가 하나뿐이어야
 "락 구간 안 왕복 1 회" 가 구조로 보장된다.**
 
-태스크 2 의 `DecreaseStocks` 7 건이 옛 `DecreaseStock` 5 건의 검증 범위를 모두 덮는다 —
-넉넉/동일/부족/삭제/미존재. 그래서 옛 중첩 클래스를 **이관이 아니라 제거**한다.
+태스크 2 의 `DecreaseStocks` 7 건이 옛 `DecreaseStock` 의 **핵심 5 건**을 모두 덮는다 —
+넉넉/동일/부족/삭제/미존재. 그 다섯은 **이관이 아니라 제거**한다.
+
+**여섯 번째 `doesNotTouchUpdatedAt` 은 다르다 — 이관한다.** `DecreaseStocks` 7 건 중 어느 것도
+`updated_at` 을 단언하지 않는다. 태스크 2 의 배치 JPQL 이 `updated_at` 을 건드리지 않도록
+설계돼 있지만(그 쿼리의 주석이 2026-08-24 설계 6.3 장을 인용한다) **동작이 보존되는 것과
+그 보존을 테스트가 지키는 것은 다르다.** 지우면 이 규약이 상품 쪽에서 무방비가 된다 —
+형제 규약인 좋아요의 `like_count` 는 `LikeServiceIntegrationTest` 가 계속 지킨다.
+(2026-09-13 정리 계획 태스크 3 이 같은 이유로 이 테스트를 살렸다.)
 
 - [ ] **Step 1: `ProductJpaRepository.decreaseStock` 을 지운다**
 
@@ -944,10 +953,35 @@ KDoc 블록과 `@Modifying` · `@Query` · 메서드 선언을 통째로 지운�
 
 - [ ] **Step 4: `ProductService.decreaseStock` 을 지운다**
 
-- [ ] **Step 5: 옛 통합 테스트를 지운다**
+- [ ] **Step 5: `doesNotTouchUpdatedAt` 을 옮기고 옛 통합 테스트를 지운다**
 
-`ProductServiceIntegrationTest` 의 `DecreaseStock` 중첩 클래스(5 건)를 통째로 지운다.
-`DecreaseStocks` 는 남긴다.
+먼저 `DecreaseStock` 중첩 클래스의 `doesNotTouchUpdatedAt` 을 `DecreaseStocks` 로 옮긴다.
+호출을 `decreaseStocks` 로 바꾸는 것 말고는 본문을 그대로 둔다.
+
+```kotlin
+        /**
+         * raw UPDATE 문은 BaseEntity.preUpdate 콜백을 타지 않는다 (2026-08-24 설계 문서 6.3 장).
+         * 좋아요의 like_count 증감과 같은 규약이며, 그쪽은 LikeServiceIntegrationTest 가 지킨다.
+         * 차감을 엔티티 dirty checking 으로 되돌리면 이 단언이 실패한다.
+         */
+        @DisplayName("차감은 updated_at 을 건드리지 않는다.")
+        @Test
+        fun doesNotTouchUpdatedAt() {
+            // arrange
+            val product = saveProduct(stock = 10)
+            val before = productRepository.findById(product.id)!!.updatedAt
+
+            // act
+            productService.decreaseStocks(listOf(StockDecrease(product.id, 1)))
+
+            // assert
+            assertThat(productRepository.findById(product.id)!!.updatedAt).isEqualTo(before)
+        }
+```
+
+그다음 `DecreaseStock` 중첩 클래스를 **통째로** 지운다 (남은 5 건). `DecreaseStocks` 는 남긴다.
+
+기대: `DecreaseStocks` 가 7 건 → **8 건**, `DecreaseStock` 은 사라진다. 합계 −5.
 
 - [ ] **Step 6: 남은 참조가 없는지 확인한다**
 
