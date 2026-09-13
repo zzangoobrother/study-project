@@ -45,14 +45,18 @@ if (ITEMS_PER_ORDER < 1 || ITEMS_PER_ORDER > PRODUCT_COUNT) {
 // 락 대기로 응답이 늦어져도(설계 문서 12.3 장 — 핫스팟 800 TPS 에서 p95 2.48초 관측) 도착률을 유지하려면
 // VU 가 충분히 있어야 한다. 부족하면 k6 가 반복을 건너뛰어(dropped_iterations) 실제 도착률이
 // TARGET_TPS 에 못 미치고, 그러면 "서버 한계인지 VU 부족인지" 구분이 안 돼 측정이 무의미해진다.
-// MAX_EXPECTED_LATENCY_SEC 는 근거 있는 값이 아니라 넉넉히 잡은 여유값이다 — 요약에 찍히는
-// dropped_iterations 가 0 이 아니면 이 값을 올려 재측정해야 한다.
-// preAllocatedVUs 를 TARGET_TPS 의 2배로 잡는다. 1배로 두고 재보니 핫스팟 600 TPS 에서
-// dropped_iterations 가 326 건 나왔다 — maxVUs 여유는 충분했는데도 그랬다. k6 는 preAllocated 를
-// 넘어서면 VU 런타임을 그 자리에서 새로 만들어야 하고, 그 초기화가 도착률을 따라가지 못한다.
-// 미리 만들어 두는 편이 측정 중 흔들림이 없다.
+// MAX_EXPECTED_LATENCY_SEC 는 근거 있는 값이 아니라 maxVUs 상한을 넉넉히 잡기 위한 여유값이다.
+// dropped_iterations 가 0 이 아니면 재측정해야 하는데, 올려야 하는 값은 대개 이쪽이 아니라
+// preAllocatedVUs 다 — 아래 배수 설명 참고.
+//
+// preAllocatedVUs 를 TARGET_TPS 의 3배로 잡는다. 필요한 VU 수는 대략 도착률 × 응답시간이다.
+// 1배로 두고 재보니 핫스팟 600 TPS 에서 dropped_iterations 가 326 건 나왔고, 2배로 올린 뒤에도
+// 핫스팟 800 TPS(p95 2.33초)에서 319 건이 나왔다 — 필요 VU 가 800 × 2.33 ≈ 1,864 인데
+// preAllocated 가 1,600 이었다. 두 번 다 maxVUs 여유는 충분했다(8,000 중 1,807 만 할당됐다).
+// k6 는 preAllocated 를 넘어서면 VU 런타임을 그 자리에서 새로 만들어야 하고, 그 초기화가
+// 도착률을 따라가지 못해 그동안 반복이 버려진다. 미리 만들어 두는 편이 측정 중 흔들림이 없다.
 const MAX_EXPECTED_LATENCY_SEC = 10;
-const preAllocatedVUs = Math.max(100, TARGET_TPS * 2);
+const preAllocatedVUs = Math.max(100, TARGET_TPS * 3);
 const maxVUs = Math.max(preAllocatedVUs, TARGET_TPS * MAX_EXPECTED_LATENCY_SEC);
 
 // ── 커스텀 메트릭 ───────────────────────────────────────────────────────
@@ -233,7 +237,16 @@ function buildConsoleSummary(data) {
         '  409=' + c409 + ' (' + pct(c409, total) + '%)' +
         '  기타=' + cOther + ' (' + pct(cOther, total) + '%)',
     );
-    lines.push(' dropped_iterations=' + dropped + (dropped > 0 ? '  ← VU 가 부족해 목표 TPS 를 못 채웠다. ab.js 의 MAX_EXPECTED_LATENCY_SEC 를 올려라.' : ''));
+    // dropped 가 났을 때 maxVUs 가 아니라 preAllocatedVUs 를 가리킨다. maxVUs 는 대개 여유가
+    // 남아 있고, 모자란 쪽은 "미리 만들어 둔" VU 수다. 필요량의 근사치(도착률 × p95)를 함께 찍어
+    // 다음 실행에서 얼마나 올려야 하는지 바로 알 수 있게 한다.
+    const neededVUs = durValues !== null ? Math.ceil(TARGET_TPS * (durValues['p(95)'] / 1000)) : 'N/A';
+    lines.push(' dropped_iterations=' + dropped +
+        (dropped > 0
+            ? '  ← VU 가 부족해 실제 도착률이 목표에 못 미쳤다. 이 측정은 무효다.\n' +
+              '   ab.js 의 preAllocatedVUs 배수를 올려라 (현재 ' + preAllocatedVUs +
+              ', 필요 추정 ' + neededVUs + '). MAX_EXPECTED_LATENCY_SEC 가 아니다.'
+            : ''));
     if (thresholds !== null) {
         Object.keys(thresholds).forEach(function (expr) {
             lines.push(' threshold[' + expr + ']: ' + (thresholds[expr].ok ? 'PASS' : 'FAIL'));
@@ -241,8 +254,17 @@ function buildConsoleSummary(data) {
     }
     if (c409 > 0) {
         lines.push('----------------------------------------------------------------');
-        lines.push(' ⚠ 409 가 섞여 있다 = 측정 중 재고가 소진됐다. 이 측정은 무효다.');
-        lines.push('   loadtest/prepare.sql 을 다시 실행하고(재고 재주입) 재측정하라.');
+        // 이 경고는 조건부 UPDATE 만 존재하던 시절에 쓰였다. 그때는 409 가 나올 경로가 재고 소진
+        // 하나뿐이라 "409 = 무효" 가 맞았다. 전략이 셋이 되면서 그 등식이 깨졌다 — 낙관적 락은
+        // 재시도 상한을 넘기면 409 를 내고, 그것이 이 실험이 재려는 값이다
+        // (2026-09-09 설계 문서 5.2 장 — "에러율이 세 전략을 가르는 축이다").
+        // 클라이언트는 두 종류의 409 를 구분할 수 없으므로 판정하지 않고 확인 방법만 알린다.
+        lines.push(' ⚠ 409 가 섞여 있다 (' + pct(c409, total) + '%). 두 가지 원인이 가능하다.');
+        lines.push('   (1) 재고 소진 — 세 전략 모두에서 날 수 있고, 그때는 이 측정이 무효다.');
+        lines.push('   (2) 낙관적 락의 재시도 상한 초과 — 이것은 정상이며 재려는 값 자체다');
+        lines.push('       (2026-09-09 설계 문서 5.2 장 — 에러율이 세 전략을 가르는 축이다).');
+        lines.push('   어느 쪽인지는 클라이언트가 구분할 수 없다. DB 로 확인하라:');
+        lines.push('     SELECT MIN(stock) FROM products;   -- prepare.sql 주입값 그대로면 소진이 아니다');
     }
     lines.push('================================================================');
     return lines.join('\n') + '\n';

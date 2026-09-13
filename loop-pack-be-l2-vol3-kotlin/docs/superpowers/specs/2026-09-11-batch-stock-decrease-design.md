@@ -2,7 +2,9 @@
 
 - 작성일: 2026-09-11 (2026-09-09 문서에서 분리)
 - 대상 모듈: `apps/commerce-api`
-- 상태: **보류 — 락 전략 비교가 끝나 전략이 정해진 뒤에 착수한다**
+- 상태: **착수 가능 (2026-09-13)** — 락 전략 비교가 끝났고 조건부 `UPDATE` 가 유지됐다.
+  이 설계는 조건부 `UPDATE` 위에서만 의미가 있으므로 그 전제가 실측으로 확인된 셈이다.
+  근거는 [2026-09-09 비교 문서](2026-09-09-lock-strategy-throughput-design.md) 3.7 · 3.8 장.
 - 선행 문서:
   - [2026-08-24 주문 API 설계](2026-08-24-order-design.md)
   - [2026-09-06 주문 처리량 개선 설계](2026-09-06-order-throughput-design.md)
@@ -162,8 +164,15 @@ JPQL 로 조립되므로 구현체 의존이 적은 쪽을 고른다.
 fun decreaseStocks(items: List<StockDecrease>): Int
 
 // domain/product/ProductService — 전부 성공했을 때만 true
-fun decreaseStocks(items: List<StockDecrease>): Boolean =
-    productRepository.decreaseStocks(items) == items.size
+fun decreaseStocks(items: List<StockDecrease>): Boolean {
+    // CASE 는 한 행에 한 번만 매칭되므로 같은 상품이 두 번 들어오면 뒤엣것이 조용히 무시된다.
+    // 영향 행 수로는 그것을 구분할 수 없어 쿼리에 닿기 전에 막는다. OrderCommand.Place 가 이미
+    // 같은 조건을 400 으로 막지만(4.3 장), 그것은 주문 경로의 규칙이고 이것은 차감 계약의 전제다.
+    if (items.map { it.productId }.distinct().size != items.size) {
+        throw CoreException(ErrorType.BAD_REQUEST, "같은 상품을 여러 번 차감할 수 없습니다.")
+    }
+    return productRepository.decreaseStocks(items) == items.size
+}
 
 // application/order/OrderFacade
 if (!productService.decreaseStocks(decreases)) {
@@ -217,8 +226,12 @@ if (!productService.decreaseStocks(decreases)) {
 fun decreaseStocks(items: List<StockDecrease>): Int
 ```
 
-`Long` 과 `Int` 를 나열한 파라미터가 아니라 값 객체 리스트를 받는다. `Quantity` 가 이미 1 이상을
-보장하므로, **이 객체가 만들어졌다는 사실이 검증 통과를 의미한다**는 규약이 유지된다.
+`Long` 과 `Int` 를 나열한 파라미터가 아니라 값 객체 리스트를 받는다. **이 객체가 만들어졌다는
+사실이 검증 통과를 의미한다**는 규약이 그대로 유지된다.
+
+`StockDecrease.quantity` 는 `Int` 이며 `domain.order.Quantity` 를 재사용하지 않는다. 재사용하면
+**`domain.product` 가 `domain.order` 를 알게 되기 때문**이다 — 상품이 주문을 모르는 쪽이 옳고,
+브랜드가 상품을 모르는 것과 같은 방향이다. 같은 규칙(1 이상)을 이 값 객체가 스스로 갖는다.
 
 ### 4.6 실패 메시지는 정밀도를 잃는다
 
@@ -309,6 +322,9 @@ fun decreaseStocks(items: List<StockDecrease>): Int
   기존 10 건은 그대로 통과해야 한다.
 - **부분 실패 롤백** — 항목 3 개 중 하나만 재고가 부족할 때 나머지 두 상품의 재고가
   원래대로인지, 주문 행이 남지 않았는지.
+  ⚠️ 기존 `OrderFacadeIntegrationTest.throwsConflict_andRollsBackEverything_whenAnyStockIsInsufficient`
+  는 **항목 2 개**다. 3 개짜리는 아직 없으므로 이 계획이 새로 만들어야 한다. 중간 항목이 없으면
+  `CASE` 조립에서 인덱스가 한 칸 밀리는 종류의 버그를 잡지 못한다.
 - **단위 테스트** — 차감이 **한 번만** 호출되는지 (`verify(times(1))`).
   이 단언이 없으면 누군가 루프로 되돌려도 아무도 모른다.
 
