@@ -835,5 +835,24 @@ class ProductServiceIntegrationTest @Autowired constructor(
             // assert
             assertThat(decreased).isFalse()
         }
+
+        /**
+         * raw UPDATE 문은 BaseEntity.preUpdate 콜백을 타지 않는다 (2026-08-24 설계 문서 6.3 장).
+         * 좋아요의 like_count 증감과 같은 규약이며, 그쪽은 LikeServiceIntegrationTest 가 지킨다.
+         * 차감을 엔티티 dirty checking 으로 되돌리면 이 단언이 실패한다.
+         */
+        @DisplayName("차감은 updated_at 을 건드리지 않는다.")
+        @Test
+        fun doesNotTouchUpdatedAt() {
+            // arrange
+            val product = saveProduct(stock = 10)
+            val before = productRepository.findById(product.id)!!.updatedAt
+
+            // act
+            productService.decreaseStock(product.id, 1)
+
+            // assert
+            assertThat(productRepository.findById(product.id)!!.updatedAt).isEqualTo(before)
+        }
     }
 }
