@@ -166,3 +166,29 @@ APP_JAR=commerce-api-after-5d8249c.jar \
 - 쿠폰 경로는 측정하지 않는다(`couponId` 를 보내지 않는다) — 설계 문서 12.2 장.
 - 다중 항목(`ITEMS_PER_ORDER` 2 이상) 결과를 항목 1 개 결과와 같은 표에 놓고 비교하지 않는다.
   서로 다른 실험이다 (2026-09-09 설계 문서 5.5 장).
+
+## 상품 목록 인덱스 측정
+
+설계 문서: [`docs/superpowers/specs/2026-09-16-product-list-index-design.md`](../docs/superpowers/specs/2026-09-16-product-list-index-design.md)
+
+주문 측정과 달리 이쪽은 **읽기 경로**다. jar 를 바꾸지 않고 SQL 로만 인덱스를 전환한다.
+
+### 1. 시드
+
+**시드를 심은 뒤에는 `commerce-api` 컨테이너를 재기동하지 않는다.** `docker/loadtest-compose.yml`
+은 앱을 `local` 프로필로 띄우는데, 이 프로필의 `ddl-auto` 는 `create` 다(`modules/jpa/src/main/resources/jpa.yml`).
+컨테이너를 내렸다 올리면 스키마가 통째로 재생성되어 아래에서 심은 10 만 행이 전부 사라진다.
+
+```bash
+docker compose -f docker/loadtest-compose.yml exec -T mysql \
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers < loadtest/seed-products.sql
+
+docker compose -f docker/loadtest-compose.yml exec -T mysql \
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers --table < loadtest/verify-seed.sql
+```
+
+`--default-character-set=utf8mb4` 를 빼면 안 된다 — mysql 클라이언트가 기본 문자셋으로 접속해
+`verify-seed.sql` 의 한글 컬럼 별칭(`AS 항목` 등)을 파싱하지 못해 문법 오류를 내고,
+`seed-products.sql` 쪽은 오류 없이 실행되지만 브랜드명·상품명 문자열이 깨진 채로 저장된다.
+
+`verify-seed.sql` 의 기대값은 계획서 Task 1 Step 6 에 있다. 어긋나면 측정하지 않는다.
