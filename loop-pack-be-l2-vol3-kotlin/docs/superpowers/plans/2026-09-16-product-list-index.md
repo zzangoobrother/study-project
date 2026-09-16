@@ -10,6 +10,8 @@
 
 **Spec:** [`docs/superpowers/specs/2026-09-16-product-list-index-design.md`](../specs/2026-09-16-product-list-index-design.md)
 
+**진행:** Task 1 완료 (2026-09-17, commit `2a87cf8d`). Task 2~7 미착수.
+
 ## Global Constraints
 
 - **측정 전 반드시 버리는 실행 2 회.** 컨테이너를 `down -v` 로 내리고 새로 띄운 뒤 2 회를 버린다. 2026-09-09 문서 4.4 장이 워밍업 차이로 p95 가 134 배 벌어지는 것을 찾아냈다.
@@ -18,7 +20,14 @@
 - **측정이 끝날 때까지 `ProductModel.kt` 를 수정하지 않는다.** 인덱스 전환은 SQL 로만 한다 (Task 4 에서만 코드를 건드린다).
 - **`loadtest/ab.js` 를 수정하지 않는다.** 주문 측정의 재현성이 그 파일에 묶여 있다.
 - **`LocalDataSeeder` 를 수정하지 않는다.** `PRODUCT_COUNT = 137` 은 `order-v1.http` 의 품절 409 확인 목적이다.
-- **측정 컨테이너 접속:** `docker compose -f docker/loadtest-compose.yml exec -T mysql mysql -uapplication -papplication loopers`
+- **측정 컨테이너 접속:** `docker compose -f docker/loadtest-compose.yml exec -T mysql mysql --default-character-set=utf8mb4 -uapplication -papplication loopers`
+- **`--default-character-set=utf8mb4` 를 빼지 않는다.** 이 문서의 SQL 파일은 한글 주석·한글 컬럼 별칭·원문자(`①`)를
+  쓴다. 플래그 없이 실행하면 **실패 방식이 둘로 갈린다** — 한글 별칭이 있는 파일(`verify-seed.sql`)은 파싱에
+  실패해 요란하게 죽지만, `seed-products.sql` 은 오류 없이 끝나고 문자열만 깨진 채 저장된다. 뒤쪽이 위험하다.
+  Step 6 의 게이트는 전부 숫자 컬럼이라 깨진 문자열을 통과시킨다. (2026-09-16 Task 1 에서 실제로 겪었다)
+- **시드를 심은 뒤 `commerce-api` 컨테이너를 재기동하지 않는다.** `docker/loadtest-compose.yml` 이 앱을 `local`
+  프로필로 띄우는데 그 프로필의 `ddl-auto` 는 `create` 다(`modules/jpa/src/main/resources/jpa.yml`).
+  재기동하면 스키마가 통째로 재생성되어 10 만 행이 전부 사라진다. 워밍업 유지보다 이쪽이 더 큰 이유다.
 - **문서화·커밋 메시지는 한국어.** 커밋 접두사는 저장소 규약을 따른다 (`feat : ` / `test : ` / `docs : ` / `chore : `).
 
 ---
@@ -52,14 +61,20 @@
 
 ---
 
-- [ ] **Step 1: 측정 컨테이너를 새로 띄운다**
+- [x] **Step 1: 측정 컨테이너를 새로 띄운다**
 
 ```bash
 docker compose -f docker/infra-compose.yml down
 docker compose -f docker/loadtest-compose.yml down -v
-APP_JAR=$(ls apps/commerce-api/build/libs/commerce-api-*.jar | head -1 | xargs basename) \
+APP_JAR=commerce-api-f67d4ece.jar \
   docker compose -f docker/loadtest-compose.yml up -d
 ```
+
+`ls | head -1` 로 jar 를 고르지 않는다. `ls` 는 알파벳 순이라 커밋 해시 이름에서는 시간 순과 무관하고,
+실제로 그 식은 `commerce-api-1ddfa77.jar`(2026-09-06, 락 전략 실험 이전)를 고른다.
+`f67d4ece` 이후 커밋은 문서와 `loadtest/ab.js` 뿐이라 **그 jar 가 현재 코드와 같은 앱**이다 —
+읽기 경로를 재는 데 재빌드가 필요 없다. jar 를 바꿔야 한다면 `loadtest/README.md` 0 단계의 관례대로
+이름을 명시해 지정한다.
 
 포트 3306 이 겹치므로 `infra-compose` 를 먼저 내려야 한다. `commerce-api` 가 `(healthy)` 가 될 때까지 기다린다 — 최초 기동은 `ddl-auto: create` 스키마 생성과 `LocalDataSeeder` 시딩 때문에 수십 초 걸린다.
 
@@ -67,7 +82,7 @@ APP_JAR=$(ls apps/commerce-api/build/libs/commerce-api-*.jar | head -1 | xargs b
 docker compose -f docker/loadtest-compose.yml ps
 ```
 
-- [ ] **Step 2: MySQL 패치 버전이 `EXPLAIN ANALYZE` 를 지원하는지 확인한다**
+- [x] **Step 2: MySQL 패치 버전이 `EXPLAIN ANALYZE` 를 지원하는지 확인한다**
 
 ```bash
 docker compose -f docker/loadtest-compose.yml exec -T mysql mysql -uroot -proot -e "SELECT VERSION();"
@@ -76,7 +91,7 @@ docker compose -f docker/loadtest-compose.yml exec -T mysql mysql -uroot -proot 
 Expected: `8.0.18` 이상. 미만이면 Task 2 의 `EXPLAIN ANALYZE` 를 `EXPLAIN FORMAT=JSON` +
 `SHOW SESSION STATUS LIKE 'Handler_%'` 로 대체하고, 그 사실을 설계 문서 5.4 장에 기록한다.
 
-- [ ] **Step 3: 시드 스크립트를 작성한다**
+- [x] **Step 3: 시드 스크립트를 작성한다**
 
 Create `loadtest/seed-products.sql`:
 
@@ -148,7 +163,7 @@ SELECT
 FROM seq;
 ```
 
-- [ ] **Step 4: 검증 쿼리를 작성한다**
+- [x] **Step 4: 검증 쿼리를 작성한다**
 
 Create `loadtest/verify-seed.sql`:
 
@@ -169,10 +184,13 @@ SELECT 'like_count 중위(100~999)', COUNT(*) FROM products WHERE like_count BET
 UNION ALL
 SELECT 'like_count 꼬리(<100)', COUNT(*) FROM products WHERE like_count < 100;
 
+-- brand_id 4~20 은 전부 1,500 건으로 동률이라 정렬 기준이 건수 하나뿐이면 4~5 위에
+-- 어느 id 가 오는지가 실행마다 달라질 수 있다. brand_id 를 타이브레이커로 추가해
+-- 재측정 때마다 같은 출력이 나오게 한다(이 계획의 전제가 결정적 재현이다).
 SELECT brand_id, COUNT(*) AS 건수
   FROM products
  GROUP BY brand_id
- ORDER BY 건수 DESC
+ ORDER BY 건수 DESC, brand_id ASC
  LIMIT 5;
 
 -- 삭제가 like_count 버킷에 고르게 흩어졌는지 확인한다. 한 버킷에 몰려 있으면 19 가 제 역할을 못한 것이다.
@@ -190,18 +208,18 @@ SELECT
  GROUP BY 버킷;
 ```
 
-- [ ] **Step 5: 시드를 실행한다**
+- [x] **Step 5: 시드를 실행한다**
 
 ```bash
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
-  mysql -uapplication -papplication loopers < loadtest/seed-products.sql
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers < loadtest/seed-products.sql
 ```
 
-- [ ] **Step 6: 검증 쿼리를 돌려 기대값과 대조한다**
+- [x] **Step 6: 검증 쿼리를 돌려 기대값과 대조한다**
 
 ```bash
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
-  mysql -uapplication -papplication loopers --table < loadtest/verify-seed.sql
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers --table < loadtest/verify-seed.sql
 ```
 
 Expected:
@@ -227,11 +245,13 @@ brand_id  건수
 
 **하나라도 어긋나면 다음 태스크로 넘어가지 않는다.** 분포가 틀리면 이후 측정이 전부 무의미하다.
 
-- [ ] **Step 7: README 에 절차를 추가한다**
+- [x] **Step 7: README 에 절차를 추가한다**
 
-`loadtest/README.md` 끝에 다음 절을 추가한다.
+`loadtest/README.md` 끝에 다음 절을 추가한다. **인덱스 전환 절은 여기에 쓰지 않는다** —
+그것이 가리킬 `loadtest/indexes-ab.sql` 은 Task 3 산출물이라 이 시점에 존재하지 않고,
+없는 파일을 가리키는 재현 절차는 거짓이다. Task 3 이 그 절을 이어서 쓴다.
 
-```markdown
+````markdown
 ## 상품 목록 인덱스 측정
 
 설계 문서: [`docs/superpowers/specs/2026-09-16-product-list-index-design.md`](../docs/superpowers/specs/2026-09-16-product-list-index-design.md)
@@ -240,24 +260,26 @@ brand_id  건수
 
 ### 1. 시드
 
-    docker compose -f docker/loadtest-compose.yml exec -T mysql \
-      mysql -uapplication -papplication loopers < loadtest/seed-products.sql
+**시드를 심은 뒤에는 `commerce-api` 컨테이너를 재기동하지 않는다.** `docker/loadtest-compose.yml`
+은 앱을 `local` 프로필로 띄우는데, 이 프로필의 `ddl-auto` 는 `create` 다(`modules/jpa/src/main/resources/jpa.yml`).
+컨테이너를 내렸다 올리면 스키마가 통째로 재생성되어 아래에서 심은 10 만 행이 전부 사라진다.
 
-    docker compose -f docker/loadtest-compose.yml exec -T mysql \
-      mysql -uapplication -papplication loopers --table < loadtest/verify-seed.sql
+```bash
+docker compose -f docker/loadtest-compose.yml exec -T mysql \
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers < loadtest/seed-products.sql
 
-`verify-seed.sql` 의 기대값은 계획서 Task 1 Step 6 에 있다. 어긋나면 측정하지 않는다.
-
-### 2. 인덱스 전환
-
-    # A 안
-    docker compose -f docker/loadtest-compose.yml exec -T mysql \
-      mysql -uapplication -papplication loopers -e "SOURCE /dev/stdin" < loadtest/indexes-ab.sql
-
-`indexes-ab.sql` 안에 A·B 의 CREATE / DROP 이 주석으로 구분돼 있다. 필요한 블록만 골라 실행한다.
+docker compose -f docker/loadtest-compose.yml exec -T mysql \
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers --table < loadtest/verify-seed.sql
 ```
 
-- [ ] **Step 8: 커밋**
+`--default-character-set=utf8mb4` 를 빼면 안 된다 — mysql 클라이언트가 기본 문자셋으로 접속해
+`verify-seed.sql` 의 한글 컬럼 별칭(`AS 항목` 등)을 파싱하지 못해 문법 오류를 내고,
+`seed-products.sql` 쪽은 오류 없이 실행되지만 브랜드명·상품명 문자열이 깨진 채로 저장된다.
+
+`verify-seed.sql` 의 기대값은 계획서 Task 1 Step 6 에 있다. 어긋나면 측정하지 않는다.
+````
+
+- [x] **Step 8: 커밋**
 
 ```bash
 git add loadtest/seed-products.sql loadtest/verify-seed.sql loadtest/README.md
@@ -282,7 +304,6 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 - Create: `loadtest/explain-product-list.sql`
-- Modify: `loadtest/README.md` (측정 절차에 EXPLAIN 절 추가)
 
 **Interfaces:**
 - Consumes: Task 1 의 `products` 100,000 행
@@ -299,29 +320,32 @@ Create `loadtest/explain-product-list.sql`:
 --
 -- ProductQueryDslRepository.execute 가 내는 SQL 과 같은 형태다.
 -- selectFrom(productModel) 이므로 SELECT * 이고, orderSpecifiers 가 like_count DESC, id DESC 를 낸다.
+--
+-- 구분선에 `AS ''` 를 쓰지 않는다. MySQL 은 빈 문자열 컬럼 별칭을 ERROR 1166 으로 거부하고,
+-- mysql 클라이언트는 오류에서 중단하므로 파일이 첫 줄에서 죽는다.
 
-SELECT '=== 경로 ① brandId=1 ===' AS '';
+SELECT '=== 경로 ① brandId=1 ===' AS 구분;
 EXPLAIN
 SELECT * FROM products
  WHERE brand_id = 1 AND deleted_at IS NULL
  ORDER BY like_count DESC, id DESC
  LIMIT 20 OFFSET 0;
 
-SELECT '=== 경로 ② 필터 없음 ===' AS '';
+SELECT '=== 경로 ② 필터 없음 ===' AS 구분;
 EXPLAIN
 SELECT * FROM products
  WHERE deleted_at IS NULL
  ORDER BY like_count DESC, id DESC
  LIMIT 20 OFFSET 0;
 
-SELECT '=== 경로 ① ANALYZE ===' AS '';
+SELECT '=== 경로 ① ANALYZE ===' AS 구분;
 EXPLAIN ANALYZE
 SELECT * FROM products
  WHERE brand_id = 1 AND deleted_at IS NULL
  ORDER BY like_count DESC, id DESC
  LIMIT 20 OFFSET 0;
 
-SELECT '=== 경로 ② ANALYZE ===' AS '';
+SELECT '=== 경로 ② ANALYZE ===' AS 구분;
 EXPLAIN ANALYZE
 SELECT * FROM products
  WHERE deleted_at IS NULL
@@ -334,7 +358,7 @@ SELECT * FROM products
 ```bash
 for i in 1 2; do
   docker compose -f docker/loadtest-compose.yml exec -T mysql \
-    mysql -uapplication -papplication loopers < loadtest/explain-product-list.sql > /dev/null
+    mysql --default-character-set=utf8mb4 -uapplication -papplication loopers < loadtest/explain-product-list.sql > /dev/null
 done
 ```
 
@@ -347,7 +371,7 @@ done
 ```bash
 mkdir -p loadtest/results/explain
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
-  mysql -uapplication -papplication loopers --table < loadtest/explain-product-list.sql \
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers --table < loadtest/explain-product-list.sql \
   | tee loadtest/results/explain/before.txt
 ```
 
@@ -367,7 +391,7 @@ Expected (가설):
 - [ ] **Step 5: 커밋**
 
 ```bash
-git add loadtest/explain-product-list.sql loadtest/results/explain/before.txt loadtest/README.md
+git add loadtest/explain-product-list.sql loadtest/results/explain/before.txt
 git commit -m "test : 상품 목록 개선 전 실행 계획을 박제한다
 
 인덱스를 걸기 전의 기준선이다. 경로 ① 은 idx_products_brand_id 로 행을
@@ -404,6 +428,9 @@ Create `loadtest/indexes-ab.sql`:
 --
 -- jar 를 다시 빌드하지 않는 이유는, 빌드하면 JVM 워밍업 상태가 인덱스 효과와 섞이기 때문이다.
 -- 2026-09-09 문서가 "같은 jar, 환경변수 하나" 로 세 전략을 전환한 것과 같은 정신이다.
+--
+-- 이 파일이 전환 SQL 의 정본이다. 아래 Step 들의 인라인 명령은 여기 블록을 그대로 복사한 것이며,
+-- 한쪽만 고치면 "무엇을 쟀는가" 의 기록이 실제와 어긋난다. 인덱스 정의를 바꿀 일이 생기면 이 파일을 먼저 고친다.
 
 -- ─────────────────────────── A 안 생성 ───────────────────────────
 -- 필터·정렬 컬럼만. deleted_at 은 인덱스에 없어 행을 읽은 뒤 걸러낸다.
@@ -428,11 +455,14 @@ CREATE INDEX idx_products_like       ON products (like_count DESC, id DESC);
 
 ```bash
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
-  mysql -uapplication -papplication loopers -e "
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers -e "
 CREATE INDEX idx_products_brand_like ON products (brand_id, like_count DESC, id DESC);
 CREATE INDEX idx_products_like       ON products (like_count DESC, id DESC);
 SHOW INDEX FROM products;"
 ```
+
+`indexes-ab.sql` 을 파일째 실행하지 않고 블록을 복사해 쓰는 것은, 그 파일이 A·B 네 블록을 한곳에
+모아 둔 정본이라 통째로 실행하면 A 와 B 가 동시에 생기기 때문이다. 복사한 SQL 은 파일 내용과 문자 단위로 같아야 한다.
 
 Expected: `idx_products_brand_like` · `idx_products_like` 가 목록에 나타난다.
 `Collation` 컬럼이 `D` 면 `DESC` 가 실제로 적용된 것이고, `A` 면 오름차순으로 만들어진 것이다.
@@ -443,11 +473,11 @@ Expected: `idx_products_brand_like` · `idx_products_like` 가 목록에 나타�
 ```bash
 for i in 1 2; do
   docker compose -f docker/loadtest-compose.yml exec -T mysql \
-    mysql -uapplication -papplication loopers < loadtest/explain-product-list.sql > /dev/null
+    mysql --default-character-set=utf8mb4 -uapplication -papplication loopers < loadtest/explain-product-list.sql > /dev/null
 done
 
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
-  mysql -uapplication -papplication loopers --table < loadtest/explain-product-list.sql \
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers --table < loadtest/explain-product-list.sql \
   | tee loadtest/results/explain/after-a.txt
 ```
 
@@ -455,7 +485,7 @@ docker compose -f docker/loadtest-compose.yml exec -T mysql \
 
 ```bash
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
-  mysql -uapplication -papplication loopers -e "
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers -e "
 DROP INDEX idx_products_brand_like ON products;
 DROP INDEX idx_products_like       ON products;
 CREATE INDEX idx_products_del_brand_like ON products (deleted_at, brand_id, like_count DESC, id DESC);
@@ -468,11 +498,11 @@ SHOW INDEX FROM products;"
 ```bash
 for i in 1 2; do
   docker compose -f docker/loadtest-compose.yml exec -T mysql \
-    mysql -uapplication -papplication loopers < loadtest/explain-product-list.sql > /dev/null
+    mysql --default-character-set=utf8mb4 -uapplication -papplication loopers < loadtest/explain-product-list.sql > /dev/null
 done
 
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
-  mysql -uapplication -papplication loopers --table < loadtest/explain-product-list.sql \
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers --table < loadtest/explain-product-list.sql \
   | tee loadtest/results/explain/after-b.txt
 ```
 
@@ -761,9 +791,36 @@ export function listProducts() {
     check(res, { 'status is 200': (r) => r.status === 200 });
 }
 
+// handleSummary 를 정의하면 k6 의 기본 콘솔 요약이 대체된다. ab.js 가 buildConsoleSummary 로
+// 자체 요약을 만들어 stdout 에 돌려주는 것과 같은 이유로 여기서도 최소 요약을 직접 만든다.
+// 이것이 없으면 아래 Step 2 의 확인 항목(200 비율·dropped_iterations)을 화면에서 볼 수 없다.
+//
+// 옵셔널 체이닝(?.)을 쓰지 않는다 — goja 지원 여부를 확인하지 못했다는 ab.js 의 판단을 따른다.
+function buildConsoleSummary(data) {
+    const m = data.metrics;
+    const dur = m.http_req_duration.values;
+    const ok = (m.product_list_status_200 || { values: { count: 0 } }).values.count;
+    const bad = (m.product_list_status_other || { values: { count: 0 } }).values.count;
+    const dropped = (m.dropped_iterations || { values: { count: 0 } }).values.count;
+
+    return [
+        '',
+        '  label         : ' + LABEL + ' @ ' + TARGET_TPS + ' TPS',
+        '  http_req_dur  : p95 ' + dur['p(95)'].toFixed(1) + 'ms  med ' + dur.med.toFixed(1)
+            + 'ms  max ' + dur.max.toFixed(1) + 'ms',
+        '  status 200    : ' + ok,
+        '  status other  : ' + bad,
+        '  dropped_iters : ' + dropped,
+        '',
+    ].join('\n');
+}
+
 export function handleSummary(data) {
     const path = 'loadtest/results/products-' + LABEL + '-' + TARGET_TPS + '.json';
-    return { [path]: JSON.stringify(data, null, 2) };
+    const result = {};
+    result[path] = JSON.stringify(data, null, 2);
+    result.stdout = buildConsoleSummary(data);
+    return result;
 }
 ```
 
@@ -779,6 +836,13 @@ k6 run -e TARGET_TPS=300 -e LABEL=after loadtest/products.js
 
 Expected: `product_list_status_200` 이 전체이고 `dropped_iterations` 가 0.
 200 이 아닌 응답이 섞이면 시드나 API 경로가 잘못된 것이므로 멈추고 원인을 찾는다.
+
+**`dropped_iterations` 가 0 이 아니면 그 도착률은 포화 구간이다.** 그 상태의 p95 는 인덱스 효과가 아니라
+큐잉 지연을 재고 있으므로, `TARGET_TPS` 를 낮춰(예: 100) 0 이 나오는 지점에서 다시 잰다.
+**특히 `before` 쪽이 먼저 포화된다** — 인덱스가 없으면 요청 1 건마다 25,000 행 정렬과 25,000 행 count 가
+돌고 MySQL 에 배분된 CPU 는 2 개다. before 가 포화되고 after 가 포화되지 않은 상태로 두 p95 를 비교하면
+개선폭이 실제보다 크게 나온다. **before·after 가 같은 도착률에서 모두 `dropped_iterations = 0` 이어야
+비교가 성립한다.**
 
 - [ ] **Step 3: 인덱스를 지우고 `before` 를 측정한다**
 
@@ -863,7 +927,8 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - Create: `loadtest/results/explain/limits.txt`
 
 **Interfaces:**
-- Consumes: Task 4 의 인덱스가 걸린 상태
+- Consumes: 채택안 인덱스가 걸린 측정 컨테이너 (Task 3 Step 7 / Task 5 Step 4 가 SQL 로 만든 것).
+  Task 4 의 `@Index` 는 `ddl-auto: create` 환경에만 반영되므로 이 측정과 무관하다.
 - Produces: 설계 문서 4.4 · 4.5 장에 넣을 관측 수치. 후속 문서가 근거를 다시 만들지 않아도 된다.
 
 ---
@@ -874,26 +939,28 @@ Create `loadtest/explain-limits.sql`:
 
 ```sql
 -- 인덱스로 풀리지 않는 두 병목의 관측. 해결은 후속 문서로 넘긴다. (설계 문서 4.4 · 4.5 장)
+--
+-- 구분선에 `AS ''` 를 쓰지 않는다 — MySQL 이 빈 컬럼 별칭을 ERROR 1166 으로 거부한다. (Task 2 Step 1 과 같은 이유)
 
-SELECT '=== OFFSET 0 ===' AS '';
+SELECT '=== OFFSET 0 ===' AS 구분;
 EXPLAIN ANALYZE
 SELECT * FROM products
  WHERE brand_id = 1 AND deleted_at IS NULL
  ORDER BY like_count DESC, id DESC
  LIMIT 20 OFFSET 0;
 
-SELECT '=== OFFSET 90000 (page=4500) ===' AS '';
+SELECT '=== OFFSET 90000 (page=4500) ===' AS 구분;
 EXPLAIN ANALYZE
 SELECT * FROM products
  WHERE deleted_at IS NULL
  ORDER BY like_count DESC, id DESC
  LIMIT 20 OFFSET 90000;
 
-SELECT '=== count 쿼리 (경로 ①) ===' AS '';
+SELECT '=== count 쿼리 (경로 ①) ===' AS 구분;
 EXPLAIN ANALYZE
 SELECT COUNT(*) FROM products WHERE brand_id = 1 AND deleted_at IS NULL;
 
-SELECT '=== count 쿼리 (경로 ②) ===' AS '';
+SELECT '=== count 쿼리 (경로 ②) ===' AS 구분;
 EXPLAIN ANALYZE
 SELECT COUNT(*) FROM products WHERE deleted_at IS NULL;
 ```
@@ -906,16 +973,21 @@ SELECT COUNT(*) FROM products WHERE deleted_at IS NULL;
 ```bash
 for i in 1 2; do
   docker compose -f docker/loadtest-compose.yml exec -T mysql \
-    mysql -uapplication -papplication loopers < loadtest/explain-limits.sql > /dev/null
+    mysql --default-character-set=utf8mb4 -uapplication -papplication loopers < loadtest/explain-limits.sql > /dev/null
 done
 
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
-  mysql -uapplication -papplication loopers --table < loadtest/explain-limits.sql \
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers --table < loadtest/explain-limits.sql \
   | tee loadtest/results/explain/limits.txt
 ```
 
 Expected: `OFFSET 90000` 의 `actual rows` 가 90,020 근처. `OFFSET 0` 의 20 과 대비된다.
-`count` 쿼리는 인덱스를 타되 경로 ① 이 25,000 행, 경로 ② 가 94,737 행을 센다.
+`count` 쿼리는 인덱스를 타며, 경로 ② 가 **94,737** 행을 센다 (100,000 − 삭제 5,263).
+경로 ① 은 **23,685** 행을 센다 (브랜드 1 의 25,000 건 중 삭제 1,315 건을 뺀 값).
+
+경로 ① 에서 "읽는 행" 과 "세는 행" 이 갈리는 것이 그대로 A/B 의 차이다 — A 안 인덱스에는
+`deleted_at` 이 없어 25,000 행을 읽고 그중 23,685 를 세지만, B 안은 23,685 만 읽는다.
+기대값을 25,000 으로 적어 두면 재려던 차이가 기대값 안에서 사라진다.
 
 - [ ] **Step 3: 커밋**
 
@@ -1047,3 +1119,4 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - [ ] 채택되지 않은 인덱스는 코드에 없다
 - [ ] 전체 테스트 750 건 통과 (기존 748 + 인덱스 테스트 2)
 - [ ] `loadtest/README.md` 만 보고 측정을 처음부터 재현할 수 있다
+- [ ] `EXPLAIN` 측정에 쓴 SQL 파일이 그대로 재실행된다 (`AS ''` 없음, charset 플래그 포함)
