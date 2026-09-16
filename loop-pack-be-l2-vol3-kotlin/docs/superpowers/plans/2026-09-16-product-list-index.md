@@ -43,7 +43,7 @@
 | `ProductModel.kt` | `@Index` 선언. **채택안만** 반영한다. | 4 |
 | `ProductModelPersistenceTest.kt` | 인덱스가 스키마에 실제로 만들어지는지 단언. 새 파일을 만들지 않고 기존 파일에 `@Nested` 그룹을 더한다 — 이미 `NonNegativeCheckConstraints` 로 스키마 단언을 모아 둔 자리다. | 4 |
 | `loadtest/products.js` | k6 읽기 시나리오. `ab.js` 와 분리한다. | 5 |
-| `loadtest/README.md` | 상품 목록 측정 절차. | 1·5 에서 나눠 추가 |
+| `loadtest/README.md` | 상품 목록 측정 절차. | 1·3·5 에서 나눠 추가 |
 | 설계 문서 3.6 · 3.7 장 | 실측 격자와 판정. | 7 |
 
 ---
@@ -411,6 +411,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 - Create: `loadtest/indexes-ab.sql`
+- Modify: `loadtest/README.md` (인덱스 전환 절 추가 — Task 1 Step 7 이 여기로 미룬 것)
 - Create: `loadtest/results/explain/after-a.txt`, `loadtest/results/explain/after-b.txt`
 
 **Interfaces:**
@@ -540,7 +541,7 @@ B 가 졌다고 가정한 경우:
 
 ```bash
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
-  mysql -uapplication -papplication loopers -e "
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers -e "
 DROP INDEX idx_products_del_brand_like ON products;
 DROP INDEX idx_products_del_like       ON products;
 CREATE INDEX idx_products_brand_like ON products (brand_id, like_count DESC, id DESC);
@@ -549,10 +550,31 @@ CREATE INDEX idx_products_like       ON products (like_count DESC, id DESC);"
 
 A 가 졌으면 위 네 줄의 인덱스 이름을 서로 바꿔 실행한다.
 
-- [ ] **Step 8: 커밋**
+- [ ] **Step 8: README 에 인덱스 전환 절을 추가한다**
+
+Task 1 Step 7 이 이 절을 여기로 미뤘다 — 그때는 `indexes-ab.sql` 이 없어서 가리킬 대상이 없었다.
+`loadtest/README.md` 의 "### 1. 시드" 절 뒤에 다음을 넣는다. Task 5 가 그 뒤에 "### 3. k6" 를 붙인다.
+
+````markdown
+### 2. 인덱스 전환
+
+`loadtest/indexes-ab.sql` 이 A·B 네 블록(생성·제거)의 정본이다. **파일째 실행하지 않는다** —
+통째로 돌리면 A 안과 B 안이 동시에 생겨 무엇을 재는지 알 수 없게 된다. 필요한 블록만 복사해 실행한다.
+
+    # 예 — A 안 생성
+    docker compose -f docker/loadtest-compose.yml exec -T mysql \
+      mysql --default-character-set=utf8mb4 -uapplication -papplication loopers -e "
+    CREATE INDEX idx_products_brand_like ON products (brand_id, like_count DESC, id DESC);
+    CREATE INDEX idx_products_like       ON products (like_count DESC, id DESC);"
+
+전환한 뒤에는 **버리는 실행 2 회**를 먼저 돌리고 측정한다. jar 는 다시 빌드하지 않는다 —
+빌드하면 JVM 워밍업 상태가 인덱스 효과와 섞인다.
+````
+
+- [ ] **Step 9: 커밋**
 
 ```bash
-git add loadtest/indexes-ab.sql loadtest/results/explain/
+git add loadtest/indexes-ab.sql loadtest/results/explain/ loadtest/README.md
 git commit -m "test : A/B 인덱스 실측 결과를 기록한다
 
 deleted_at 을 인덱스 선두에 넣을지를 같은 데이터 위에서 쟀다. 전환은 jar
@@ -848,7 +870,7 @@ Expected: `product_list_status_200` 이 전체이고 `dropped_iterations` 가 0.
 
 ```bash
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
-  mysql -uapplication -papplication loopers -e "
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers -e "
 DROP INDEX idx_products_brand_like ON products;
 DROP INDEX idx_products_like       ON products;"
 
@@ -865,7 +887,7 @@ k6 run -e TARGET_TPS=300 -e LABEL=before loadtest/products.js
 
 ```bash
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
-  mysql -uapplication -papplication loopers -e "
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers -e "
 CREATE INDEX idx_products_brand_like ON products (brand_id, like_count DESC, id DESC);
 CREATE INDEX idx_products_like       ON products (like_count DESC, id DESC);"
 ```
