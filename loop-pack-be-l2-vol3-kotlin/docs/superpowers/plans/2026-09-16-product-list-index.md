@@ -12,6 +12,12 @@
 
 **진행:** Task 1 완료 (2026-09-17, commit `2a87cf8d`). Task 2~7 미착수.
 
+**2026-09-18 개정.** count 쿼리를 Task 6 의 "관측만" 에서 Task 2·3 의 판정 격자로 옮겼다 —
+`execute()` 가 한 요청에 content 와 count 두 쿼리를 내는데, A 안과 B 안의 차이가 가장 크게 벌어지는
+자리가 count 쪽이라 거기를 빼면 판정이 반증 불가능해진다 (설계 문서 3.3 · 4.5 장). 격자가 6 칸에서
+12 칸이 되고 가설 3.5.6 이 생겼다. 함께 Docker 데몬 재시작 후 재개 절차(Global Constraints)와
+Task 5 Step 0 을 추가했다.
+
 ## Global Constraints
 
 - **측정 전 반드시 버리는 실행 2 회.** 컨테이너를 `down -v` 로 내리고 새로 띄운 뒤 2 회를 버린다. 2026-09-09 문서 4.4 장이 워밍업 차이로 p95 가 134 배 벌어지는 것을 찾아냈다.
@@ -28,6 +34,30 @@
 - **시드를 심은 뒤 `commerce-api` 컨테이너를 재기동하지 않는다.** `docker/loadtest-compose.yml` 이 앱을 `local`
   프로필로 띄우는데 그 프로필의 `ddl-auto` 는 `create` 다(`modules/jpa/src/main/resources/jpa.yml`).
   재기동하면 스키마가 통째로 재생성되어 10 만 행이 전부 사라진다. 워밍업 유지보다 이쪽이 더 큰 이유다.
+- **Docker 데몬이 내려갔다 올라온 뒤에는 아래 재개 절차를 먼저 밟는다.** 위 규칙은 평상시 금지 사항일 뿐
+  복구 절차가 아니다. MySQL 데이터는 named volume(`loadtest-mysql-data`)이라 데몬이 죽어도 남지만,
+  `docker compose up -d` 로 **전체를 올리는 순간 `commerce-api` 가 스키마를 재생성해 그 시점에 사라진다.**
+  순서를 틀리면 되돌릴 수 없으므로 앱을 올리기 전에 판단한다.
+
+  ```bash
+  # ① MySQL 만 올린다. 앱은 아직 올리지 않는다.
+  docker compose -f docker/infra-compose.yml down
+  APP_JAR=commerce-api-f67d4ece.jar \
+    docker compose -f docker/loadtest-compose.yml up -d mysql
+
+  # ② 시드 생존 확인
+  docker compose -f docker/loadtest-compose.yml exec -T mysql \
+    mysql --default-character-set=utf8mb4 -uapplication -papplication loopers \
+    -e "SELECT COUNT(*) FROM products;"
+  ```
+
+  | 결과 | 다음 |
+  |---|---|
+  | `100000` | Task 2 · 3 · 6 을 **앱 없이** 그대로 진행한다. 이 셋은 MySQL 만 있으면 된다. |
+  | `137` 또는 `0` | 시드가 날아갔다. Task 1 Step 1 · 5 · 6 을 다시 밟은 뒤 진행한다. |
+
+  **Task 5(k6)만 앱이 필요하다.** 그리고 앱을 올리는 순간 스키마가 재생성되므로,
+  Task 5 는 반드시 **앱 기동 → 재시드 → 인덱스 재생성 → 측정** 순서다 (Task 5 Step 0).
 - **문서화·커밋 메시지는 한국어.** 커밋 접두사는 저장소 규약을 따른다 (`feat : ` / `test : ` / `docs : ` / `chore : `).
 
 ---
@@ -38,12 +68,12 @@
 |---|---|---|
 | `loadtest/seed-products.sql` | 10 만 건 결정적 시드. 데이터만 만들고 인덱스는 만들지 않는다. | 1 |
 | `loadtest/verify-seed.sql` | 시드 분포 검증 쿼리 모음. 기대값과 대조한다. | 1 |
-| `loadtest/explain-product-list.sql` | 측정용 `EXPLAIN` / `EXPLAIN ANALYZE` 쿼리 모음. | 2 |
+| `loadtest/explain-product-list.sql` | 측정용 `EXPLAIN` / `EXPLAIN ANALYZE` 쿼리 모음. **content 2 개 + count 2 개** — `execute()` 가 한 요청에 두 쿼리를 내기 때문이다. | 2 |
 | `loadtest/indexes-ab.sql` | A 안·B 안 `CREATE` / `DROP` 모음. 전환 스위치. | 3 |
 | `ProductModel.kt` | `@Index` 선언. **채택안만** 반영한다. | 4 |
 | `ProductModelPersistenceTest.kt` | 인덱스가 스키마에 실제로 만들어지는지 단언. 새 파일을 만들지 않고 기존 파일에 `@Nested` 그룹을 더한다 — 이미 `NonNegativeCheckConstraints` 로 스키마 단언을 모아 둔 자리다. | 4 |
 | `loadtest/products.js` | k6 읽기 시나리오. `ab.js` 와 분리한다. | 5 |
-| `loadtest/README.md` | 상품 목록 측정 절차. | 1·5 에서 나눠 추가 |
+| `loadtest/README.md` | 상품 목록 측정 절차. | 1·3·5 에서 나눠 추가 |
 | 설계 문서 3.6 · 3.7 장 | 실측 격자와 판정. | 7 |
 
 ---
@@ -307,7 +337,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: Task 1 의 `products` 100,000 행
-- Produces: 개선 전 6 칸 격자 중 2 칸. 가설 3.5.1 의 판정. 이 수치가 Task 3 의 비교 기준선이다.
+- Produces: 개선 전 12 칸 격자 중 4 칸. 가설 3.5.1 의 판정. 이 수치가 Task 3 의 비교 기준선이다.
 
 ---
 
@@ -321,36 +351,63 @@ Create `loadtest/explain-product-list.sql`:
 -- ProductQueryDslRepository.execute 가 내는 SQL 과 같은 형태다.
 -- selectFrom(productModel) 이므로 SELECT * 이고, orderSpecifiers 가 like_count DESC, id DESC 를 낸다.
 --
+-- 목록(content)과 count 를 한 파일에 담는다. execute() 가 목록 1 회에 쿼리를 두 번 내기 때문이다.
+-- content 만 재면 요청 비용의 절반만 재는 것이고, 하필 그 절반이 A 안과 B 안의 차이가 거의
+-- 없는 쪽이다 - count 에는 LIMIT 이 없어 같은 인덱스 차이가 25,000 배로 확대된다.
+-- (설계 문서 3.3 장 "갈림길은 목록 쿼리가 아니라 count 쿼리일 수 있다")
+--
 -- 구분선에 `AS ''` 를 쓰지 않는다. MySQL 은 빈 문자열 컬럼 별칭을 ERROR 1166 으로 거부하고,
 -- mysql 클라이언트는 오류에서 중단하므로 파일이 첫 줄에서 죽는다.
 
-SELECT '=== 경로 ① brandId=1 ===' AS 구분;
+-- ─────────────────────────── 목록 (content) ───────────────────────────
+
+SELECT '=== 경로 ① content brandId=1 ===' AS 구분;
 EXPLAIN
 SELECT * FROM products
  WHERE brand_id = 1 AND deleted_at IS NULL
  ORDER BY like_count DESC, id DESC
  LIMIT 20 OFFSET 0;
 
-SELECT '=== 경로 ② 필터 없음 ===' AS 구분;
+SELECT '=== 경로 ② content 필터 없음 ===' AS 구분;
 EXPLAIN
 SELECT * FROM products
  WHERE deleted_at IS NULL
  ORDER BY like_count DESC, id DESC
  LIMIT 20 OFFSET 0;
 
-SELECT '=== 경로 ① ANALYZE ===' AS 구분;
+SELECT '=== 경로 ① content ANALYZE ===' AS 구분;
 EXPLAIN ANALYZE
 SELECT * FROM products
  WHERE brand_id = 1 AND deleted_at IS NULL
  ORDER BY like_count DESC, id DESC
  LIMIT 20 OFFSET 0;
 
-SELECT '=== 경로 ② ANALYZE ===' AS 구분;
+SELECT '=== 경로 ② content ANALYZE ===' AS 구분;
 EXPLAIN ANALYZE
 SELECT * FROM products
  WHERE deleted_at IS NULL
  ORDER BY like_count DESC, id DESC
  LIMIT 20 OFFSET 0;
+
+-- ─────────────────────────── count ───────────────────────────
+-- 볼 것은 rows 가 아니라 Extra 의 `Using index` 다. 있으면 인덱스만으로 세고 끝난 것이고,
+-- 없으면 deleted_at 을 확인하려고 행을 읽으러 갔다는 뜻이다. 가설 3.5.6 의 판정이 여기 달려 있다.
+
+SELECT '=== 경로 ① count brandId=1 ===' AS 구분;
+EXPLAIN
+SELECT COUNT(*) FROM products WHERE brand_id = 1 AND deleted_at IS NULL;
+
+SELECT '=== 경로 ② count 필터 없음 ===' AS 구분;
+EXPLAIN
+SELECT COUNT(*) FROM products WHERE deleted_at IS NULL;
+
+SELECT '=== 경로 ① count ANALYZE ===' AS 구분;
+EXPLAIN ANALYZE
+SELECT COUNT(*) FROM products WHERE brand_id = 1 AND deleted_at IS NULL;
+
+SELECT '=== 경로 ② count ANALYZE ===' AS 구분;
+EXPLAIN ANALYZE
+SELECT COUNT(*) FROM products WHERE deleted_at IS NULL;
 ```
 
 - [ ] **Step 2: 버리는 실행 2 회를 돌린다**
@@ -380,9 +437,16 @@ docker compose -f docker/loadtest-compose.yml exec -T mysql \
 Expected (가설):
 
 ```
-경로 ①  type=ref   key=idx_products_brand_id   rows≈25000   Extra=Using where; Using filesort
-경로 ②  type=ALL   key=NULL                    rows≈100000  Extra=Using where; Using filesort
+content 경로 ①  type=ref   key=idx_products_brand_id   rows≈25000   Extra=Using where; Using filesort
+content 경로 ②  type=ALL   key=NULL                    rows≈100000  Extra=Using where; Using filesort
+
+count   경로 ①  key=idx_products_brand_id   actual rows 1 (센 행 23,685)
+count   경로 ②  key=NULL (전체 스캔)         actual rows 1 (센 행 94,737)
 ```
+
+count 쪽 `actual rows` 는 **집계 결과가 1 행이라 항상 1 이다.** 여기서 볼 것은 그 숫자가 아니라
+`Extra` 와 `actual time` 이다. 개선 전에는 두 경로 모두 `Using index` 가 나오지 않을 것이다 —
+`deleted_at` 이 어느 인덱스에도 없기 때문이다. 이 값이 A 안·B 안의 비교 기준선이 된다.
 
 `loadtest/results/explain/before.txt` 에서 실제 값을 읽어 위와 대조한다.
 **어긋나면 그 자체가 발견이다** — 설계 문서 3.5.1 의 "실측" 칸에 실제 값을 적고,
@@ -411,11 +475,12 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 - Create: `loadtest/indexes-ab.sql`
+- Modify: `loadtest/README.md` (인덱스 전환 절 추가 — Task 1 Step 7 이 여기로 미룬 것)
 - Create: `loadtest/results/explain/after-a.txt`, `loadtest/results/explain/after-b.txt`
 
 **Interfaces:**
 - Consumes: Task 1 의 데이터, Task 2 의 `before.txt` 기준선과 `explain-product-list.sql`
-- Produces: **채택안 결정** (A 또는 B). Task 4 가 이 결정을 코드에 반영한다. 격자 6 칸 완성.
+- Produces: **채택안 결정** (A 또는 B). Task 4 가 이 결정을 코드에 반영한다. 격자 12 칸 완성.
 
 ---
 
@@ -510,6 +575,8 @@ docker compose -f docker/loadtest-compose.yml exec -T mysql \
 
 세 파일(`before.txt` · `after-a.txt` · `after-b.txt`)에서 다음을 뽑아 표로 정리한다.
 
+**목록 (content)**
+
 | | 개선 전 | A 안 | B 안 |
 |---|---|---|---|
 | 경로 ① `key` | | | |
@@ -519,20 +586,36 @@ docker compose -f docker/loadtest-compose.yml exec -T mysql \
 | 경로 ① `actual time` | | | |
 | 경로 ② (같은 5 항목) | | | |
 
+**count**
+
+| | 개선 전 | A 안 | B 안 |
+|---|---|---|---|
+| 경로 ① `key` | | | |
+| 경로 ① `Extra` (`Using index` 유무) | | | |
+| 경로 ① `actual time` | | | |
+| 경로 ② (같은 3 항목) | | | |
+
 판정 규칙:
 
-- **3.5.2** — A · B 모두 `Extra` 에서 `Using filesort` 가 사라졌는가
-- **3.5.3** — A 의 경로 ① `actual rows` 가 20 을 넘는가 (넘으면 가설 성립)
-- **3.5.4** — A 와 B 의 `actual time` 차이가 유의미한가
-- **3.5.5** — `Extra` 에 `Backward index scan` 이 나타나는가
+- **3.5.2** — A · B 모두 content `Extra` 에서 `Using filesort` 가 사라졌는가
+- **3.5.3** — A 의 content 경로 ① `actual rows` 가 20 을 넘는가 (넘으면 가설 성립)
+- **3.5.4** — A 와 B 의 content `actual time` 차이가 유의미한가
+- **3.5.5** — content `Extra` 에 `Backward index scan` 이 나타나는가
+- **3.5.6** — **B 의 count `Extra` 에만 `Using index` 가 있는가, 그리고 `actual time` 차이가 유의미한가**
 
-**채택 규칙 (설계 문서 3.5 장 "기본값은 A"):**
+**채택 규칙 (설계 문서 3.5 장 "기본값은 A 다 — 단, count 도 비겼을 때만"):**
 
 ```
-3.5.4 에서 차이가 오차 범위    →  A 채택 (더 작은 인덱스)
-B 가 유의미하게 빠름           →  B 채택
-A 에서 filesort 가 남음        →  B 채택
+A 에서 filesort 가 남음                      →  B 채택   (3.5.2 불성립)
+3.5.6 에서 B 가 count 를 유의미하게 이김      →  B 채택
+3.5.4 에서 B 가 content 를 유의미하게 이김    →  B 채택
+3.5.4 · 3.5.6 둘 다 오차 범위                →  A 채택   (더 작은 인덱스)
 ```
+
+**순서가 있는 규칙이다.** 위에서부터 먼저 걸리는 것을 따른다. content 만 보고 "차이가 오차 범위"라고
+A 를 고르는 경로를 막으려고 3.5.6 을 3.5.4 보다 위에 뒀다 — content 의 20 건 대 21 건 차이는
+버퍼 풀 상주 상태에서 거의 반드시 오차 범위로 나오므로, 그 줄이 먼저 걸리면 count 를 잰 의미가 없다.
+(설계 문서 3.3 장 · 4.5 장)
 
 - [ ] **Step 7: 지는 쪽 인덱스를 지운다**
 
@@ -540,7 +623,7 @@ B 가 졌다고 가정한 경우:
 
 ```bash
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
-  mysql -uapplication -papplication loopers -e "
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers -e "
 DROP INDEX idx_products_del_brand_like ON products;
 DROP INDEX idx_products_del_like       ON products;
 CREATE INDEX idx_products_brand_like ON products (brand_id, like_count DESC, id DESC);
@@ -549,10 +632,31 @@ CREATE INDEX idx_products_like       ON products (like_count DESC, id DESC);"
 
 A 가 졌으면 위 네 줄의 인덱스 이름을 서로 바꿔 실행한다.
 
-- [ ] **Step 8: 커밋**
+- [ ] **Step 8: README 에 인덱스 전환 절을 추가한다**
+
+Task 1 Step 7 이 이 절을 여기로 미뤘다 — 그때는 `indexes-ab.sql` 이 없어서 가리킬 대상이 없었다.
+`loadtest/README.md` 의 "### 1. 시드" 절 뒤에 다음을 넣는다. Task 5 가 그 뒤에 "### 3. k6" 를 붙인다.
+
+````markdown
+### 2. 인덱스 전환
+
+`loadtest/indexes-ab.sql` 이 A·B 네 블록(생성·제거)의 정본이다. **파일째 실행하지 않는다** —
+통째로 돌리면 A 안과 B 안이 동시에 생겨 무엇을 재는지 알 수 없게 된다. 필요한 블록만 복사해 실행한다.
+
+    # 예 — A 안 생성
+    docker compose -f docker/loadtest-compose.yml exec -T mysql \
+      mysql --default-character-set=utf8mb4 -uapplication -papplication loopers -e "
+    CREATE INDEX idx_products_brand_like ON products (brand_id, like_count DESC, id DESC);
+    CREATE INDEX idx_products_like       ON products (like_count DESC, id DESC);"
+
+전환한 뒤에는 **버리는 실행 2 회**를 먼저 돌리고 측정한다. jar 는 다시 빌드하지 않는다 —
+빌드하면 JVM 워밍업 상태가 인덱스 효과와 섞인다.
+````
+
+- [ ] **Step 9: 커밋**
 
 ```bash
-git add loadtest/indexes-ab.sql loadtest/results/explain/
+git add loadtest/indexes-ab.sql loadtest/results/explain/ loadtest/README.md
 git commit -m "test : A/B 인덱스 실측 결과를 기록한다
 
 deleted_at 을 인덱스 선두에 넣을지를 같은 데이터 위에서 쟀다. 전환은 jar
@@ -721,6 +825,39 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ---
 
+- [ ] **Step 0: 앱이 살아 있는지 확인하고, 필요하면 재시드한다**
+
+**이 태스크만 `commerce-api` 가 필요하다.** Task 2 · 3 · 6 은 MySQL 만으로 돌았으므로 앱이 내려간
+채였을 수 있고, 그렇다면 여기서 처음 올리게 된다. **올리는 순간 `ddl-auto: create` 가 스키마를
+재생성해 10 만 행과 SQL 로 만든 인덱스가 함께 사라진다.**
+
+```bash
+docker compose -f docker/loadtest-compose.yml ps
+```
+
+`commerce-api` 가 계속 `(healthy)` 였다면 아무것도 하지 않고 Step 1 로 간다.
+올려야 한다면 **기동 → 재시드 → 인덱스 재생성** 순서를 지킨다. 하나라도 건너뛰면 그다음 측정이 무의미하다.
+
+```bash
+APP_JAR=commerce-api-f67d4ece.jar \
+  docker compose -f docker/loadtest-compose.yml up -d commerce-api
+# (healthy) 를 기다린 뒤
+
+docker compose -f docker/loadtest-compose.yml exec -T mysql \
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers < loadtest/seed-products.sql
+
+docker compose -f docker/loadtest-compose.yml exec -T mysql \
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers -e "
+CREATE INDEX idx_products_brand_like ON products (brand_id, like_count DESC, id DESC);
+CREATE INDEX idx_products_like       ON products (like_count DESC, id DESC);"
+```
+
+B 안이 채택됐으면 마지막 블록의 인덱스를 B 안 것으로 바꾼다. 재시드했다면 `verify-seed.sql` 로
+분포를 다시 확인한다 — Task 1 Step 6 의 기대값과 같아야 한다.
+
+**여기서 앱을 올렸다면 Step 2 이후로는 절대 다시 재기동하지 않는다.** 그 순간 이 Step 을 처음부터
+다시 밟아야 하고, `before` 와 `after` 가 서로 다른 워밍업 상태에서 측정된다.
+
 - [ ] **Step 1: k6 스크립트를 쓴다**
 
 Create `loadtest/products.js`:
@@ -848,7 +985,7 @@ Expected: `product_list_status_200` 이 전체이고 `dropped_iterations` 가 0.
 
 ```bash
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
-  mysql -uapplication -papplication loopers -e "
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers -e "
 DROP INDEX idx_products_brand_like ON products;
 DROP INDEX idx_products_like       ON products;"
 
@@ -865,7 +1002,7 @@ k6 run -e TARGET_TPS=300 -e LABEL=before loadtest/products.js
 
 ```bash
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
-  mysql -uapplication -papplication loopers -e "
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers -e "
 CREATE INDEX idx_products_brand_like ON products (brand_id, like_count DESC, id DESC);
 CREATE INDEX idx_products_like       ON products (like_count DESC, id DESC);"
 ```
@@ -920,7 +1057,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 6: OFFSET · count 관측
+## Task 6: OFFSET 관측
 
 **Files:**
 - Create: `loadtest/explain-limits.sql`
@@ -929,7 +1066,11 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 **Interfaces:**
 - Consumes: 채택안 인덱스가 걸린 측정 컨테이너 (Task 3 Step 7 / Task 5 Step 4 가 SQL 로 만든 것).
   Task 4 의 `@Index` 는 `ddl-auto: create` 환경에만 반영되므로 이 측정과 무관하다.
-- Produces: 설계 문서 4.4 · 4.5 장에 넣을 관측 수치. 후속 문서가 근거를 다시 만들지 않아도 된다.
+- Produces: 설계 문서 4.4 장에 넣을 관측 수치. 후속 문서가 근거를 다시 만들지 않아도 된다.
+
+> **count 는 여기 없다.** 원래 이 태스크가 `OFFSET` 과 함께 쟀으나, count 의 실행 계획이
+> A/B 판정을 가르는 것으로 드러나 Task 2·3 의 격자로 옮겼다 (설계 문서 3.3 · 4.5 장).
+> 판정이 끝난 뒤에 재는 수치는 판정에 쓸 수 없다.
 
 ---
 
@@ -938,7 +1079,10 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 Create `loadtest/explain-limits.sql`:
 
 ```sql
--- 인덱스로 풀리지 않는 두 병목의 관측. 해결은 후속 문서로 넘긴다. (설계 문서 4.4 · 4.5 장)
+-- 인덱스로 풀리지 않는 병목의 관측. 해결은 후속 문서로 넘긴다. (설계 문서 4.4 장)
+--
+-- count 쿼리는 이 파일에 없다. A/B 판정을 가르는 것으로 드러나
+-- explain-product-list.sql 로 옮겼다. (설계 문서 3.3 · 4.5 장)
 --
 -- 구분선에 `AS ''` 를 쓰지 않는다 — MySQL 이 빈 컬럼 별칭을 ERROR 1166 으로 거부한다. (Task 2 Step 1 과 같은 이유)
 
@@ -955,14 +1099,6 @@ SELECT * FROM products
  WHERE deleted_at IS NULL
  ORDER BY like_count DESC, id DESC
  LIMIT 20 OFFSET 90000;
-
-SELECT '=== count 쿼리 (경로 ①) ===' AS 구분;
-EXPLAIN ANALYZE
-SELECT COUNT(*) FROM products WHERE brand_id = 1 AND deleted_at IS NULL;
-
-SELECT '=== count 쿼리 (경로 ②) ===' AS 구분;
-EXPLAIN ANALYZE
-SELECT COUNT(*) FROM products WHERE deleted_at IS NULL;
 ```
 
 경로 ② 로 `OFFSET 90000` 을 재는 이유는 브랜드 1 이 25,000 건이라 그 경로에서는 그만큼 깊이
@@ -982,25 +1118,25 @@ docker compose -f docker/loadtest-compose.yml exec -T mysql \
 ```
 
 Expected: `OFFSET 90000` 의 `actual rows` 가 90,020 근처. `OFFSET 0` 의 20 과 대비된다.
-`count` 쿼리는 인덱스를 타며, 경로 ② 가 **94,737** 행을 센다 (100,000 − 삭제 5,263).
-경로 ① 은 **23,685** 행을 센다 (브랜드 1 의 25,000 건 중 삭제 1,315 건을 뺀 값).
 
-경로 ① 에서 "읽는 행" 과 "세는 행" 이 갈리는 것이 그대로 A/B 의 차이다 — A 안 인덱스에는
-`deleted_at` 이 없어 25,000 행을 읽고 그중 23,685 를 세지만, B 안은 23,685 만 읽는다.
-기대값을 25,000 으로 적어 두면 재려던 차이가 기대값 안에서 사라진다.
+**이 대비 하나가 이 태스크의 전부다.** 인덱스가 정렬을 해결해도 `OFFSET` 은 건너뛸 행을 하나씩
+세어야 한다는 것을 보이는 수치이며, 커서 페이징을 다룰 후속 문서의 출발점이 된다.
 
 - [ ] **Step 3: 커밋**
 
 ```bash
 git add loadtest/explain-limits.sql loadtest/results/explain/limits.txt
-git commit -m "test : 인덱스로 풀리지 않는 두 병목을 관측한다
+git commit -m "test : 인덱스로 풀리지 않는 OFFSET 병목을 관측한다
 
-OFFSET 깊은 페이지와 count 쿼리다. 둘 다 이 문서의 범위 밖이지만 수치를
-남겨 두면 후속 문서가 근거를 다시 만들지 않아도 된다.
+이 문서의 범위 밖이지만 수치를 남겨 두면 후속 문서가 근거를 다시 만들지
+않아도 된다.
 
 OFFSET 은 인덱스가 정렬을 해결해도 건너뛸 행을 하나씩 세어야 한다.
 해결책은 커서 페이징이고 그것은 PageQuery·PageResult 규약과 totalElements
 의 의미를 바꾼다.
+
+count 는 여기서 빼고 explain-product-list.sql 로 옮겼다. 그 실행 계획이
+A 안과 B 안을 가르는 자리라 판정 격자 안에 있어야 한다.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
@@ -1035,7 +1171,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 2: 3.5 장 가설 표의 "실측" 칸을 채운다**
 
-다섯 행의 `*(측정 후)*` 를 실제 값으로 바꾸고, 맞았으면 `✅`, 틀렸으면 `❌` 를 붙인다.
+여섯 행의 `*(측정 후)*` 를 실제 값으로 바꾸고, 맞았으면 `✅`, 틀렸으면 `❌` 를 붙인다.
 **틀린 가설을 지우지 않는다.** 2026-09-09 문서가 분산 순서 예측을 ❌ 로 남겨 둔 것과 같다.
 
 - [ ] **Step 3: 3.6 장 실측 격자를 추가한다**
@@ -1048,7 +1184,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 **측정 조건.** jar 를 그대로 두고 `CREATE INDEX` / `DROP INDEX` 로만 전환했다. 전환 후
 버리는 실행 2 회를 먼저 돌렸다. 데이터는 `loadtest/seed-products.sql` 로 매번 같은 것을 썼다.
 
-#### 경로 ① 브랜드 필터 있음 (`brandId=1`, 25,000 건)
+#### 목록(content) — 경로 ① 브랜드 필터 있음 (`brandId=1`, 25,000 건)
 
 | | `key` | `rows` | `Extra` | `actual rows` | `actual time` |
 |---|---|---|---|---|---|
@@ -1056,31 +1192,51 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 | A 안 | | | | | |
 | B 안 | | | | | |
 
-#### 경로 ② 브랜드 필터 없음
+#### 목록(content) — 경로 ② 브랜드 필터 없음
 
 (같은 형식)
+
+#### count — 경로 ① · ②
+
+| | `key` | `Extra` (`Using index` 유무) | `actual time` |
+|---|---|---|---|
+| 개선 전 | | | |
+| A 안 | | | |
+| B 안 | | | |
 ```
+
+count 표가 따로 있는 이유를 3.6 장 서두에 한 줄 적는다 — **한 요청이 쿼리 두 개이고, 두 안의
+차이가 가장 크게 벌어지는 자리가 count 쪽이기 때문이다** (3.3 장).
 
 - [ ] **Step 4: 3.7 장 판정을 쓴다**
 
 무엇을 채택했고 왜인지, 그리고 **진 쪽이 왜 졌는지**를 쓴다.
 2026-09-09 문서 3.8 장이 "낙관적 락이 진 이유" · "비관적 락이 진 이유" 를 따로 쓴 형식을 따른다.
 
-마지막 문단은 반드시 다음 형태로 끝낸다.
+**어느 쿼리가 판정을 갈랐는지 명시한다** — content 였는지 count 였는지. 이 문서가 개정된 이유가
+그것이므로(3.3 · 4.5 장), 판정문이 그 구분 없이 "A 가 빨랐다" 로 끝나면 개정한 의미가 사라진다.
+
+마지막 문단은 다음 형태로 끝낸다. **판정 결과에 맞는 쪽을 쓴다.**
 
 ```markdown
 **다음에 누가 "deleted_at 을 인덱스에 넣으면 어떨까" 라고 물으면 이 절을 가리키면 된다.**
-답은 "넣으면 안 된다" 가 아니라 "이 분포에서는 차이가 없었다" 다.
+
+- A 를 채택했다면 : 답은 "넣으면 안 된다" 가 아니라 "이 분포에서는 차이가 없었다" 다.
+- B 를 채택했다면 : 답은 "카디널리티가 낮으니 앞에 두면 안 된다" 가 아니라
+  "count 에는 LIMIT 이 없어서 넣어야 했다" 다.
 ```
+
+두 문장 모두 규칙이 아니라 **근거**를 남기는 형태다. 어느 쪽이 이기든 다음 사람이 가져갈 것은
+채택된 인덱스 정의가 아니라 "무엇을 재서 그렇게 정했는가" 다.
 
 - [ ] **Step 5: 4.1 · 4.3 · 4.4 · 4.5 장에 관측 수치를 넣는다**
 
 | 장 | 넣을 것 |
 |---|---|
-| 4.1 버퍼 풀 | k6 개선폭이 `rows` 감소폭보다 작았다면 그 수치 |
+| 4.1 버퍼 풀 | k6 개선폭이 `actual rows` 감소폭보다 작았다면 그 수치 |
 | 4.3 `DESC` 지원 | Task 4 Step 4 의 결과 — Hibernate 가 `desc` 를 통과시켰는가, `SHOW INDEX` 의 `Collation` 이 `D` 였는가 |
 | 4.4 `OFFSET` | `limits.txt` 의 `OFFSET 0` vs `OFFSET 90000` `actual rows` · `actual time` |
-| 4.5 `count` | `limits.txt` 의 count 쿼리 두 개 |
+| 4.5 `count` | `after-a.txt` · `after-b.txt` 의 count 네 칸. 3.5.6 판정과 같은 수치를 가리키므로 **3.6 장 표를 참조만 하고 옮겨 적지 않는다** |
 
 - [ ] **Step 6: 7 장 열린 질문을 정리한다**
 
@@ -1102,8 +1258,11 @@ git commit -m "docs : 상품 목록 인덱스 실측 결과를 설계 문서에 
 가설 다섯 개의 판정을 3.5 장 표에 붙이고, 격자를 3.6 장에, 채택 근거를
 3.7 장에 쓴다. 틀린 가설은 지우지 않는다.
 
-4.4 · 4.5 장의 OFFSET·count 관측 수치를 채운다. 이 문서의 범위 밖이지만
-후속 문서가 근거를 다시 만들지 않아도 된다.
+4.4 장의 OFFSET 관측 수치를 채운다. 이 문서의 범위 밖이지만 후속 문서가
+근거를 다시 만들지 않아도 된다.
+
+4.5 장은 count 가 판정 격자로 옮겨진 경위를 남긴다. 무엇을 재지 않고
+있었는지를 아는 것이 판정 결과보다 오래 쓸모 있다.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
@@ -1113,10 +1272,16 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ## 완료 기준
 
 - [ ] `products` 10 만 건이 의도한 분포로 심긴다 (Task 1 Step 6 기대값 전부 일치)
-- [ ] 두 경로의 `Extra` 에서 `Using filesort` 가 사라졌다
-- [ ] 경로 ① 의 `rows` 가 25,000 에서 세 자릿수 이하로 떨어졌다
+- [ ] 두 경로의 content `Extra` 에서 `Using filesort` 가 사라졌다
+- [ ] 경로 ① content 의 **`EXPLAIN ANALYZE` `actual rows`** 가 25,000 에서 20 근처로 떨어졌다
+- [ ] count 두 경로의 A 안·B 안 `Extra` 가 격자에 기록돼 있다 (3.5.6 판정 가능)
 - [ ] A/B 판정 근거가 설계 문서 3.7 장에 있다
 - [ ] 채택되지 않은 인덱스는 코드에 없다
 - [ ] 전체 테스트 750 건 통과 (기존 748 + 인덱스 테스트 2)
 - [ ] `loadtest/README.md` 만 보고 측정을 처음부터 재현할 수 있다
 - [ ] `EXPLAIN` 측정에 쓴 SQL 파일이 그대로 재실행된다 (`AS ''` 없음, charset 플래그 포함)
+
+> **세 번째 항목의 기준을 `rows` 에서 `actual rows` 로 바꿨다.** `EXPLAIN` 의 `rows` 는 추정치이고,
+> `ref` 접근 + 인덱스 정렬 + `LIMIT` 조합에서 MySQL 이 `LIMIT` 을 반영하지 않은 25,000 을 그대로
+> 보고하는 경우가 있다. 실제로는 20 행만 읽고 있는데도 이 게이트가 깨진다.
+> 설계 문서 5.6 장이 이미 "3.5.3 의 근거는 `actual rows`" 라고 정해 뒀으므로 완료 기준도 거기 맞춘다.
