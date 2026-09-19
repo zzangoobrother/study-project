@@ -42,4 +42,14 @@ out/
 ### 부하 테스트 산출물 ###
 # k6 의 handleSummary 가 실행마다 남기는 요약 JSON. 특정 머신·특정 시점의 출력이라
 # 커밋해 두면 다음 측정 결과와 뒤섞인다. 재현에 필요한 것은 이 출력이 아니라 loadtest/ab.js 다.
-loadtest/results/
+#
+# `loadtest/results/` 가 아니라 `loadtest/results/*` 인 이유가 아래 예외를 위해서다.
+# 디렉터리 자체를 제외하면 git 이 그 안으로 내려가지 않아 하위의 부정 패턴을 읽지 못한다.
+# 한 글자 차이로 예외가 통째로 무시되고, 그 실패는 오류가 아니라 조용한 누락으로 나타난다.
+loadtest/results/*
+
+# EXPLAIN 출력만 예외다. k6 요약과 성격이 다르다 —
+# loadtest/seed-products.sql 이 난수 없이 심은 같은 데이터 위에서 나오므로 재현 가능하고,
+# 2026-09-16 설계 문서 3.6 장의 판정 격자가 이 파일들을 근거로 가리킨다.
+# (docs/superpowers/specs/2026-09-16-product-list-index-design.md)
+!loadtest/results/explain/

@@ -18,6 +18,13 @@
 12 칸이 되고 가설 3.5.6 이 생겼다. 함께 Docker 데몬 재시작 후 재개 절차(Global Constraints)와
 Task 5 Step 0 을 추가했다.
 
+**2026-09-19 개정.** 가설 3.5.5(`Backward index scan`)를 A/B 격자에서 떼어내 Task 3 Step 6 으로
+옮겼다 — A·B 를 `DESC` 로 만드는 이상 그 격자에서는 `Backward index scan` 이 **나타나지 않는 것이
+정상**이라, 원래 절차로는 3.5.5 를 판정할 수도 반증할 수도 없었다. 판정 불가는 설계 4.3 장의
+"3.5.5 가 성립하면 Hibernate `DESC` 위험이 해소된다" 와 Task 4 Step 4 의 폴백까지 근거 없이 만든다.
+오름차순 인덱스를 한 번 만들어 보는 스텝을 넣어 되돌렸고, Task 3 의 스텝이 9 개에서 10 개가 됐다.
+함께 측정 산출물의 커밋 범위(`.gitignore` 의 `loadtest/results/explain/` 예외)를 Global Constraints 에 명시했다.
+
 ## Global Constraints
 
 - **측정 전 반드시 버리는 실행 2 회.** 컨테이너를 `down -v` 로 내리고 새로 띄운 뒤 2 회를 버린다. 2026-09-09 문서 4.4 장이 워밍업 차이로 p95 가 134 배 벌어지는 것을 찾아냈다.
@@ -58,6 +65,14 @@ Task 5 Step 0 을 추가했다.
 
   **Task 5(k6)만 앱이 필요하다.** 그리고 앱을 올리는 순간 스키마가 재생성되므로,
   Task 5 는 반드시 **앱 기동 → 재시드 → 인덱스 재생성 → 측정** 순서다 (Task 5 Step 0).
+- **측정 산출물 중 커밋하는 것은 `loadtest/results/explain/` 뿐이다.** `.gitignore` 가 `loadtest/results/*` 를
+  막고 그 한 디렉터리만 예외로 열어 뒀다. `EXPLAIN` 출력은 난수 없는 시드 위에서 나오므로 재현 가능하고
+  판정 격자가 근거로 가리키지만, k6 요약 JSON 은 특정 머신·시점의 출력이라 커밋하면 다음 측정과 뒤섞인다.
+  **k6 의 p95 는 파일이 아니라 설계 문서에 숫자로 남긴다.**
+
+  무시된 경로를 `git add` 에 넣어도 **명령이 멈추지 않는다** — git 은 경고를 내고 exit 1 이지만
+  무시되지 않은 파일은 그대로 스테이징되고, 뒤이은 `git commit` 이 실행되어 **산출물만 빠진 커밋**이 남는다.
+  경고는 스크롤에 묻히므로 커밋 후 `git show --stat` 으로 파일 목록을 확인한다.
 - **문서화·커밋 메시지는 한국어.** 커밋 접두사는 저장소 규약을 따른다 (`feat : ` / `test : ` / `docs : ` / `chore : `).
 
 ---
@@ -477,10 +492,12 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - Create: `loadtest/indexes-ab.sql`
 - Modify: `loadtest/README.md` (인덱스 전환 절 추가 — Task 1 Step 7 이 여기로 미룬 것)
 - Create: `loadtest/results/explain/after-a.txt`, `loadtest/results/explain/after-b.txt`
+- Create: `loadtest/results/explain/desc-check.txt` (Step 6 — 가설 3.5.5 판정)
 
 **Interfaces:**
 - Consumes: Task 1 의 데이터, Task 2 의 `before.txt` 기준선과 `explain-product-list.sql`
 - Produces: **채택안 결정** (A 또는 B). Task 4 가 이 결정을 코드에 반영한다. 격자 12 칸 완성.
+  그리고 **가설 3.5.5 의 판정** — Task 4 Step 4 의 폴백(`desc` 를 빼도 되는가)이 여기에 달려 있다.
 
 ---
 
@@ -514,6 +531,19 @@ CREATE INDEX idx_products_like       ON products (like_count DESC, id DESC);
 -- ─────────────────────────── B 안 제거 ───────────────────────────
 -- DROP INDEX idx_products_del_brand_like ON products;
 -- DROP INDEX idx_products_del_like       ON products;
+
+-- ────────────────── DESC 확인용 (Step 6 에서만 쓴다) ──────────────────
+-- 경로 ② 인덱스를 DESC 없이 만든 것. 가설 3.5.5 를 판정하는 유일한 블록이다.
+--
+-- 위의 A·B 는 DESC 를 명시해 만들므로 MySQL 8.0 에서 Collation 이 D 가 되고,
+-- ORDER BY like_count DESC, id DESC 는 그 인덱스의 정방향 스캔이 된다.
+-- 즉 A·B 를 아무리 재도 Backward index scan 은 나타나지 않는다 —
+-- 그 문자열은 "오름차순 인덱스를 거꾸로 읽었다" 는 표시이기 때문이다. (설계 문서 3.4 장)
+--
+-- 다른 인덱스가 남아 있으면 옵티마이저가 그쪽을 골라 확인이 성립하지 않는다.
+-- 반드시 A·B 를 모두 지운 뒤 이 인덱스 하나만 두고 잰다.
+-- CREATE INDEX idx_products_like_asc ON products (like_count, id);
+-- DROP INDEX idx_products_like_asc ON products;
 ```
 
 - [ ] **Step 2: A 안 인덱스를 만든다**
@@ -529,9 +559,13 @@ SHOW INDEX FROM products;"
 `indexes-ab.sql` 을 파일째 실행하지 않고 블록을 복사해 쓰는 것은, 그 파일이 A·B 네 블록을 한곳에
 모아 둔 정본이라 통째로 실행하면 A 와 B 가 동시에 생기기 때문이다. 복사한 SQL 은 파일 내용과 문자 단위로 같아야 한다.
 
-Expected: `idx_products_brand_like` · `idx_products_like` 가 목록에 나타난다.
-`Collation` 컬럼이 `D` 면 `DESC` 가 실제로 적용된 것이고, `A` 면 오름차순으로 만들어진 것이다.
-어느 쪽이든 기록만 하고 진행한다 — 가설 3.5.5 가 이 차이를 다룬다.
+Expected: `idx_products_brand_like` · `idx_products_like` 가 목록에 나타나고 `Collation` 이 **`D`** 다.
+MySQL 8.0 은 진짜 내림차순 인덱스를 지원하므로 `DESC` 가 그대로 적용된다. `A` 로 나온다면 그것 자체가
+발견이니 기록하고 진행한다.
+
+**여기서 가설 3.5.5 를 판정하지 않는다.** `D` 인덱스에서 `ORDER BY ... DESC` 는 정방향 스캔이라
+`Backward index scan` 이 **나타나지 않는 것이 정상**이고, 그 부재는 "`DESC` 가 필요했다" 의 근거가
+되지 못한다. 3.5.5 는 오름차순 인덱스를 따로 만들어 보는 Step 6 이 판정한다.
 
 - [ ] **Step 3: 버리는 실행 2 회 후 A 안을 측정한다**
 
@@ -571,7 +605,51 @@ docker compose -f docker/loadtest-compose.yml exec -T mysql \
   | tee loadtest/results/explain/after-b.txt
 ```
 
-- [ ] **Step 6: 격자를 채우고 판정한다**
+- [ ] **Step 6: `DESC` 가 필요한지 확인한다 — 오름차순 인덱스 1 회**
+
+A·B 를 모두 지우고 경로 ② 인덱스를 `DESC` 없이 하나만 만든다. **이 스텝이 가설 3.5.5 를 판정하는
+유일한 자리다.** Step 2 에 적은 대로 `DESC` 로 만든 인덱스에서는 `Backward index scan` 이 원래
+나타나지 않으므로, A·B 격자를 아무리 들여다봐도 "`DESC` 가 필요했는가" 에는 답할 수 없다.
+
+```bash
+docker compose -f docker/loadtest-compose.yml exec -T mysql \
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers --table -e "
+DROP INDEX idx_products_del_brand_like ON products;
+DROP INDEX idx_products_del_like       ON products;
+CREATE INDEX idx_products_like_asc ON products (like_count, id);
+SHOW INDEX FROM products;
+EXPLAIN
+SELECT * FROM products
+ WHERE deleted_at IS NULL
+ ORDER BY like_count DESC, id DESC
+ LIMIT 20 OFFSET 0;" \
+  | tee loadtest/results/explain/desc-check.txt
+```
+
+**다른 인덱스를 남겨 둔 채로 재면 안 된다.** B 안 인덱스가 살아 있으면 경로 ② 의 `deleted_at IS NULL`
+을 그쪽이 더 잘 처리하므로 옵티마이저가 `idx_products_like_asc` 를 고르지 않는다. 확인 자체가 성립하지 않는다.
+
+**버리는 실행 2 회가 없는 유일한 측정이다.** 3.5.5 의 판정 지표는 `Extra` 하나뿐이고 실행 계획은
+워밍업과 무관하다 (Task 2 Step 2 의 단서와 같은 논리). `actual time` 을 읽지 않으므로 규약이 필요 없다.
+
+Expected: `SHOW INDEX` 의 `Collation` 이 `A`, `EXPLAIN` 의 `key` 가 `idx_products_like_asc`.
+
+판정:
+
+| `Extra` 결과 | 3.5.5 | 뜻과 파급 |
+|---|---|---|
+| `Backward index scan` 있고 `Using filesort` 없음 | ✅ | `DESC` 는 의도 표현용이었다. Task 4 에서 Hibernate 가 `desc` 를 거부해도 `columnList` 에서 빼면 같은 계획이 나온다 — **설계 4.3 장의 위험이 여기서 해소된다** |
+| 나타나지 않거나 `filesort` 가 남음 | ❌ | `DESC` 가 실제로 필요하다. Task 4 에서 `desc` 가 통과하지 못하면 `@Index` 로는 만들 수 없으므로, 인덱스를 SQL 로 만들고 `@Index` 에는 의도만 주석으로 남긴다 (설계 4.3 장의 대안) |
+
+확인이 끝나면 지운다. 다음 스텝의 판정은 이미 받아 둔 세 파일로 하므로 인덱스가 없어도 된다.
+
+```bash
+docker compose -f docker/loadtest-compose.yml exec -T mysql \
+  mysql --default-character-set=utf8mb4 -uapplication -papplication loopers -e "
+DROP INDEX idx_products_like_asc ON products;"
+```
+
+- [ ] **Step 7: 격자를 채우고 판정한다**
 
 세 파일(`before.txt` · `after-a.txt` · `after-b.txt`)에서 다음을 뽑아 표로 정리한다.
 
@@ -600,7 +678,7 @@ docker compose -f docker/loadtest-compose.yml exec -T mysql \
 - **3.5.2** — A · B 모두 content `Extra` 에서 `Using filesort` 가 사라졌는가
 - **3.5.3** — A 의 content 경로 ① `actual rows` 가 20 을 넘는가 (넘으면 가설 성립)
 - **3.5.4** — A 와 B 의 content `actual time` 차이가 유의미한가
-- **3.5.5** — content `Extra` 에 `Backward index scan` 이 나타나는가
+- **3.5.5** — **Step 6 에서** 판정이 끝났다. A·B 격자에서는 판정하지 않는다 (`DESC` 인덱스에는 나타나지 않는 것이 정상)
 - **3.5.6** — **B 의 count `Extra` 에만 `Using index` 가 있는가, 그리고 `actual time` 차이가 유의미한가**
 
 **채택 규칙 (설계 문서 3.5 장 "기본값은 A 다 — 단, count 도 비겼을 때만"):**
@@ -617,22 +695,25 @@ A 를 고르는 경로를 막으려고 3.5.6 을 3.5.4 보다 위에 뒀다 — 
 버퍼 풀 상주 상태에서 거의 반드시 오차 범위로 나오므로, 그 줄이 먼저 걸리면 count 를 잰 의미가 없다.
 (설계 문서 3.3 장 · 4.5 장)
 
-- [ ] **Step 7: 지는 쪽 인덱스를 지운다**
+- [ ] **Step 8: 채택안 인덱스를 만든다**
 
-B 가 졌다고 가정한 경우:
+Step 6 이 A·B·확인용을 전부 지웠으므로 이 시점의 `products` 에는 `idx_products_brand_id` 하나만
+남아 있다. **지는 쪽을 지우는 것이 아니라 이긴 쪽을 새로 만든다.** A 가 채택된 경우:
 
 ```bash
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
   mysql --default-character-set=utf8mb4 -uapplication -papplication loopers -e "
-DROP INDEX idx_products_del_brand_like ON products;
-DROP INDEX idx_products_del_like       ON products;
 CREATE INDEX idx_products_brand_like ON products (brand_id, like_count DESC, id DESC);
-CREATE INDEX idx_products_like       ON products (like_count DESC, id DESC);"
+CREATE INDEX idx_products_like       ON products (like_count DESC, id DESC);
+SHOW INDEX FROM products;"
 ```
 
-A 가 졌으면 위 네 줄의 인덱스 이름을 서로 바꿔 실행한다.
+B 가 채택됐으면 `indexes-ab.sql` 의 **B 안 생성** 블록을 같은 방식으로 복사해 실행한다.
 
-- [ ] **Step 8: README 에 인덱스 전환 절을 추가한다**
+`SHOW INDEX` 로 채택안 인덱스 **둘만** 추가돼 있는지 확인한다. 확인용 `idx_products_like_asc` 가
+남아 있으면 Task 5 의 k6 가 무엇을 재는지 알 수 없게 된다.
+
+- [ ] **Step 9: README 에 인덱스 전환 절을 추가한다**
 
 Task 1 Step 7 이 이 절을 여기로 미뤘다 — 그때는 `indexes-ab.sql` 이 없어서 가리킬 대상이 없었다.
 `loadtest/README.md` 의 "### 1. 시드" 절 뒤에 다음을 넣는다. Task 5 가 그 뒤에 "### 3. k6" 를 붙인다.
@@ -653,7 +734,7 @@ Task 1 Step 7 이 이 절을 여기로 미뤘다 — 그때는 `indexes-ab.sql` 
 빌드하면 JVM 워밍업 상태가 인덱스 효과와 섞인다.
 ````
 
-- [ ] **Step 9: 커밋**
+- [ ] **Step 10: 커밋**
 
 ```bash
 git add loadtest/indexes-ab.sql loadtest/results/explain/ loadtest/README.md
@@ -661,6 +742,10 @@ git commit -m "test : A/B 인덱스 실측 결과를 기록한다
 
 deleted_at 을 인덱스 선두에 넣을지를 같은 데이터 위에서 쟀다. 전환은 jar
 재빌드 없이 CREATE/DROP 으로만 해서 JVM 워밍업 상태가 섞이지 않게 했다.
+
+DESC 키워드가 필요한지는 격자가 아니라 오름차순 인덱스를 따로 만들어 쟀다.
+DESC 로 만든 인덱스에서는 Backward index scan 이 나타나지 않는 것이 정상이라,
+A/B 측정만으로는 그 질문에 답할 수 없었다.
 
 판정과 채택 근거는 설계 문서 3.7 장에 쓴다. 진 쪽은 코드에 남기지 않되
 격자에는 남는다 - 다음에 누가 같은 질문을 하면 그 표를 가리키면 된다.
@@ -776,7 +861,9 @@ Expected: PASS.
 
 **FAIL 이고 원인이 스키마 생성 실패라면** Hibernate 가 `columnList` 의 `desc` 를 처리하지 못한 것이다
 (설계 문서 4.3 장). 이 경우 `desc` 를 빼고 `columnList = "brand_id, like_count, id"` 로 바꾼 뒤
-다시 돌린다. 가설 3.5.5 에서 `Backward index scan` 이 확인됐다면 계획은 동일하게 나오므로 손실이 없다.
+다시 돌린다. **Task 3 Step 6 에서 3.5.5 가 ✅ 였다면** 오름차순 인덱스도 같은 계획을 내므로 손실이 없다.
+❌ 였다면 `desc` 를 빼는 것이 곧 다른 인덱스를 만드는 것이므로, `@Index` 를 포기하고 인덱스는 SQL 로
+만들되 `@Index` 에는 의도만 주석으로 남긴다 (설계 4.3 장).
 그 사실을 설계 문서 4.3 장에 기록한다.
 
 - [ ] **Step 5: 전체 스위트로 회귀를 확인한다**
@@ -1039,9 +1126,14 @@ done
 같은 JVM 위에서 인덱스만 바꿔야 워밍업 상태가 같다.
 ```
 
+**`products-*.json` 은 커밋하지 않는다.** `.gitignore` 가 `loadtest/results/*` 로 막고 있고,
+그 주석이 세운 원칙이 여기에도 그대로 적용된다 — k6 요약 JSON 은 특정 머신·특정 시점의 출력이라
+커밋해 두면 다음 측정과 뒤섞인다. `EXPLAIN` 출력만 예외로 열어 뒀다(`!loadtest/results/explain/`).
+**p95 수치는 파일이 아니라 설계 문서 4.1 장에 숫자로 남긴다** (Task 7 Step 5).
+
 ```bash
-git add loadtest/products.js loadtest/README.md loadtest/results/products-*.json
-git commit -m "test : 상품 목록 읽기 부하 시나리오와 전후 측정을 추가한다
+git add loadtest/products.js loadtest/README.md
+git commit -m "test : 상품 목록 읽기 부하 시나리오를 추가한다
 
 ab.js 와 분리한다. 주문 측정의 재현성이 그 파일에 묶여 있어 읽기 시나리오를
 얹으면 기존 결과와 비교할 수 없다.
@@ -1064,7 +1156,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - Create: `loadtest/results/explain/limits.txt`
 
 **Interfaces:**
-- Consumes: 채택안 인덱스가 걸린 측정 컨테이너 (Task 3 Step 7 / Task 5 Step 4 가 SQL 로 만든 것).
+- Consumes: 채택안 인덱스가 걸린 측정 컨테이너 (Task 3 Step 8 / Task 5 Step 4 가 SQL 로 만든 것).
   Task 4 의 `@Index` 는 `ddl-auto: create` 환경에만 반영되므로 이 측정과 무관하다.
 - Produces: 설계 문서 4.4 장에 넣을 관측 수치. 후속 문서가 근거를 다시 만들지 않아도 된다.
 
@@ -1275,6 +1367,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - [ ] 두 경로의 content `Extra` 에서 `Using filesort` 가 사라졌다
 - [ ] 경로 ① content 의 **`EXPLAIN ANALYZE` `actual rows`** 가 25,000 에서 20 근처로 떨어졌다
 - [ ] count 두 경로의 A 안·B 안 `Extra` 가 격자에 기록돼 있다 (3.5.6 판정 가능)
+- [ ] 3.5.5 가 **오름차순 인덱스 측정**으로 판정돼 있다 (`desc-check.txt`). `DESC` 인덱스의 격자로 대신하지 않았다
 - [ ] A/B 판정 근거가 설계 문서 3.7 장에 있다
 - [ ] 채택되지 않은 인덱스는 코드에 없다
 - [ ] 전체 테스트 750 건 통과 (기존 748 + 인덱스 테스트 2)
