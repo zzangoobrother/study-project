@@ -407,6 +407,12 @@ SELECT * FROM products
 -- ─────────────────────────── count ───────────────────────────
 -- 볼 것은 rows 가 아니라 Extra 의 `Using index` 다. 있으면 인덱스만으로 세고 끝난 것이고,
 -- 없으면 deleted_at 을 확인하려고 행을 읽으러 갔다는 뜻이다. 가설 3.5.6 의 판정이 여기 달려 있다.
+--
+-- COUNT(*) 로 적었지만 앱이 실제로 내는 것은 count(p.id) 다.
+-- QueryDSL 의 productModel.count() 가 JPQL 의 count(엔티티) 로 가고, Hibernate 6 이 그것을
+-- 식별자 기준 count 로 렌더링한다. InnoDB 는 보조 인덱스에 PK 를 암묵적으로 포함하므로
+-- 두 형태의 실행 계획은 같아야 한다 - B 안의 Using index 도 그대로 성립한다.
+-- "같아야 한다" 를 "같다" 로 만드는 것은 Step 1 의 확인이다.
 
 SELECT '=== 경로 ① count brandId=1 ===' AS 구분;
 EXPLAIN
@@ -424,6 +430,22 @@ SELECT '=== 경로 ② count ANALYZE ===' AS 구분;
 EXPLAIN ANALYZE
 SELECT COUNT(*) FROM products WHERE deleted_at IS NULL;
 ```
+
+**파일을 쓴 뒤 앱이 내는 SQL 과 한 번 대조한다.** 이 격자의 전제는 "이 네 쿼리가 실제 요청을
+대표한다" 이므로, 한 번은 눈으로 확인해야 전제가 사실이 된다. `loadtest-compose` 의 앱은 `local`
+프로필이라 `show-sql: true` 다 (`modules/jpa/src/main/resources/jpa.yml`).
+
+```bash
+curl -s "http://localhost:8080/api/v1/products?sort=likes_desc&brandId=1&page=0&size=20" > /dev/null
+docker compose -f docker/loadtest-compose.yml logs --tail 50 commerce-api | grep -i "select"
+```
+
+볼 것은 둘이다 — **한 요청에 쿼리가 두 개** 나가는가(설계 3.3 장의 출발점), 그리고 count 쪽이
+`count(p1_0.id)` 형태인가. 후자는 `COUNT(*)` 와 계획이 같아야 정상이지만, 만약 갈리면
+(예: 한쪽만 `Using index`) **격자의 SQL 을 앱 쪽 형태로 바꾼다.** 앱이 아니라 격자가 틀린 것이다.
+
+앱 컨테이너가 내려가 있으면 이 확인은 건너뛰고 Task 5 Step 0 에서 앱을 올릴 때 한다 —
+이 확인 하나 때문에 앱을 올리면 `ddl-auto: create` 가 10 만 행을 날린다 (Global Constraints).
 
 - [ ] **Step 2: 버리는 실행 2 회를 돌린다**
 
@@ -672,6 +694,11 @@ DROP INDEX idx_products_like_asc ON products;"
 | 경로 ① `Extra` (`Using index` 유무) | | | |
 | 경로 ① `actual time` | | | |
 | 경로 ② (같은 3 항목) | | | |
+
+**A 안 count 경로 ① 의 `key` 가 `idx_products_brand_id` 로 나와도 이상한 것이 아니다.**
+기존 인덱스와 A 안 인덱스 둘 다 `deleted_at` 이 없어 행 접근이 필요하고, 옵티마이저는 더 좁은 쪽을
+고른다. 이것을 "A 안 인덱스가 쓰이지 않았다" 로 읽으면 안 된다 — 이 칸에서 판정하는 것은 **어느
+인덱스가 선택됐는가가 아니라 `Using index` 가 있는가**다 (3.5.6).
 
 판정 규칙:
 
@@ -1326,7 +1353,7 @@ count 표가 따로 있는 이유를 3.6 장 서두에 한 줄 적는다 — **�
 | 장 | 넣을 것 |
 |---|---|
 | 4.1 버퍼 풀 | k6 개선폭이 `actual rows` 감소폭보다 작았다면 그 수치 |
-| 4.3 `DESC` 지원 | Task 4 Step 4 의 결과 — Hibernate 가 `desc` 를 통과시켰는가, `SHOW INDEX` 의 `Collation` 이 `D` 였는가 |
+| 4.3 `DESC` 지원 | 두 가지다 — **Task 3 Step 6** 의 `desc-check.txt`(오름차순으로도 같은 계획인가, 3.5.5)와 **Task 4 Step 4** 의 결과(Hibernate 가 `desc` 를 통과시켰는가, `SHOW INDEX` 의 `Collation` 이 `D` 였는가). 앞이 뒤의 폴백을 정당화하므로 둘을 함께 적는다 |
 | 4.4 `OFFSET` | `limits.txt` 의 `OFFSET 0` vs `OFFSET 90000` `actual rows` · `actual time` |
 | 4.5 `count` | `after-a.txt` · `after-b.txt` 의 count 네 칸. 3.5.6 판정과 같은 수치를 가리키므로 **3.6 장 표를 참조만 하고 옮겨 적지 않는다** |
 
@@ -1337,17 +1364,20 @@ count 표가 따로 있는 이유를 3.6 장 서두에 한 줄 적는다 — **�
 
 - [ ] **Step 7: 상태 줄을 갱신하고 커밋**
 
-문서 머리말의 `상태:` 를 다음으로 바꾼다.
+문서 머리말의 `상태:` (현재 **측정 중**) 를 다음으로 바꾼다.
 
 ```markdown
-- 상태: **측정 완료 (2026-09-16)** — 실측 격자는 3.6 장, 판정은 3.7 장에 있다.
+- 상태: **측정 완료 (YYYY-MM-DD)** — 실측 격자는 3.6 장, 판정은 3.7 장에 있다.
 ```
+
+`YYYY-MM-DD` 는 **실제로 측정한 날**이다. 문서 작성일(2026-09-16)이 아니다 — 이 두 날짜가 벌어지는
+것이 정상이고, 붙여 놓으면 "설계와 측정이 같은 날 끝났다" 는 거짓 기록이 된다.
 
 ```bash
 git add docs/superpowers/specs/2026-09-16-product-list-index-design.md
 git commit -m "docs : 상품 목록 인덱스 실측 결과를 설계 문서에 반영한다
 
-가설 다섯 개의 판정을 3.5 장 표에 붙이고, 격자를 3.6 장에, 채택 근거를
+가설 여섯 개의 판정을 3.5 장 표에 붙이고, 격자를 3.6 장에, 채택 근거를
 3.7 장에 쓴다. 틀린 가설은 지우지 않는다.
 
 4.4 장의 OFFSET 관측 수치를 채운다. 이 문서의 범위 밖이지만 후속 문서가

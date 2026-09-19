@@ -2,7 +2,8 @@
 
 - 작성일: 2026-09-16
 - 대상 모듈: `apps/commerce-api`
-- 상태: **착수 가능** — 측정 하네스(`loadtest/`)와 측정 규약이 이미 있고, 이 문서는 그것을 읽기 경로로 확장한다.
+- 상태: **측정 중** — 10 만 건 시드는 2026-09-17 에 끝났다(계획서 Task 1). `EXPLAIN` 격자(Task 2 · 3)가 다음이다.
+  측정이 끝나면 실측은 3.6 장, 판정은 3.7 장에 들어가고 이 줄이 **측정 완료**로 바뀐다.
 - 선행 문서:
   - [2026-08-13 브랜드·상품 API 설계](2026-08-13-brand-product-design.md) — `like_count` 비정규화와 정렬 3 종의 출처
   - [2026-08-20 상품 좋아요 API 설계](2026-08-20-product-like-design.md) — `like_count` 의 증감 경로
@@ -276,6 +277,36 @@ count 에서 B 가 크게 이기면 — **더 작은 인덱스라는 논거는 �
 
 인덱스는 공짜가 아니다. 쓰기마다 갱신되고 버퍼 풀을 차지한다. 이 시스템에서 `products` 는
 주문마다 `UPDATE` 되고 좋아요마다 `UPDATE` 된다 — **쓰기가 잦은 테이블이다.**
+
+#### "더 작은 인덱스" 의 차이가 생각보다 크다 — 기존 인덱스의 운명이 갈린다
+
+`products` 에는 이미 `idx_products_brand_id (brand_id)` 가 있다. A 와 B 는 이 인덱스를 **남길지
+말지**까지 가른다.
+
+```
+A 채택  idx_products_brand_like = (brand_id, like_count, id)
+        선두가 brand_id 라 기존 인덱스를 완전히 흡수한다.
+        idx_products_brand_id 는 완전 중복 → 지울 수 있다.          최종 인덱스 2 개
+
+B 채택  idx_products_del_brand_like = (deleted_at, brand_id, ...)
+        선두가 deleted_at 이라, 그 조건이 없는 쿼리는 이 인덱스를 못 쓴다.
+        ProductQueryDslRepository.searchIncludingDeleted() 가 정확히 그 경우다
+        (어드민 목록 — 조건이 brand_id 하나뿐이고 소프트 삭제도 보여줘야 한다).
+        idx_products_brand_id 를 지울 수 없다.                      최종 인덱스 3 개
+```
+
+**인덱스는 선두 컬럼부터 연속으로만 쓸 수 있다** 는 성질이 여기서는 "쓸 수 있는가" 가 아니라
+**"기존 인덱스를 대체할 수 있는가"** 쪽으로 작동한다. `(a, b, c)` 는 `(a)` 를 흡수하지만
+`(x, a, b)` 는 흡수하지 못한다.
+
+그래서 A 와 B 의 쓰기 비용 차이는 "인덱스 1 컬럼" 이 아니라 **인덱스 2 개 대 3 개**다.
+쓰기가 잦은 테이블에서 이 차이는 3.5.4 의 오차 범위보다 크다. **3.5.6 이 B 의 손을 들어주지
+않는 한, 이 항목이 A 쪽 논거를 한 번 더 굳힌다.**
+
+다만 **이 문서는 `idx_products_brand_id` 를 지우지 않는다.** 그것은 이 문서가 재지 않은 다른
+쿼리들(브랜드 필터 + `latest` · `price_asc`)에 영향을 주므로 별도 확인이 필요하다. 7 장의
+열린 질문으로 남긴다 — 여기서 하는 일은 **그 선택지가 A 에만 열려 있다는 사실을 판정 근거에
+넣는 것**까지다.
 
 ---
 
@@ -564,34 +595,46 @@ loadtest/products.js  (신규)
 
 ### 6.1 파일별 변경
 
-시점 열의 숫자는 아래 6.2 작업 순서의 단계 번호다.
+시점 열의 숫자는 아래 6.2 의 Task 번호이며, **계획서의 Task 번호와 같다**
+(`docs/superpowers/plans/2026-09-16-product-list-index.md`). 두 문서를 오가며 읽을 때
+번호가 어긋나지 않게 하나로 맞춰 둔다.
 
 | 파일 | 변경 | 시점 |
 |---|---|---|
-| `loadtest/seed-products.sql` | 신규 | 1 단계 |
-| `loadtest/explain-product-list.sql` | 신규 (content · count 네 쿼리) | 2 단계 |
-| `loadtest/indexes-ab.sql` | 신규 | 3 단계 |
-| `loadtest/products.js` | 신규 | 6 단계 |
-| `loadtest/README.md` | 상품 목록 측정 절차 추가 | 1 · 3 · 6 단계에 나눠 |
-| `ProductModel.kt` | `@Index` 교체 | **판정 후, 채택안만** (5 단계) |
-| 이 문서 3.6 · 3.7 장 | 실측·판정 반영 | 측정 후 |
+| `loadtest/seed-products.sql` | 신규 | Task 1 |
+| `loadtest/verify-seed.sql` | 신규 (시드 분포 검증) | Task 1 |
+| `loadtest/explain-product-list.sql` | 신규 (content · count 네 쿼리) | Task 2 |
+| `loadtest/indexes-ab.sql` | 신규 (A·B 전환 + `DESC` 확인용) | Task 3 |
+| `loadtest/results/explain/*.txt` | 측정 산출물. **커밋한다** — `.gitignore` 가 이 디렉터리만 예외로 연다 | Task 2 · 3 · 6 |
+| `ProductModel.kt` · `ProductModelPersistenceTest.kt` | `@Index` 교체와 존재 단언 | **판정 후, 채택안만** (Task 4) |
+| `loadtest/products.js` | 신규 | Task 5 |
+| `loadtest/explain-limits.sql` | 신규 (`OFFSET` 관측) | Task 6 |
+| `loadtest/README.md` | 상품 목록 측정 절차 추가 | Task 1 · 3 · 5 에 나눠 |
+| 이 문서 3.6 · 3.7 장 | 실측·판정 반영 | Task 7 |
 
 ### 6.2 작업 순서
 
 ```
-1. 인덱스 없는 상태로 10 만 건 INSERT
-2. 개선 전 EXPLAIN 측정          (경로 ① ② × content · count)
-3. A 안 인덱스 CREATE → 측정 → DROP
-4. B 안 인덱스 CREATE → 측정 → DROP
-5. 판정 → 채택안을 @Index 로 코드에 반영
-6. k6 before / after
-7. 4.4 장의 OFFSET 관측 수치 수집
+Task 1  인덱스 없는 상태로 10 만 건 INSERT
+Task 2  개선 전 EXPLAIN 측정          (경로 ① ② × content · count)
+Task 3  A 안 CREATE → 측정 → DROP
+        B 안 CREATE → 측정 → DROP
+        오름차순 인덱스 1 회 (가설 3.5.5, 격자 밖 — 3.4 장)
+        판정 → 채택안 CREATE
+Task 4  채택안을 @Index 로 코드에 반영 + 인덱스 존재 단언 테스트
+Task 5  k6 before / after
+Task 6  4.4 장의 OFFSET 관측 수치 수집
+Task 7  이 문서에 실측·판정 반영
 ```
 
-**2~4 단계가 5.4 장 격자의 12 칸을 채운다.** count 를 2 단계부터 함께 재는 이유는 3.3 장에 있다 —
+**Task 2~3 이 5.4 장 격자의 12 칸을 채운다.** count 를 Task 2 부터 함께 재는 이유는 3.3 장에 있다 —
 A/B 의 차이가 가장 크게 벌어지는 자리가 거기라서, 나중에 따로 재면 판정이 이미 끝난 뒤가 된다.
 
-**1 번을 놓치기 쉽다.** 인덱스가 걸린 채로 10 만 행을 넣으면 매 `INSERT` 마다 B+트리가 갱신되어
+**판정(Task 3)과 코드 반영(Task 4)을 나눈 이유**도 같은 종류다. 한 태스크에 두면 "측정하다가
+코드를 고치는" 흐름이 되는데, `@Index` 를 건드리는 순간 `ddl-auto: create` 환경의 스키마가 바뀌어
+무엇을 쟀는지 흐려진다. **측정이 전부 끝난 뒤에 코드를 연다.**
+
+**Task 1 을 놓치기 쉽다.** 인덱스가 걸린 채로 10 만 행을 넣으면 매 `INSERT` 마다 B+트리가 갱신되어
 시딩이 몇 배 느려진다. 대량 적재는 **데이터 먼저, 인덱스 나중**이다.
 
 ### 6.3 측정이 끝나면 진 쪽을 지운다
@@ -608,6 +651,10 @@ A/B 중 채택되지 않은 인덱스는 코드에 남기지 않는다. 2026-09-
 
 **어느 쿼리가 판정을 갈랐는지까지 적는다** — content 였는지 count 였는지. 이 문서는 한 번
 그 구분을 놓쳐 판정 기준을 다시 그었고(4.5 장), 그 경위가 판정 자체보다 재사용 가치가 크다.
+
+**최종 인덱스 개수도 함께 적는다.** A 가 이겼다면 `idx_products_brand_id` 를 흡수할 수 있으므로
+2 개까지 줄일 여지가 생기고, B 가 이겼다면 그 인덱스가 남아 3 개가 된다 (3.5 장). 채택안의 정의만
+적고 이 숫자를 빠뜨리면, 다음 사람이 "인덱스 하나 차이" 로 읽는다.
 
 ### 6.4 테스트
 
@@ -637,6 +684,7 @@ A/B 중 채택되지 않은 인덱스는 코드에 남기지 않는다. 2026-09-
 |---|---|
 | ✅ `mysql:8.0` 태그의 패치 버전이 `EXPLAIN ANALYZE` 를 지원하는가 | **8.0.46 — 지원한다** (2026-09-17 Task 1 에서 확인). 대체 계획 불필요 |
 | `DESC` 없이도 같은 계획이 나오는가 (가설 3.5.5) | A/B 측정 직후, 오름차순 인덱스 1 회 (3.4 장) |
+| A 채택 시 `idx_products_brand_id` 를 지울 것인가 (3.5 장) | 후속 — `latest` · `price_asc` 경로를 함께 재는 문서에서 |
 | Hibernate 6 의 `@Index` 가 `DESC` 를 통과시키는가 | 채택안을 코드에 반영할 때 (4.3 장) |
 | 버퍼 풀을 줄이면 A/B 판정이 뒤집히는가 | 후속 |
 | `latest` · `price_asc` 에도 같은 기법이 유효한가 | 후속 |
