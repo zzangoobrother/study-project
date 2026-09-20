@@ -132,4 +132,62 @@ class ProductModelPersistenceTest @Autowired constructor(
         private fun messageChain(e: Throwable): String =
             generateSequence(e) { it.cause }.mapNotNull { it.message }.joinToString(" | ")
     }
+
+    /**
+     * 인덱스는 동작이 아니라 성능의 변경이라 기존 테스트가 잡아주지 않는다.
+     * `@Index` 선언을 지워도 모든 테스트가 통과하고, 느려진 것을 아무도 모른 채 배포된다.
+     * 이 그룹이 그 회귀를 잡는 유일한 장치다. (2026-09-16 설계 문서 6.4 장, C 안 — 2026-09-20 실측 채택)
+     *
+     * 주의 - 이것이 통과한다고 dev 이상에 인덱스가 있는 것은 아니다.
+     * ddl-auto 가 none 이고 마이그레이션 도구가 없다. (같은 문서 4.2 장)
+     */
+    @DisplayName("상품 목록 정렬 인덱스는, ")
+    @Nested
+    inner class SortIndexes {
+        @DisplayName("브랜드 필터용과 필터 없는 경로용 두 개가 존재한다.")
+        @Test
+        fun bothIndexesExist() {
+            assertThat(indexNames()).contains("idx_products_brand_del_like", "idx_products_del_like")
+        }
+
+        /**
+         * 컬럼 순서까지 보는 이유는 이 순서 자체가 측정으로 정해졌기 때문이다.
+         * brand_id 가 선두여야 기존 idx_products_brand_id 를 흡수하고, deleted_at 이 그다음에
+         * 등치로 고정돼야 뒤의 정렬 키(like_count, id)가 인덱스 순서 그대로 쓰인다.
+         * 순서가 바뀌면 컴파일도 테스트도 통과하지만 count 쿼리가 인덱스 온리를 잃는다
+         * (2026-09-20 실측 4.06ms → 10.6ms).
+         */
+        @DisplayName("두 인덱스의 컬럼 순서가 채택안(C 안)과 일치한다.")
+        @Test
+        fun columnOrderMatchesAdoptedPlan() {
+            // 정렬 방향(Collation)은 단언하지 않는다. Hibernate 6.6.11 이 columnList 의 desc 를
+            // 통과시켜 실제로 D 인덱스가 만들어지는 것은 2026-09-20 에 확인했지만, 오름차순이어도
+            // Backward index scan 으로 같은 계획이 나오므로(가설 3.5.5) 방향이 바뀌는 것은 회귀가 아니다.
+            // 회귀인 것은 컬럼 순서다 - 아래가 그것만 본다.
+            assertAll(
+                {
+                    assertThat(columnsOf("idx_products_brand_del_like"))
+                        .containsExactly("brand_id", "deleted_at", "like_count", "id")
+                },
+                {
+                    assertThat(columnsOf("idx_products_del_like"))
+                        .containsExactly("deleted_at", "like_count", "id")
+                },
+            )
+        }
+
+        /** SHOW INDEX 의 3 번째 컬럼이 Key_name 이다. */
+        private fun indexNames(): Set<String> =
+            rows().map { it[2] as String }.toSet()
+
+        /** SHOW INDEX 의 4 번째가 Seq_in_index, 5 번째가 Column_name 이다. Seq_in_index 순 정렬로 컬럼 순서를 복원한다. */
+        private fun columnsOf(indexName: String): List<String> =
+            rows().filter { it[2] == indexName }
+                .sortedBy { (it[3] as Number).toInt() }
+                .map { it[4] as String }
+
+        private fun rows(): List<Array<*>> =
+            @Suppress("UNCHECKED_CAST")
+            (entityManager.createNativeQuery("SHOW INDEX FROM products").resultList as List<Array<*>>)
+    }
 }

@@ -32,7 +32,17 @@ import org.hibernate.annotations.Check
 @Entity
 @Table(
     name = "products",
-    indexes = [Index(name = "idx_products_brand_id", columnList = "brand_id")],
+    indexes = [
+        Index(name = "idx_products_brand_id", columnList = "brand_id"),
+        // 경로 ① - 브랜드 필터 + 좋아요순. brand_id·deleted_at 이 둘 다 등치로 고정되므로
+        // 그 뒤 정렬 키(like_count, id)가 인덱스 순서 그대로 쓰여 filesort 가 사라진다.
+        // brand_id 를 선두에 둔 것은 기존 idx_products_brand_id 를 흡수하기 위해서다. (설계 문서 3.5 장)
+        Index(name = "idx_products_brand_del_like", columnList = "brand_id, deleted_at, like_count desc, id desc"),
+        // 경로 ② - 브랜드 필터 없는 좋아요순. 위 인덱스는 선두가 brand_id 라 이 경로에 쓸 수 없다. (설계 문서 3.2 장)
+        // 두 인덱스 모두 id 가 마지막 정렬 키인 것은 2026-08-13 설계 문서 5.5 장의 전순서 규약 때문이다 -
+        // like_count 동점 구간에서 다시 정렬이 필요해지면 인덱스를 건 의미가 절반 사라진다.
+        Index(name = "idx_products_del_like", columnList = "deleted_at, like_count desc, id desc"),
+    ],
 )
 @Check(name = "ck_products_stock_non_negative", constraints = "stock >= 0")
 @Check(name = "ck_products_like_count_non_negative", constraints = "like_count >= 0")
