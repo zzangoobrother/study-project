@@ -192,3 +192,23 @@ docker compose -f docker/loadtest-compose.yml exec -T mysql \
 `seed-products.sql` 쪽은 오류 없이 실행되지만 브랜드명·상품명 문자열이 깨진 채로 저장된다.
 
 `verify-seed.sql` 의 기대값은 계획서 Task 1 Step 6 에 있다. 어긋나면 측정하지 않는다.
+
+### 2. 인덱스 전환
+
+`loadtest/indexes-ab.sql` 이 A·B·C 각 안의 생성·제거 블록 정본이다. **파일째 실행하지 않는다** —
+통째로 돌리면 여러 안이 동시에 생겨 무엇을 재는지 알 수 없게 된다. 필요한 블록만 복사해 실행한다.
+(그래서 파일 안의 블록은 전부 주석 상태다. 주석을 벗겨 쓰는 것이 아니라 복사해서 쓴다.)
+
+    # 예 — 채택안(C 안) 생성
+    docker compose -f docker/loadtest-compose.yml exec -T mysql \
+      mysql --default-character-set=utf8mb4 -uapplication -papplication loopers -e "
+    CREATE INDEX idx_products_brand_del_like ON products (brand_id, deleted_at, like_count DESC, id DESC);
+    CREATE INDEX idx_products_del_like       ON products (deleted_at, like_count DESC, id DESC);"
+
+전환한 뒤에는 **버리는 실행 2 회**를 먼저 돌리고 측정한다. jar 는 다시 빌드하지 않는다 —
+빌드하면 JVM 워밍업 상태가 인덱스 효과와 섞인다.
+
+`EXPLAIN ANALYZE` 의 `actual time` 은 1 회 측정으로 판정하지 않는다. 개선 전 count 경로 ① 이
+9.16ms 였는데 A 안 1 회차가 11.6ms 로 나왔다 — 인덱스를 걸고 더 느려 보이는 값이다.
+같은 파일을 5 회 돌려 중앙값으로 읽으면 10.6ms 로, 노이즈였음이 드러난다.
+`rows` · `key` · `Extra` 는 1 회로 충분하다. 실행 계획은 흔들리지 않는다.
