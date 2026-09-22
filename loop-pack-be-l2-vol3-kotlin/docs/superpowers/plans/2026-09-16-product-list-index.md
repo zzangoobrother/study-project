@@ -4,13 +4,27 @@
 
 **Goal:** 상품 목록의 좋아요순 정렬 두 경로에 복합 인덱스를 걸어 filesort 를 제거하고, 그 효과를 `EXPLAIN` 으로 증명한다.
 
-**Architecture:** 10 만 건을 결정적으로 심은 뒤 개선 전 실행 계획을 박제하고, A 안(`brand_id, like_count, id`)과 B 안(`deleted_at` 선두)을 같은 데이터 위에서 재서 이긴 쪽만 코드에 남긴다. 인덱스 전환은 jar 재빌드 없이 SQL 로만 한다 — 재빌드하면 JVM 워밍업 상태가 인덱스 효과와 섞인다.
+**Architecture:** 10 만 건을 결정적으로 심은 뒤 개선 전 실행 계획을 박제하고, A 안(`brand_id, like_count, id`)과 B 안(`deleted_at` 선두)을 같은 데이터 위에서 재서 이긴 쪽만 코드에 남긴다 — 실제로는 측정 중에 제 3 안(C 안, `brand_id, deleted_at` 선두)이 나와 그것이 채택됐다 (Task 3 실행 결과). 인덱스 전환은 jar 재빌드 없이 SQL 로만 한다 — 재빌드하면 JVM 워밍업 상태가 인덱스 효과와 섞인다.
 
 **Tech Stack:** MySQL 8.0 (Docker) · Kotlin/Spring Boot · QueryDSL · k6 · Testcontainers
 
 **Spec:** [`docs/superpowers/specs/2026-09-16-product-list-index-design.md`](../specs/2026-09-16-product-list-index-design.md)
 
-**진행:** Task 1 완료 (2026-09-17, commit `2a87cf8d`). Task 2~7 미착수.
+**진행:** Task 1~4 완료. Task 5~7 미착수. **채택안은 C 안**(`brand_id, deleted_at, like_count DESC, id DESC`) — 측정 중에 추가된 제 3 안이다.
+
+| Task | 상태 | 커밋 |
+|---|---|---|
+| 1 · 10 만 건 시드 | 완료 (2026-09-17) | `2a87cf8d` |
+| 2 · 개선 전 박제 | 완료 (2026-09-20 22:43) | `02c04bf7` |
+| 3 · A/B/C 측정과 판정 | 완료 (2026-09-20 23:11) — **C 안 채택** | `13ead90c` |
+| 4 · 채택안 코드 반영 | 완료 (2026-09-21 00:13) — Step 5(전체 스위트)만 기록 없음 | `3854e68f` |
+| 5 · k6 end-to-end | 미착수 | |
+| 6 · `OFFSET` 관측 | 미착수 | |
+| 7 · 설계 문서 반영 | 미착수 — **설계 문서에 3.6 · 3.7 장이 아직 없다** | |
+
+**지금 빠져 있는 것은 판정의 본문이다.** 무엇을 채택했는지는 이 계획서와 `loadtest/indexes-ab.sql`
+주석에 있지만, 실측 격자(3.6 장)와 판정 근거(3.7 장)는 Task 7 에서 설계 문서에 써야 한다.
+저장소 `CLAUDE.md` 가 설계 문서를 기준으로 삼으므로, 거기 들어가기 전까지 근거는 확정된 것이 아니다.
 
 **2026-09-18 개정.** count 쿼리를 Task 6 의 "관측만" 에서 Task 2·3 의 판정 격자로 옮겼다 —
 `execute()` 가 한 요청에 content 와 count 두 쿼리를 내는데, A 안과 B 안의 차이가 가장 크게 벌어지는
@@ -24,6 +38,19 @@ Task 5 Step 0 을 추가했다.
 "3.5.5 가 성립하면 Hibernate `DESC` 위험이 해소된다" 와 Task 4 Step 4 의 폴백까지 근거 없이 만든다.
 오름차순 인덱스를 한 번 만들어 보는 스텝을 넣어 되돌렸고, Task 3 의 스텝이 9 개에서 10 개가 됐다.
 함께 측정 산출물의 커밋 범위(`.gitignore` 의 `loadtest/results/explain/` 예외)를 Global Constraints 에 명시했다.
+
+**2026-09-22 개정 — 실행 결과 동기화.** Task 2·3·4 가 2026-09-20~21 에 실제로 실행됐는데 이 계획서가
+갱신되지 않아 "Task 2~7 미착수" 로 남아 있었다. 진행 표를 붙이고 체크박스를 실제 상태에 맞췄으며,
+각 Task 끝에 **실행 결과** 절을 더했다 — 절차와 결과가 갈린 지점(5 회 반복 측정, C 안 추가)이
+계획서 어디에도 없었기 때문이다.
+
+가장 큰 누락은 **C 안**이었다. A·B 를 재고 난 뒤 측정 중에 나온 제 3 안이고 그것이 채택안인데,
+근거가 `loadtest/indexes-ab.sql` 주석과 `ProductModel.kt` 주석에만 있었다. 이 계획서는 A/B 이분법을
+전제로 쓰여 있으므로, Task 3·4 의 스텝 본문은 **당시의 의도로 그대로 두고** 실행 결과를 덧붙이는
+방식으로 기록한다 — 사후에 고쳐 쓰면 "왜 제 3 안이 필요했는가" 가 사라진다.
+
+판정의 본문(격자와 수치)은 여기 쓰지 않는다. **계획서는 무엇이 끝났는지를 기록하고, 판정은 설계
+문서 3.6 · 3.7 장이 갖는다** (Task 7).
 
 ## Global Constraints
 
@@ -84,7 +111,7 @@ Task 5 Step 0 을 추가했다.
 | `loadtest/seed-products.sql` | 10 만 건 결정적 시드. 데이터만 만들고 인덱스는 만들지 않는다. | 1 |
 | `loadtest/verify-seed.sql` | 시드 분포 검증 쿼리 모음. 기대값과 대조한다. | 1 |
 | `loadtest/explain-product-list.sql` | 측정용 `EXPLAIN` / `EXPLAIN ANALYZE` 쿼리 모음. **content 2 개 + count 2 개** — `execute()` 가 한 요청에 두 쿼리를 내기 때문이다. | 2 |
-| `loadtest/indexes-ab.sql` | A 안·B 안 `CREATE` / `DROP` 모음. 전환 스위치. | 3 |
+| `loadtest/indexes-ab.sql` | A·B·C 안 `CREATE` / `DROP` 모음. 전환 스위치. C 안은 측정 중에 추가됐다. | 3 |
 | `ProductModel.kt` | `@Index` 선언. **채택안만** 반영한다. | 4 |
 | `ProductModelPersistenceTest.kt` | 인덱스가 스키마에 실제로 만들어지는지 단언. 새 파일을 만들지 않고 기존 파일에 `@Nested` 그룹을 더한다 — 이미 `NonNegativeCheckConstraints` 로 스키마 단언을 모아 둔 자리다. | 4 |
 | `loadtest/products.js` | k6 읽기 시나리오. `ab.js` 와 분리한다. | 5 |
@@ -356,7 +383,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ---
 
-- [ ] **Step 1: 측정 쿼리 파일을 작성한다**
+- [x] **Step 1: 측정 쿼리 파일을 작성한다**
 
 Create `loadtest/explain-product-list.sql`:
 
@@ -447,7 +474,7 @@ docker compose -f docker/loadtest-compose.yml logs --tail 50 commerce-api | grep
 앱 컨테이너가 내려가 있으면 이 확인은 건너뛰고 Task 5 Step 0 에서 앱을 올릴 때 한다 —
 이 확인 하나 때문에 앱을 올리면 `ddl-auto: create` 가 10 만 행을 날린다 (Global Constraints).
 
-- [ ] **Step 2: 버리는 실행 2 회를 돌린다**
+- [x] **Step 2: 버리는 실행 2 회를 돌린다**
 
 ```bash
 for i in 1 2; do
@@ -460,7 +487,7 @@ done
 `rows` · `key` · `Extra` 는 영향받지 않지만, 규약을 한 군데만 지키면 어느 수치가 규약을 거쳤는지
 나중에 알 수 없다. **전부 규약대로 읽는다.**
 
-- [ ] **Step 3: 측정한다**
+- [x] **Step 3: 측정한다**
 
 ```bash
 mkdir -p loadtest/results/explain
@@ -469,7 +496,7 @@ docker compose -f docker/loadtest-compose.yml exec -T mysql \
   | tee loadtest/results/explain/before.txt
 ```
 
-- [ ] **Step 4: 가설 3.5.1 을 판정한다**
+- [x] **Step 4: 가설 3.5.1 을 판정한다**
 
 Expected (가설):
 
@@ -489,7 +516,7 @@ count 쪽 `actual rows` 는 **집계 결과가 1 행이라 항상 1 이다.** �
 **어긋나면 그 자체가 발견이다** — 설계 문서 3.5.1 의 "실측" 칸에 실제 값을 적고,
 왜 다른지 한 문단으로 기록한다. 계획을 바꾸지 말고 사실을 적는다.
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add loadtest/explain-product-list.sql loadtest/results/explain/before.txt
@@ -505,6 +532,31 @@ EXPLAIN ANALYZE 도 버리는 실행 2 회 규약을 지켜 읽는다. rows 와 
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
+
+### 실행 결과 (2026-09-20, commit `02c04bf7`)
+
+가설 3.5.1 은 **성립**했다. 두 경로 모두 `Using filesort` 였고, 경로 ① 은 `idx_products_brand_id`
+로 행을 좁힌 뒤 정렬이 filesort 로 떨어졌다.
+
+기준선 수치 (`loadtest/results/explain/before.txt`):
+
+| | content ① | content ② | count ① | count ② |
+|---|---|---|---|---|
+| `key` | `idx_products_brand_id` | `NULL` (전체 스캔) | `idx_products_brand_id` | `NULL` |
+| `Extra` | `Using where; Using filesort` | `Using where; Using filesort` | `Using where` | `Using where` |
+| 읽은 행 → 남은 행 | 25,000 → 23,685 → 20 | 100,000 → 94,737 → 20 | 25,000 → 23,685 | 100,000 → 94,737 |
+| `actual time` | 21.1 ms | 35.1 ms | 9.16 ms | 14.9 ms |
+
+**한 군데가 예측과 달랐다 — 경로 ① 의 추정 `rows` 가 25,000 이 아니라 49,420 이었다.**
+`actual rows` 는 정확히 25,000 이므로 데이터가 아니라 옵티마이저의 추정이 2 배 가까이 부푼 것이고,
+이 값은 인덱스를 걸어도 줄지 않는다(A 안에서도 49,420 그대로). **개선의 근거로 추정 `rows` 를 쓸 수
+없다는 뜻**이고, 이 계획서의 완료 기준이 기준을 `actual rows` 로 옮겨 둔 판단이 옳았음이 확인됐다.
+설계 문서 3.1 · 5.6 장은 아직 `rows` 를 주 지표로 쓰고 있으므로 Task 7 에서 함께 고친다.
+
+**개선 전 `actual time` 은 1 회 측정이다.** 5 회 반복 규약은 Task 3 에서 생겼고 기준선은 그전에 쟀다.
+content 는 개선폭이 두 자릿수 배라 1 회로도 흔들리지 않지만, **count ① 의 9.16 ms 는 그렇지 않다**
+— A 안 중앙값 10.6 ms 보다 빠른 값이라 이 둘만으로는 "A 안이 개선 전보다 느리다" 를 판정할 수 없다.
+채택안(C 안 4.06 ms)과의 비교에는 영향이 없다.
 
 ---
 
@@ -523,7 +575,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ---
 
-- [ ] **Step 1: 전환 스크립트를 작성한다**
+- [x] **Step 1: 전환 스크립트를 작성한다**
 
 Create `loadtest/indexes-ab.sql`:
 
@@ -568,7 +620,7 @@ CREATE INDEX idx_products_like       ON products (like_count DESC, id DESC);
 -- DROP INDEX idx_products_like_asc ON products;
 ```
 
-- [ ] **Step 2: A 안 인덱스를 만든다**
+- [x] **Step 2: A 안 인덱스를 만든다**
 
 ```bash
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
@@ -589,7 +641,7 @@ MySQL 8.0 은 진짜 내림차순 인덱스를 지원하므로 `DESC` 가 그대
 `Backward index scan` 이 **나타나지 않는 것이 정상**이고, 그 부재는 "`DESC` 가 필요했다" 의 근거가
 되지 못한다. 3.5.5 는 오름차순 인덱스를 따로 만들어 보는 Step 6 이 판정한다.
 
-- [ ] **Step 3: 버리는 실행 2 회 후 A 안을 측정한다**
+- [x] **Step 3: 버리는 실행 2 회 후 A 안을 측정한다**
 
 ```bash
 for i in 1 2; do
@@ -602,7 +654,7 @@ docker compose -f docker/loadtest-compose.yml exec -T mysql \
   | tee loadtest/results/explain/after-a.txt
 ```
 
-- [ ] **Step 4: A 안 인덱스를 지우고 B 안을 만든다**
+- [x] **Step 4: A 안 인덱스를 지우고 B 안을 만든다**
 
 ```bash
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
@@ -614,7 +666,7 @@ CREATE INDEX idx_products_del_like       ON products (deleted_at, like_count DES
 SHOW INDEX FROM products;"
 ```
 
-- [ ] **Step 5: 버리는 실행 2 회 후 B 안을 측정한다**
+- [x] **Step 5: 버리는 실행 2 회 후 B 안을 측정한다**
 
 ```bash
 for i in 1 2; do
@@ -627,7 +679,7 @@ docker compose -f docker/loadtest-compose.yml exec -T mysql \
   | tee loadtest/results/explain/after-b.txt
 ```
 
-- [ ] **Step 6: `DESC` 가 필요한지 확인한다 — 오름차순 인덱스 1 회**
+- [x] **Step 6: `DESC` 가 필요한지 확인한다 — 오름차순 인덱스 1 회**
 
 A·B 를 모두 지우고 경로 ② 인덱스를 `DESC` 없이 하나만 만든다. **이 스텝이 가설 3.5.5 를 판정하는
 유일한 자리다.** Step 2 에 적은 대로 `DESC` 로 만든 인덱스에서는 `Backward index scan` 이 원래
@@ -671,7 +723,7 @@ docker compose -f docker/loadtest-compose.yml exec -T mysql \
 DROP INDEX idx_products_like_asc ON products;"
 ```
 
-- [ ] **Step 7: 격자를 채우고 판정한다**
+- [x] **Step 7: 격자를 채우고 판정한다**
 
 세 파일(`before.txt` · `after-a.txt` · `after-b.txt`)에서 다음을 뽑아 표로 정리한다.
 
@@ -722,7 +774,7 @@ A 를 고르는 경로를 막으려고 3.5.6 을 3.5.4 보다 위에 뒀다 — 
 버퍼 풀 상주 상태에서 거의 반드시 오차 범위로 나오므로, 그 줄이 먼저 걸리면 count 를 잰 의미가 없다.
 (설계 문서 3.3 장 · 4.5 장)
 
-- [ ] **Step 8: 채택안 인덱스를 만든다**
+- [x] **Step 8: 채택안 인덱스를 만든다**
 
 Step 6 이 A·B·확인용을 전부 지웠으므로 이 시점의 `products` 에는 `idx_products_brand_id` 하나만
 남아 있다. **지는 쪽을 지우는 것이 아니라 이긴 쪽을 새로 만든다.** A 가 채택된 경우:
@@ -740,7 +792,7 @@ B 가 채택됐으면 `indexes-ab.sql` 의 **B 안 생성** 블록을 같은 방
 `SHOW INDEX` 로 채택안 인덱스 **둘만** 추가돼 있는지 확인한다. 확인용 `idx_products_like_asc` 가
 남아 있으면 Task 5 의 k6 가 무엇을 재는지 알 수 없게 된다.
 
-- [ ] **Step 9: README 에 인덱스 전환 절을 추가한다**
+- [x] **Step 9: README 에 인덱스 전환 절을 추가한다**
 
 Task 1 Step 7 이 이 절을 여기로 미뤘다 — 그때는 `indexes-ab.sql` 이 없어서 가리킬 대상이 없었다.
 `loadtest/README.md` 의 "### 1. 시드" 절 뒤에 다음을 넣는다. Task 5 가 그 뒤에 "### 3. k6" 를 붙인다.
@@ -761,7 +813,7 @@ Task 1 Step 7 이 이 절을 여기로 미뤘다 — 그때는 `indexes-ab.sql` 
 빌드하면 JVM 워밍업 상태가 인덱스 효과와 섞인다.
 ````
 
-- [ ] **Step 10: 커밋**
+- [x] **Step 10: 커밋**
 
 ```bash
 git add loadtest/indexes-ab.sql loadtest/results/explain/ loadtest/README.md
@@ -780,6 +832,80 @@ A/B 측정만으로는 그 질문에 답할 수 없었다.
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
 
+### 실행 결과 (2026-09-20, commit `13ead90c`)
+
+**절차가 두 군데에서 바뀌었다.** 둘 다 측정 중에 드러난 것이라 계획 단계에서는 알 수 없었다.
+
+**① `actual time` 을 5 회 반복 중앙값으로 읽는다.** 개선 전 count ① 이 9.16 ms 였는데 A 안 1 회차가
+11.6 ms 로 나왔다 — 인덱스를 걸고 더 느려 보이는 값이라 1 회 측정으로는 판정이 불가능했다.
+`explain-product-list.sql` 을 안별로 5 회씩 돌려 중앙값을 읽으니 A 안은 10.6 ms 였다
+(`loadtest/results/explain/timing-5runs.txt`).
+
+여기서 규약이 하나 늘었다 — **세 안 모두 run1 이 가장 느리다. 버리는 실행 2 회를 이미 돌린
+뒤인데도 그렇다.** `CREATE INDEX` 직후의 첫 측정에는 그 인덱스 페이지가 버퍼 풀에 올라오는 비용이
+섞인다. 2026-09-09 문서 4.4 장의 워밍업 규약이 **앱 기동뿐 아니라 인덱스 전환에도 적용된다.**
+`rows` · `key` · `Extra` 는 1 회로 충분하다 — 실행 계획은 흔들리지 않는다.
+
+**② A·B 를 잰 뒤 제 3 안(C 안)이 나왔고 그것이 채택안이다.** 아래 참조.
+
+#### 가설 판정
+
+| 가설 | 판정 | 근거 |
+|---|---|---|
+| 3.5.2 filesort 소멸 | ✅ | A·B·C 모두 content `Extra` 에서 사라짐 |
+| 3.5.3 A 는 `LIMIT 20` 에 20 건보다 더 읽는다 | ✅ | A 경로 ① `actual rows` **21**, B·C 는 정확히 **20** |
+| 3.5.4 A·B 의 content 차이는 오차 범위 | ✅ | 중앙값 A 0.275 / B 0.273 / C 0.281 ms |
+| 3.5.5 `DESC` 없이도 같은 계획 | ✅ | `desc-check.txt` — `Backward index scan`, filesort 없음 (Step 6) |
+| 3.5.6 count 는 B 가 A 를 크게 이긴다 | ✅ | 경로 ① `Extra` — A `Using where` / B `Using where; Using index`. 중앙값 10.6 → 4.37 ms |
+
+Step 7 이 예고한 대로 **A 안 count ① 의 `key` 는 A 안 인덱스가 아니라 `idx_products_brand_id`
+였다.** 둘 다 `deleted_at` 이 없어 행 접근이 필요하니 옵티마이저가 더 좁은 쪽을 골랐을 뿐이고,
+여기서 판정하는 것은 어느 인덱스가 선택됐는가가 아니라 `Using index` 가 있는가다.
+
+요청 1 회(content + count) 합산 중앙값:
+
+```
+경로 ①   A 10.9 ms    B 4.6 ms     C 4.34 ms
+경로 ②   A 15.0 ms    B 14.4 ms    C 14.4 ms
+```
+
+**경로 ② count 는 세 안이 같다.** 커버링 인덱스를 써도 94,737 행을 세는 일 자체는 줄지 않기
+때문이다 — 설계 4.5 장의 "한계인 것은 세는 행 수이고, 인덱스가 바꾸는 것은 세는 방법" 이 그대로
+나왔다.
+
+#### 채택 — C 안
+
+채택 규칙은 두 번째 줄("3.5.6 에서 B 가 count 를 유의미하게 이김 → B 채택")에서 걸렸다.
+**그런데 B 를 채택하면 설계 3.5 장이 적어 둔 대가가 따라온다** — 선두가 `deleted_at` 이라
+`idx_products_brand_id` 를 흡수하지 못해 인덱스가 하나 더 남는다. 그래서 등치 두 개의 **순서만
+뒤집어** 한 번 더 쟀다.
+
+```sql
+CREATE INDEX idx_products_brand_del_like ON products (brand_id, deleted_at, like_count DESC, id DESC);
+CREATE INDEX idx_products_del_like       ON products (deleted_at, like_count DESC, id DESC);
+```
+
+정렬이 인덱스로 풀리는 조건은 **"정렬 키 앞의 컬럼이 전부 등치로 고정될 것"** 하나뿐이고,
+`brand_id` 와 `deleted_at` 중 어느 쪽이 앞인지는 그 조건과 무관하다. 그래서 C 안은 B 안의 count
+커버링(`Using index`)을 그대로 유지하면서 선두가 `brand_id` 라 기존 인덱스를 흡수한다.
+실측도 B 와 같거나 근소하게 빨랐다.
+
+| | A 안 | B 안 | C 안 |
+|---|---|---|---|
+| count ① `Using index` | ✗ | ✓ | ✓ |
+| count ① 중앙값 | 10.6 ms | 4.37 ms | **4.06 ms** |
+| `idx_products_brand_id` 흡수 | ✓ | ✗ | ✓ |
+| 도달 가능한 최종 인덱스 개수 | 2 | 3 | **2** |
+
+**설계 문서의 A/B 이분법이 실측에서 깨진 자리다.** 3.3 장은 `deleted_at` 을 "인덱스에 넣을
+것인가" 로 물었지만, 실제 답은 **"넣되 선두가 아니라 두 번째에"** 였다. Task 7 에서 설계 3.3 ·
+3.5 장에 반영한다.
+
+> **`idx_products_brand_id` 를 실제로 지우지는 않았다.** C 안이 그것을 흡수할 수 있다는 것과
+> 지워도 되는지는 다른 질문이고, 이 문서가 재지 않은 쿼리들(브랜드 필터 + `latest` · `price_asc`)에
+> 영향을 준다. 설계 7 장의 열린 질문으로 남아 있다. 위 표의 "2" 는 **도달 가능한 수**이지 현재
+> 수가 아니다 — 지금 `ProductModel.kt` 에 선언된 인덱스는 기존 1 개 + C 안 2 개 = **3 개**다.
+
 ---
 
 ## Task 4: 채택안을 코드에 반영
@@ -792,13 +918,13 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - Consumes: Task 3 의 채택 결정
 - Produces: `@Table(indexes = ...)` 에 선언된 인덱스. `ddl-auto: create` 환경(local · test)에서 자동 생성된다.
 
-> **아래 코드는 A 안이 채택된 경우다.** B 안이 채택됐으면 인덱스 이름과 컬럼을
+> **아래 코드는 A 안이 채택된 경우다 — 실제 채택안은 C 안이다** (이 Task 끝의 실행 결과 참조). B 안이 채택됐으면 인덱스 이름과 컬럼을
 > `idx_products_del_brand_like` / `"deleted_at, brand_id, like_count desc, id desc"` 와
 > `idx_products_del_like` / `"deleted_at, like_count desc, id desc"` 로 바꾼다. 나머지 절차는 같다.
 
 ---
 
-- [ ] **Step 1: 실패하는 테스트를 쓴다**
+- [x] **Step 1: 실패하는 테스트를 쓴다**
 
 `ProductModelPersistenceTest.kt` 의 마지막 `@Nested` 그룹(`NonNegativeCheckConstraints`) 뒤에
 다음을 추가한다. **새 파일을 만들지 않는다** — 이 파일이 이미 스키마 단언을 모아 두는 자리다.
@@ -848,7 +974,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 `entityManager` 는 이 클래스가 이미 `@PersistenceContext` 로 갖고 있으므로 새로 주입하지 않는다.
 
-- [ ] **Step 2: 테스트가 실패하는지 확인한다**
+- [x] **Step 2: 테스트가 실패하는지 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.domain.product.ProductModelPersistenceTest"
@@ -858,7 +984,7 @@ Expected: FAIL. `idx_products_brand_like` 가 없어 `contains` 단언이 깨진
 기존 그룹(`Persist` · `NonNegativeCheckConstraints`)은 그대로 통과해야 한다 —
 거기까지 깨지면 추가한 코드가 클래스를 망가뜨린 것이다.
 
-- [ ] **Step 3: `@Index` 를 추가한다**
+- [x] **Step 3: `@Index` 를 추가한다**
 
 `ProductModel.kt` 의 `@Table` 을 다음으로 교체한다.
 
@@ -878,7 +1004,7 @@ Expected: FAIL. `idx_products_brand_like` 가 없어 `contains` 단언이 깨진
 )
 ```
 
-- [ ] **Step 4: 테스트가 통과하는지 확인한다**
+- [x] **Step 4: 테스트가 통과하는지 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests "com.loopers.domain.product.ProductModelPersistenceTest"
@@ -904,7 +1030,7 @@ Expected: BUILD SUCCESSFUL. 기존 748 건 + 이번 2 건 = **750 건**, 실패 
 정렬·페이징 동작은 `ProductV1ApiE2ETest` 와 `ProductQueryDslRepository` 통합 테스트가 이미
 단언하고 있다. 인덱스는 결과를 바꾸지 않으므로 이들이 그대로 회귀 방어를 한다.
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/domain/product/ProductModel.kt \
@@ -924,6 +1050,26 @@ git commit -m "feat : 상품 목록 좋아요순 정렬 인덱스를 추가한�
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
+
+### 실행 결과 (2026-09-21, commit `3854e68f`)
+
+**위 Step 1·3 의 코드는 A 안 기준이다.** 실제로 들어간 것은 C 안이다 — 인덱스 이름은
+`idx_products_brand_del_like` · `idx_products_del_like`, `columnList` 는
+`"brand_id, deleted_at, like_count desc, id desc"` · `"deleted_at, like_count desc, id desc"` 다.
+
+**Hibernate 6.6.11 이 `columnList` 의 `desc` 를 통과시켰다.** 스키마 생성이 깨지지 않았고 실제로
+`Collation` 이 `D` 인 인덱스가 만들어진다 — 설계 4.3 장의 위험은 해소됐고 Step 4 의 폴백은 쓰지
+않았다. 다만 테스트는 **정렬 방향을 단언하지 않는다.** 가설 3.5.5 가 성립해 오름차순이어도 같은
+계획이 나오므로 방향이 바뀌는 것은 회귀가 아니고, 회귀인 것은 컬럼 순서이기 때문이다.
+
+단언 내용도 계획과 다르다. 계획은 "필터 없는 경로용 인덱스의 선두 컬럼이 `like_count`" 를 봤지만
+C 안에서는 그 자리가 `deleted_at` 이다. 그래서 **두 인덱스의 컬럼 순서 전체**를 `containsExactly`
+로 본다 — 순서가 바뀌면 컴파일도 테스트도 통과하지만 count 가 인덱스 온리를 잃기 때문이다
+(4.06 ms → 10.6 ms).
+
+**Step 5(전체 스위트)만 체크하지 않았다.** `./gradlew :apps:commerce-api:test` 의 750 건 통과를
+확인한 흔적이 남아 있지 않다. 돌린 기억이 있더라도 기록이 없으면 근거가 아니므로 미체크로 둔다.
+Task 5 에 들어가기 전에 한 번 돌린다.
 
 ---
 
@@ -1393,16 +1539,16 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ## 완료 기준
 
-- [ ] `products` 10 만 건이 의도한 분포로 심긴다 (Task 1 Step 6 기대값 전부 일치)
-- [ ] 두 경로의 content `Extra` 에서 `Using filesort` 가 사라졌다
-- [ ] 경로 ① content 의 **`EXPLAIN ANALYZE` `actual rows`** 가 25,000 에서 20 근처로 떨어졌다
-- [ ] count 두 경로의 A 안·B 안 `Extra` 가 격자에 기록돼 있다 (3.5.6 판정 가능)
-- [ ] 3.5.5 가 **오름차순 인덱스 측정**으로 판정돼 있다 (`desc-check.txt`). `DESC` 인덱스의 격자로 대신하지 않았다
-- [ ] A/B 판정 근거가 설계 문서 3.7 장에 있다
-- [ ] 채택되지 않은 인덱스는 코드에 없다
-- [ ] 전체 테스트 750 건 통과 (기존 748 + 인덱스 테스트 2)
-- [ ] `loadtest/README.md` 만 보고 측정을 처음부터 재현할 수 있다
-- [ ] `EXPLAIN` 측정에 쓴 SQL 파일이 그대로 재실행된다 (`AS ''` 없음, charset 플래그 포함)
+- [x] `products` 10 만 건이 의도한 분포로 심긴다 (Task 1 Step 6 기대값 전부 일치)
+- [x] 두 경로의 content `Extra` 에서 `Using filesort` 가 사라졌다
+- [x] 경로 ① content 의 **`EXPLAIN ANALYZE` `actual rows`** 가 25,000 에서 20 근처로 떨어졌다
+- [ ] count 두 경로의 A·B·C 안 `Extra` 가 격자에 기록돼 있다 (3.5.6 판정 가능) — 산출물(`after-*.txt`)에는 있고 설계 3.6 장에 아직 없다
+- [x] 3.5.5 가 **오름차순 인덱스 측정**으로 판정돼 있다 (`desc-check.txt`). `DESC` 인덱스의 격자로 대신하지 않았다
+- [ ] A/B/C 판정 근거가 설계 문서 3.7 장에 있다
+- [x] 채택되지 않은 인덱스는 코드에 없다
+- [ ] 전체 테스트 750 건 통과 (기존 748 + 인덱스 테스트 2) — Task 4 Step 5 의 기록이 없다
+- [ ] `loadtest/README.md` 만 보고 측정을 처음부터 재현할 수 있다 — §1 시드 · §2 인덱스 전환까지 있고 §3 k6 는 Task 5
+- [x] `EXPLAIN` 측정에 쓴 SQL 파일이 그대로 재실행된다 (`AS ''` 없음, charset 플래그 포함)
 
 > **세 번째 항목의 기준을 `rows` 에서 `actual rows` 로 바꿨다.** `EXPLAIN` 의 `rows` 는 추정치이고,
 > `ref` 접근 + 인덱스 정렬 + `LIMIT` 조합에서 MySQL 이 `LIMIT` 을 반영하지 않은 25,000 을 그대로
