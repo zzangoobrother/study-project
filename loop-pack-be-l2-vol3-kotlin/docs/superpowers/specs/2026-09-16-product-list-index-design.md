@@ -2,8 +2,7 @@
 
 - 작성일: 2026-09-16
 - 대상 모듈: `apps/commerce-api`
-- 상태: **측정 중** — 10 만 건 시드는 2026-09-17 에 끝났다(계획서 Task 1). `EXPLAIN` 격자(Task 2 · 3)가 다음이다.
-  측정이 끝나면 실측은 3.6 장, 판정은 3.7 장에 들어가고 이 줄이 **측정 완료**로 바뀐다.
+- 상태: **인덱스 판정 완료 (2026-09-20)** — 실측 격자는 3.6 장, 판정은 3.7 장에 있다. k6(5.5 장)·`OFFSET`(4.4 장) 관측은 Task 5 · 6 에 남았다.
 - 선행 문서:
   - [2026-08-13 브랜드·상품 API 설계](2026-08-13-brand-product-design.md) — `like_count` 비정규화와 정렬 3 종의 출처
   - [2026-08-20 상품 좋아요 API 설계](2026-08-20-product-like-design.md) — `like_count` 의 증감 경로
@@ -90,8 +89,7 @@
 
 ## 3. 인덱스 설계와 가설
 
-> **3.1~3.5 는 측정 전에 쓴 가설이다.** 실측은 3.6 장에, 판정은 3.7 장에 들어간다.
-> 측정이 끝나면 각 절 끝에 판정을 붙이고 이 인용 블록을 지운다.
+**3.1~3.5 는 측정 전에 쓴 가설이다.** 실측은 3.6 장, 판정은 3.7 장에 있다.
 
 ### 3.1 커버링 인덱스는 선택지가 아니다
 
@@ -108,8 +106,14 @@ id · brand_id · name · price · like_count · stock · created_at · updated_
 
 > **정렬을 인덱스가 대신하게 해서, 읽는 행 수를 25,000 에서 20 으로 줄인다.**
 
-행 접근은 PK 룩업 20 회로 남는다. 개선의 주 지표는 `EXPLAIN` 의 `rows` 이고,
+행 접근은 PK 룩업 20 회로 남는다. 개선의 주 지표는 `EXPLAIN ANALYZE` 의 `actual rows` 이고,
 부 지표는 `Extra` 에서 `Using filesort` 가 사라지는 것이다.
+
+> **애초 이 절은 주 지표를 `EXPLAIN` 의 `rows` 로 썼다.** 실측(3.6 장)에서 경로 ① 의 추정
+> `rows` 는 인덱스를 걸어도 줄지 않는 사례가 나왔다 — A 안은 49,420, B·C 안은 48,124 로, 옵티마이저의
+> 추정이 부풀어 있을 뿐 인덱스 효과와 무관한 값이었다. 실제로 25,000 에서 20 근처로 줄어든 것은
+> `actual rows` 다. 계획서 Task 2 실행 결과가 이 근거로 완료 기준을 `actual rows` 로 옮겼고
+> (5.6 장도 같은 이유로 고쳤다), 이 절도 거기 맞춘다.
 
 ### 3.2 대상 경로 둘
 
@@ -198,6 +202,15 @@ count 는 조건에 맞는 행을 전부 세야 하므로 그 불리함이 25,00
 목록에서 오차 범위인 차이와 count 에서 지배적인 차이를 합산한 것이 사용자가 실제로 겪는 비용이다.
 4.5 장은 원래 count 를 "관측만" 하는 것으로 두었으나, 이 이유로 **판정 격자 안으로 옮겼다.**
 
+> **실측 후 — 답은 "선두가 아니라 두 번째" 였다.** 위 논증은 `deleted_at` 을 인덱스에 넣을지
+> 말지를 A/B 이분법으로 물었다. A 를 재고 B 를 잰 뒤, 측정 중에 나온 C 안
+> (`brand_id, deleted_at, like_count DESC, id DESC`)이 그 질문 자체를 바꿨다 — `deleted_at` 을
+> 인덱스에 넣긴 넣되, 선두를 `brand_id` 에 내주고 두 번째 자리에 두는 것이다. 정렬이 인덱스로
+> 풀리는 조건은 "정렬 키 앞의 컬럼이 전부 등치로 고정될 것" 하나뿐이고, `brand_id` 와
+> `deleted_at` 중 어느 쪽이 먼저인지는 그 조건과 무관하다. 그래서 C 안은 B 안의 count 커버링
+> (`Extra: Using index`)을 그대로 유지하면서, 선두가 `brand_id` 라 기존 `idx_products_brand_id`
+> 를 완전 중복으로 만들어 흡수할 수 있다. 실측 격자는 3.6 장, 판정 근거는 3.7 장에 있다.
+
 ### 3.4 `DESC` 키워드는 필요한가
 
 `ORDER BY like_count DESC, id DESC` 는 **전부 내림차순**이다. 이런 경우 MySQL 은 오름차순
@@ -233,12 +246,15 @@ EXPLAIN SELECT * FROM products WHERE deleted_at IS NULL
 
 | # | 예측 | 판정 지표 | 실측 |
 |---|---|---|---|
-| 3.5.1 | 개선 전 두 경로 모두 `Using filesort`, 경로 ① 의 `rows` ≈ 25,000 | `EXPLAIN` 의 `Extra` · `rows` | *(측정 후)* |
-| 3.5.2 | A · B 모두 `filesort` 가 사라지고 `rows` 가 세 자릿수 이하로 떨어진다 | 〃 | *(측정 후)* |
-| 3.5.3 | **A 는 삭제 5% 때문에 `LIMIT 20` 을 채우는 데 20 건보다 더 읽는다** | `EXPLAIN ANALYZE` 의 `actual rows` | *(측정 후)* |
-| 3.5.4 | 그 초과분이 미미해 A 와 B 의 실측 차이는 오차 범위다 | `EXPLAIN ANALYZE` 의 `actual time` | *(측정 후)* |
-| 3.5.5 | **오름차순 인덱스**로 만들어도 `Backward index scan` 으로 같은 계획이 나온다 — 즉 `DESC` 없이도 된다 | 오름차순 인덱스 1 회 측정의 `Extra` (**A/B 격자가 아니다** — 3.4 장) | *(측정 후)* |
-| 3.5.6 | **count 쿼리에서는 B 가 A 를 크게 이긴다** — A 는 행 접근이 따라붙고 B 는 인덱스 온리로 끝난다 (3.3 장) | count 쿼리의 `Extra` 에 `Using index` 유무 · `actual time` | *(측정 후)* |
+| 3.5.1 | 개선 전 두 경로 모두 `Using filesort`, 경로 ① 의 `rows` ≈ 25,000 | `EXPLAIN` 의 `Extra` · `rows` | ✅ `Extra` / ❌ `rows` — 두 경로 모두 `Using filesort` 는 맞았지만, 경로 ① 의 추정 `rows` 는 25,000 이 아니라 **49,420** 이었다(옵티마이저 추정 오차). `actual rows` 는 정확히 25,000 (`before.txt`) |
+| 3.5.2 | A · B 모두 `filesort` 가 사라지고 `rows` 가 세 자릿수 이하로 떨어진다 | 〃 | ✅ `Extra` / ❌ `rows` — `filesort` 는 A·B·C 모두 content `Extra` 에서 소멸했다. `rows` 는 경로별로 갈렸다 — 경로 ② 는 A 안에서만 20 으로 떨어졌고, 경로 ① 은 세 안 모두 48,124~49,420 으로 남았다(3.6 장) |
+| 3.5.3 | **A 는 삭제 5% 때문에 `LIMIT 20` 을 채우는 데 20 건보다 더 읽는다** | `EXPLAIN ANALYZE` 의 `actual rows` | ✅ A 경로 ① `actual rows` **21**, B·C 는 정확히 **20** |
+| 3.5.4 | 그 초과분이 미미해 A 와 B 의 실측 차이는 오차 범위다 | `EXPLAIN ANALYZE` 의 `actual time` | ✅ content 중앙값(5 회) A 0.275ms / B 0.273ms / C 0.281ms (`timing-5runs.txt`) |
+| 3.5.5 | **오름차순 인덱스**로 만들어도 `Backward index scan` 으로 같은 계획이 나온다 — 즉 `DESC` 없이도 된다 | 오름차순 인덱스 1 회 측정의 `Extra` (**A/B 격자가 아니다** — 3.4 장) | ✅ `desc-check.txt` — `Extra` 에 `Backward index scan`, `Using filesort` 없음 |
+| 3.5.6 | **count 쿼리에서는 B 가 A 를 크게 이긴다** — A 는 행 접근이 따라붙고 B 는 인덱스 온리로 끝난다 (3.3 장) | count 쿼리의 `Extra` 에 `Using index` 유무 · `actual time` | ✅ 경로 ① `Extra` — A `Using where` / B·C `Using where; Using index`. 중앙값 10.6ms → B 4.37ms → C 4.06ms |
+
+**3.5.1·3.5.2 에서 깨진 것은 `rows` 다** — 이 결과가 3.1 · 5.6 장의 주 지표를 `actual rows` 로
+옮긴 근거다.
 
 3.5.1~3.5.5 는 목록(content) 쿼리에 대한 것이고, **3.5.6 만 count 쿼리에 대한 것이다.**
 다만 **3.5.5 는 격자 밖에서 따로 잰다** — 같은 content 쿼리를 보지만 A/B 격자로는 판정되지 않는다 (3.4 장).
@@ -308,6 +324,122 @@ B 채택  idx_products_del_brand_like = (deleted_at, brand_id, ...)
 열린 질문으로 남긴다 — 여기서 하는 일은 **그 선택지가 A 에만 열려 있다는 사실을 판정 근거에
 넣는 것**까지다.
 
+> **실측 후 — 이 대목의 전제가 깨졌다.** 3.5.6 이 예측대로 나와 B 가 count 를 크게 이겼다
+> (경로 ① 중앙값 10.6ms → 4.37ms). 위 논증대로면 "인덱스 2 개 대 3 개" 를 감수하고 B 를
+> 채택해야 했다. 그런데 측정 중에 나온 C 안(`brand_id, deleted_at` 순서만 뒤집은 것)이 그
+> 딜레마를 없앴다 — count 커버링은 B 와 같거나 근소하게 더 빠르면서(4.06ms) 선두가 `brand_id`
+> 라 `idx_products_brand_id` 를 흡수할 수 있다. **"더 작은 인덱스냐 count 성능이냐" 는 선택이
+> 아니라 컬럼 순서의 문제였다.** 실측 격자는 3.6 장, 판정은 3.7 장에 있다.
+
+### 3.6 실측 격자 (2026-09-20)
+
+**측정 조건.** jar 를 그대로 두고 `CREATE INDEX` / `DROP INDEX` 로만 전환했다. 전환 후 버리는
+실행 2 회를 먼저 돌렸다. 데이터는 `loadtest/seed-products.sql` 로 매번 같은 것을 썼다. `actual
+time` 은 1 회 측정이 아니라 **안별 5 회 반복의 중앙값**이다 — A 안 count ① 1 회차가 개선 전보다
+느리게 나와(11.6ms > 9.16ms) 1 회 측정으로는 판정할 수 없었다(`timing-5runs.txt`). `rows` ·
+`key` · `Extra` 는 흔들리지 않으므로 1 회로 충분하다.
+
+count 표를 목록(content) 표와 따로 둔 이유는 — **한 요청이 쿼리 두 개이고, 세 안의 차이가
+가장 크게 벌어지는 자리가 count 쪽이기 때문이다** (3.3 장).
+
+#### 목록(content) — 경로 ① 브랜드 필터 있음 (`brandId=1`, 25,000 건)
+
+| | `key` | `rows`(추정) | `Extra` | `actual rows` | `actual time`(중앙값) |
+|---|---|---|---|---|---|
+| 개선 전 | `idx_products_brand_id` | 49,420 | `Using where; Using filesort` | 25,000 | 21.1 ms |
+| A 안 | `idx_products_brand_like` | 49,420 | `Using where` | 21 | 0.275 ms |
+| B 안 | `idx_products_del_brand_like` | 48,124 | `Using index condition` | 20 | 0.273 ms |
+| C 안 | `idx_products_brand_del_like` | 48,124 | `Using index condition` | 20 | 0.281 ms |
+
+#### 목록(content) — 경로 ② 브랜드 필터 없음
+
+| | `key` | `rows`(추정) | `Extra` | `actual rows` | `actual time`(중앙값) |
+|---|---|---|---|---|---|
+| 개선 전 | `NULL` (전체 스캔) | 99,692 | `Using where; Using filesort` | 100,000 | 35.1 ms |
+| A 안 | `idx_products_like` | 20 | `Using where` | 22 | 0.101 ms |
+| B 안 | `idx_products_del_like` | 49,846 | `Using index condition` | 20 | 0.416 ms |
+| C 안 | `idx_products_del_like` | 49,846 | `Using index condition` | 20 | 0.337 ms |
+
+`actual rows` 는 최상위 `Limit` 노드가 아니라 **가장 안쪽 접근 노드**(인덱스 룩업 / 테이블
+스캔)의 값이다 — `LIMIT 20` 을 채우려고 실제로 읽은 행 수이고, 3.5.3 이 재는 것이 그 값이다.
+최상위 `Limit` 의 `actual rows` 는 어느 안이든 20 으로 항상 같아 비교에 쓸모가 없다.
+
+#### count — 경로 ① · ②
+
+| | `key` | `Extra` (`Using index` 유무) | `actual time`(중앙값) |
+|---|---|---|---|
+| 개선 전 ① | `idx_products_brand_id` | `Using where` (없음) | 9.16 ms *(1 회 측정 — 아래 참고)* |
+| 개선 전 ② | `NULL` | `Using where` (없음) | 14.9 ms |
+| A 안 ① | `idx_products_brand_id` | `Using where` (없음) | 10.6 ms |
+| A 안 ② | `NULL` | `Using where` (없음) | 14.9 ms |
+| B 안 ① | `idx_products_del_brand_like` | `Using where; Using index` (있음) | 4.37 ms |
+| B 안 ② | `idx_products_del_like` | `Using where; Using index` (있음) | 14.0 ms |
+| C 안 ① | `idx_products_brand_del_like` | `Using where; Using index` (있음) | 4.06 ms |
+| C 안 ② | `idx_products_del_like` | `Using where; Using index` (있음) | 14.1 ms |
+
+> **개선 전 count ① 의 9.16ms 는 1 회 측정이다.** 5 회 반복 규약은 Task 3 에서 생겼고 기준선은
+> 그전에 쟀다. A 안 중앙값(10.6ms)보다 빠른 값이라 이 둘만으로 "A 가 개선 전보다 느리다" 를
+> 판정할 수는 없지만, 채택안(C 안 4.06ms)과의 비교에는 영향이 없다.
+
+> **요청 1 회(content + count) 합산 중앙값.**
+> ```
+> 경로 ①   A 10.9 ms    B 4.6 ms     C 4.34 ms
+> 경로 ②   A 15.0 ms    B 14.4 ms    C 14.4 ms
+> ```
+> 경로 ② count 는 세 안이 같다 — 커버링 인덱스를 써도 94,737 행을 세는 일 자체는 줄지 않기
+> 때문이다(4.5 장).
+
+**오름차순 인덱스 1 회 측정 (가설 3.5.5, 격자 밖 — 3.4 장).** A·B·C 를 모두 지우고
+`idx_products_like_asc (like_count, id)` 하나만 둔 뒤 경로 ② content 를 다시 쟀다
+(`desc-check.txt`).
+
+```
+key: idx_products_like_asc   Extra: Using where; Backward index scan
+```
+
+`Backward index scan` 이 나오고 `Using filesort` 가 없다 — `DESC` 없이도 같은 계획이 나온다.
+
+### 3.7 판정 — C 안 채택
+
+**세 지표 다 채택을 가리켰다.** 위 격자에서 content 는 A·B·C 세 안이 오차 범위 안에서 비슷했지만
+(경로 ① 0.275 / 0.273 / 0.281 ms), count 에서는 갈렸다 — 경로 ① 중앙값이 A 10.6ms, B 4.37ms,
+C 4.06ms 였다. **판정을 가른 것은 count 쿼리다, content 가 아니다.**
+
+#### A 가 진 이유
+
+A 는 `(brand_id, like_count, id)` 로 `deleted_at` 을 인덱스에 넣지 않았다. content 에서는 그
+대가가 20 건에서 21 건으로, 무시할 만했다(3.5.3·3.5.4). 그런데 `count` 에는 `LIMIT` 이 없다 —
+조건에 맞는 행을 전부 세야 하므로 같은 대가가 25,000 배로 확대된다(3.3 장). `Extra` 에
+`Using index` 가 없어 23,685 행 전부를 행 접근으로 확인했고, 그 결과가 count ① 10.6ms 로
+개선 전(9.16ms, 1 회 측정)과 사실상 다르지 않았다. **A 는 목록 쿼리만 보면 이겼을 안이고, count
+를 판정에 넣지 않았다면 채택됐을 안이다.** 그것이 count 를 격자로 옮긴 이유였다(4.5 장).
+
+#### B 가 진 이유
+
+B 는 `(deleted_at, brand_id, like_count, id)` 로 count 성능은 C 와 동등했다(4.37ms — C 의
+4.06ms 와 오차 범위). B 가 진 것은 실측이 아니라 **구조** 때문이다 — 선두가 `deleted_at` 이라
+그 조건이 없는 쿼리(어드민의 `searchIncludingDeleted()`)에는 이 인덱스를 못 쓴다.
+`idx_products_brand_id` 를 흡수하지 못해 최종 인덱스가 3 개로 남는다(3.5 장). **B 는 count
+성능만으로는 C 와 구분되지 않았고, 인덱스 개수라는 별도 기준에서 졌다.**
+
+#### C 가 이긴 이유
+
+C 는 `(brand_id, deleted_at, like_count DESC, id DESC)` — 두 등치 컬럼의 순서만 B 와 바꾼
+것이다. 정렬이 인덱스로 풀리는 조건은 "정렬 키 앞의 컬럼이 전부 등치로 고정될 것" 하나뿐이고,
+어느 컬럼이 먼저인지는 그 조건과 무관하다. 그래서 C 는 B 의 count 커버링(`Extra: Using
+index`)을 그대로 유지하면서(4.06ms, B 보다 근소하게 빠름) 선두가 `brand_id` 라
+`idx_products_brand_id` 를 완전 중복으로 만들어 흡수할 수 있다. **A 의 작은 인덱스와 B 의
+count 성능을 동시에 가진 안이었다.**
+
+**다음에 누가 "`deleted_at` 을 인덱스에 넣으면 어떨까" 라고 물으면 이 절을 가리키면 된다.**
+
+- C 를 채택했다 : 답은 "카디널리티가 낮으니 앞에 두면 안 된다" 가 아니라
+  "count 에는 `LIMIT` 이 없어서 넣어야 했다 — 다만 선두는 필터링이 아니라 기존 인덱스를
+  흡수할 수 있는 컬럼에 내줘도 된다" 다.
+
+두 문장 모두 규칙이 아니라 **근거**를 남기는 형태다. 다음 사람이 가져갈 것은 채택된 인덱스
+정의가 아니라 "무엇을 재서 그렇게 정했는가" 다.
+
 ---
 
 ## 4. 위험과 한계
@@ -327,6 +459,9 @@ B 채택  idx_products_del_brand_like = (deleted_at, brand_id, ...)
 
 이 한계를 안고 측정한다. 버퍼 풀을 줄여 재측정하는 것은 후속으로 남긴다 — 버퍼 풀을 줄이면
 이번에는 그것이 지배 변수가 되어 인덱스 효과와 섞인다. 한 번에 하나씩 본다.
+
+> **k6 개선폭은 아직 없다.** "k6 개선폭이 `actual rows` 감소폭보다 작았다면 그 수치" 를 여기
+> 적으려 했으나 Task 5(k6 end-to-end)가 미착수라 잴 것이 없다. **Task 5 에서 측정한다.**
 
 ### 4.2 ⚠️ 인덱스가 운영 스키마에 반영될 경로가 없다
 
@@ -358,6 +493,18 @@ ddl-auto: none (dev 이상)  +  Flyway · Liquibase 부재  +  schema.sql 부재
 **측정 순서가 중요하다.** 이 확인은 A/B 측정 직후, Task 4 에서 `@Index` 를 손대기 **전에** 끝나야 한다.
 코드를 고친 뒤에 재면, `desc` 를 뺄지 말지 이미 정해 버린 뒤에 그 근거를 찾는 것이 된다.
 
+> **실측 후 — 두 가지 다 확인됐다.**
+> 1. **오름차순 인덱스 측정** (`desc-check.txt`, 3.4·3.6 장) — `Extra` 에 `Backward index scan`
+>    이 나오고 `Using filesort` 는 없다. `DESC` 없이도 같은 계획이 나온다는 가설 3.5.5 가
+>    성립했다.
+> 2. **Hibernate `@Index` 의 `desc`** (Task 4 Step 4) — 채택안(C 안)의
+>    `columnList = "brand_id, deleted_at, like_count desc, id desc"` 가 Hibernate 6.6.11 에서
+>    그대로 통과했다. 스키마 생성이 깨지지 않았고, `SHOW INDEX` 의 `Collation` 이 실제로 `D` 인
+>    인덱스가 만들어진다.
+>
+> 1 번(가설 3.5.5)이 2 번(폴백이 필요 없다는 것)을 정당화하는 관계였는데, **2 번 자체가 이미
+> 통과해 폴백을 쓸 필요가 없었다.** 위험은 두 경로로 이중 해소된 셈이다.
+
 ### 4.4 `OFFSET` 깊은 페이지 — 관측만 한다
 
 ```
@@ -371,6 +518,9 @@ page=4500   OFFSET 90000   →  90,020 행 읽고 90,000 행을 버린다
 
 두 지점의 `EXPLAIN ANALYZE` 수치만 기록한다. **숫자를 남겨 두면 후속 문서가 근거를 다시
 만들지 않아도 된다.**
+
+> **`OFFSET 0` vs `OFFSET 90000` 의 `actual rows` · `actual time` 은 아직 없다.** Task 6(`OFFSET`
+> 관측)이 미착수라 이 절이 요구하는 두 지점의 수치가 없다. **Task 6 에서 관측한다.**
 
 ### 4.5 `count` 쿼리 — 전량 집계는 남는다 (판정에는 들어간다)
 
@@ -401,6 +551,11 @@ B 안  23,685 엔트리, 행 접근 0            (Extra: Using index)
 > 있는가" 가 아니라 "채택 결정을 바꾸는가" 로 다시 그은 것이다.**
 
 count 를 **더 빠르게 만드는 일**(캐시·근사 집계·`totalElements` 규약 변경)은 여전히 이 문서 밖이다.
+
+> **실측은 3.6 장 count 표에 있다. 판정은 3.7 장에 있다.** 여기서 수치를 다시 옮겨 적지 않는다
+> — `before.txt` · `after-a.txt` · `after-b.txt` · `after-c.txt` 를 읽어 만든 숫자를 두 곳에
+> 적으면 한쪽이 먼저 갱신되고 다른 쪽이 낡는다. 3.5.6 이 갈린 것도, A/B 이분법이 C 안으로
+> 깨진 것도 이 count 자리였다(3.3 · 3.7 장).
 
 ### 4.6 측정값이 로컬 머신에 종속된다
 
@@ -575,19 +730,26 @@ loadtest/products.js  (신규)
 
 | 우선순위 | 지표 | 이유 |
 |---|---|---|
-| 1 | `EXPLAIN` 의 `rows` · `Extra` | 인덱스가 실제로 쓰였는지의 직접 증거 |
-| 2 | count 쿼리 `Extra` 의 `Using index` | A/B 판정에서 가장 크게 벌어지는 자리 (3.5.6) |
-| 3 | `EXPLAIN ANALYZE` 의 `actual rows` | 목록 쿼리 쪽 A/B 판정의 근거 (3.5.3) |
+| 1 | `EXPLAIN ANALYZE` 의 `actual rows` | 인덱스가 실제로 읽은 행 수. 추정 `rows` 는 인덱스 효과와 무관하게 부풀 수 있다 — 아래 참고 |
+| 2 | count 쿼리 `Extra` 의 `Using index` | A/B/C 판정에서 가장 크게 벌어지는 자리 (3.5.6) |
+| 3 | `EXPLAIN` 의 `key` · `Extra` | 인덱스가 실제로 쓰였는지, `filesort` 가 사라졌는지의 직접 증거 |
 | 4 | `EXPLAIN ANALYZE` 의 `actual time` | 3.5.4 판정. 버퍼 풀 한계(4.1)를 감안해 읽는다 |
 | 5 | k6 `p95` | end-to-end 확인. 인덱스 효과가 희석되어 나타난다 |
+
+> **우선순위 1 을 애초 `EXPLAIN` 의 `rows` 로 썼었다.** 실측(3.6 장)에서 경로 ① 의 추정 `rows`
+> 가 인덱스를 걸어도 49,420 그대로인 사례가 나왔다 — `ref` 접근 + 인덱스 정렬 + `LIMIT` 조합에서
+> MySQL 이 `LIMIT` 을 반영하지 않은 값을 그대로 보고한 것이다. 실제로 줄어든 것은 `actual rows`
+> (25,000 → 21)였다. 계획서 완료 기준이 같은 이유로 이미 `actual rows` 로 옮겨져 있었고(계획서
+> Task 2 실행 결과), 3.1 장도 함께 고쳤다.
 
 **k6 p95 의 크기가 `EXPLAIN` 을 뒤집지 않는다.** p95 에는 JVM · 직렬화 · 네트워크가 섞여 있어
 인덱스 효과가 희석된다. 개선이 미미하게 보여도 그것이 인덱스가 무의미하다는 뜻은 아니다.
 
 **다만 k6 가 판정의 *방향*을 뒤집으면 그때는 격자를 의심한다.** 크기가 희석되는 것과 순서가
-뒤집히는 것은 다른 사건이다. A 를 채택했는데 k6 에서 B 가 더 빠르면, 희석으로는 설명되지 않는다 —
-**격자가 재지 않은 쿼리가 요청 안에 있다는 뜻**이다. 실제로 이 문서는 count 를 격자 밖에 두었다가
-같은 이유로 판정 기준을 다시 그었다 (4.5 장). 같은 일이 또 생기면 무엇이 빠졌는지부터 찾는다.
+뒤집히는 것은 다른 사건이다. C 를 채택했는데 k6 에서 A 나 B 가 더 빠르면, 희석으로는 설명되지
+않는다 — **격자가 재지 않은 쿼리가 요청 안에 있다는 뜻**이다. 실제로 이 문서는 count 를 격자
+밖에 두었다가 같은 이유로 판정 기준을 다시 그었다 (4.5 장). 같은 일이 또 생기면 무엇이
+빠졌는지부터 찾는다. k6 측정 자체는 아직 없다 — Task 5 에서 한다(4.1 장).
 
 ---
 
@@ -656,6 +818,15 @@ A/B 중 채택되지 않은 인덱스는 코드에 남기지 않는다. 2026-09-
 2 개까지 줄일 여지가 생기고, B 가 이겼다면 그 인덱스가 남아 3 개가 된다 (3.5 장). 채택안의 정의만
 적고 이 숫자를 빠뜨리면, 다음 사람이 "인덱스 하나 차이" 로 읽는다.
 
+> **실측 후 — 채택안은 C 다.** 판정을 가른 것은 **count** 쿼리다, content 가 아니다(3.7 장).
+> 진 A·B 는 `ProductModel.kt` 에 남아 있지 않다.
+>
+> **도달 가능한 최종 인덱스 개수는 2 개다.** C 는 선두가 `brand_id` 라 `idx_products_brand_id`
+> 를 완전 중복으로 만들어 흡수할 수 있다(3.5·3.7 장). 다만 **실제로 지우지는 않았다** — 이
+> 문서가 재지 않은 쿼리들(브랜드 필터 + `latest` · `price_asc`)에 영향을 주므로 별도 확인이
+> 필요해 7 장의 열린 질문으로 남겼다. 그래서 **현재 `ProductModel.kt` 에 선언된 인덱스는 기존
+> 1 개 + C 안 2 개 = 3 개다.** "도달 가능한 수(2)" 와 "현재 수(3)" 를 구분해서 읽어야 한다.
+
 ### 6.4 테스트
 
 인덱스 추가는 쿼리 결과를 바꾸지 않으므로 **기존 테스트가 회귀 방어를 그대로 한다.**
@@ -663,8 +834,10 @@ A/B 중 채택되지 않은 인덱스는 코드에 남기지 않는다. 2026-09-
 페이징 경계를 이미 단언하고 있다.
 
 **예외가 하나 있다 — 인덱스 선언의 존재 자체는 단언한다.** `ProductModelPersistenceTest` 에
-`@Nested` 그룹을 더해 `SHOW INDEX FROM products` 로 두 인덱스가 스키마에 만들어지는지,
-필터 없는 경로용 인덱스의 선두 컬럼이 `like_count` 인지를 본다.
+`@Nested` 그룹을 더해 `SHOW INDEX FROM products` 로 두 인덱스가 스키마에 만들어지는지, 그리고
+**두 인덱스의 컬럼 순서 전체**(`containsExactly`)가 채택안(C 안)과 일치하는지를 본다. 컬럼이
+있는지만 보면 순서가 바뀌어도 컴파일도 테스트도 통과하지만, 순서가 바뀌면 count 쿼리가 인덱스
+온리를 잃는다(2026-09-20 실측 4.06ms → 10.6ms) — 그래서 존재가 아니라 순서를 단언한다.
 
 성능을 단위 테스트로 지키자는 말이 아니다. **지키려는 것은 선언이 조용히 사라지는 회귀다.**
 `@Index` 를 지워도 기존 748 건이 전부 통과하고, 느려진 것을 아무도 모른 채 배포된다.
@@ -683,10 +856,10 @@ A/B 중 채택되지 않은 인덱스는 코드에 남기지 않는다. 2026-09-
 | 질문 | 언제 답하는가 |
 |---|---|
 | ✅ `mysql:8.0` 태그의 패치 버전이 `EXPLAIN ANALYZE` 를 지원하는가 | **8.0.46 — 지원한다** (2026-09-17 Task 1 에서 확인). 대체 계획 불필요 |
-| `DESC` 없이도 같은 계획이 나오는가 (가설 3.5.5) | A/B 측정 직후, 오름차순 인덱스 1 회 (3.4 장) |
-| A 채택 시 `idx_products_brand_id` 를 지울 것인가 (3.5 장) | 후속 — `latest` · `price_asc` 경로를 함께 재는 문서에서 |
-| Hibernate 6 의 `@Index` 가 `DESC` 를 통과시키는가 | 채택안을 코드에 반영할 때 (4.3 장) |
-| 버퍼 풀을 줄이면 A/B 판정이 뒤집히는가 | 후속 |
+| ✅ `DESC` 없이도 같은 계획이 나오는가 (가설 3.5.5) | **성립한다** — `Extra` 에 `Backward index scan`, `Using filesort` 없음 (2026-09-20 Task 3 Step 6, `desc-check.txt`. 3.6 장) |
+| ✅ Hibernate 6 의 `@Index` 가 `DESC` 를 통과시키는가 | **통과한다** — Hibernate 6.6.11, `Collation` 이 `D` 인 인덱스 생성 확인 (2026-09-21 Task 4. 4.3 장) |
+| C 채택 시 `idx_products_brand_id` 를 지울 것인가 (3.5 · 3.7 · 6.3 장) | 후속 — `latest` · `price_asc` 경로를 함께 재는 문서에서. 도달 가능하지만(2 개) 실제로 지우지는 않았다(현재 3 개) |
+| 버퍼 풀을 줄이면 A/B/C 판정이 뒤집히는가 | 후속 |
 | `latest` · `price_asc` 에도 같은 기법이 유효한가 | 후속 |
-| `OFFSET` 깊은 페이지를 커서 페이징으로 바꿀 것인가 | 후속 문서 |
+| `OFFSET` 깊은 페이지를 커서 페이징으로 바꿀 것인가 | 후속 문서 — Task 6 은 관측 수치만 남긴다 |
 | 마이그레이션 도구를 도입할 것인가 (4.2 장) | 후속 문서 |
