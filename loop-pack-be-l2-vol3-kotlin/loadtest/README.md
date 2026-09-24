@@ -209,6 +209,33 @@ docker compose -f docker/loadtest-compose.yml exec -T mysql \
 빌드하면 JVM 워밍업 상태가 인덱스 효과와 섞인다.
 
 `EXPLAIN ANALYZE` 의 `actual time` 은 1 회 측정으로 판정하지 않는다. 개선 전 count 경로 ① 이
-9.16ms 였는데 A 안 1 회차가 11.6ms 로 나왔다 — 인덱스를 걸고 더 느려 보이는 값이다.
-같은 파일을 5 회 돌려 중앙값으로 읽으면 10.6ms 로, 노이즈였음이 드러난다.
+9.16ms 였는데 A 안 단발 측정이 11.6ms 로 나왔다 — 인덱스를 걸고 더 느려 보이는 값이다
+(`results/explain/after-a.txt`). 그 뒤 같은 파일을 5 회 돌려 중앙값으로 읽으니 10.6ms 로,
+노이즈였음이 드러난다(`results/explain/timing-5runs.txt`). 5 회 시리즈는 별개의 실행이라
+그 run1 은 11.6ms 가 아니라 18.3ms 다 — 두 수를 같은 것으로 읽지 않는다.
 `rows` · `key` · `Extra` 는 1 회로 충분하다. 실행 계획은 흔들리지 않는다.
+
+### 3. k6 end-to-end
+
+    k6 run -e TARGET_TPS=30 -e LABEL=after loadtest/products.js
+
+인덱스를 DROP 한 뒤 `LABEL=before` 로 한 번 더 돌린다. **앱은 재기동하지 않는다** —
+같은 JVM 위에서 인덱스만 바꿔야 워밍업 상태가 같다. 전환할 때마다 버리는 실행 2 회를 먼저 돌린다.
+
+**도착률이 300 이 아니라 30 인 이유.** 개선 전 상태는 50 TPS 까지만 견디고 60 TPS 부터
+무너진다(2026-09-24 측정). 300 TPS 로 재면 before 만 절벽 아래로 떨어져 p95 가 60 초 타임아웃에
+걸리고, 그 값을 after 와 비교하면 "12,000 배 개선" 이 나온다. 그건 인덱스 효과가 아니라 큐잉
+지연이다. **before·after 가 같은 도착률에서 모두 `dropped_iterations = 0` 이어야 비교가 성립한다.**
+
+    # 개선 전 상태의 도착률 곡선 (2026-09-24)
+    10 ~ 50 TPS   dropped      0   p95     22 ~ 35 ms   깨끗
+    60 TPS        dropped    144   p95      8,143 ms    <- 절벽
+    100 TPS       dropped    696   p95     16,816 ms
+    300 TPS       dropped 16,063   p95     60,002 ms    (타임아웃)
+
+절벽 아래에서는 성공 처리량이 47~58/s 에 고정된다. 도착률을 올려도 그 위로 가지 않고 대기열만
+길어지므로, **p95 가 커지는 것은 느려져서가 아니라 줄을 서서다.**
+
+`products-*.json` 은 커밋하지 않는다. `.gitignore` 가 `loadtest/results/*` 로 막고 있고
+`EXPLAIN` 출력만 예외로 열어 뒀다 — k6 요약은 특정 머신·시점의 출력이라 커밋하면 다음 측정과
+뒤섞인다. p95 수치는 파일이 아니라 설계 문서 4.1 장에 남긴다.
