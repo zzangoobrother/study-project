@@ -10,7 +10,7 @@
 
 **Spec:** [`docs/superpowers/specs/2026-09-16-product-list-index-design.md`](../specs/2026-09-16-product-list-index-design.md)
 
-**진행:** Task 1~4 완료. Task 7 은 Step 5 의 두 칸만 남았다. Task 5~6 미착수. **채택안은 C 안**(`brand_id, deleted_at, like_count DESC, id DESC`) — 측정 중에 추가된 제 3 안이다.
+**진행:** Task 1~5 완료. Task 6 미착수. Task 7 은 Step 5 의 `OFFSET` 칸만 남았다. **채택안은 C 안**(`brand_id, deleted_at, like_count DESC, id DESC`) — 측정 중에 추가된 제 3 안이다.
 
 | Task | 상태 | 커밋 |
 |---|---|---|
@@ -18,7 +18,7 @@
 | 2 · 개선 전 박제 | 완료 (2026-09-20 22:43) | `02c04bf7` |
 | 3 · A/B/C 측정과 판정 | 완료 (2026-09-20 23:11) — **C 안 채택** | `13ead90c` |
 | 4 · 채택안 코드 반영 | 완료 (2026-09-21 00:13) — Step 5(전체 스위트)만 기록 없음 | `3854e68f` |
-| 5 · k6 end-to-end | 미착수 | |
+| 5 · k6 end-to-end | 완료 (2026-09-24) — **도착률 30 TPS**(300 은 before 가 붕괴) | `8cd7f276` |
 | 6 · `OFFSET` 관측 | 미착수 | |
 | 7 · 설계 문서 반영 | Step 1~4 · 6 · 7 완료 (2026-09-22 17:15) — Step 5 의 4.1(k6) · 4.4(`OFFSET`) 두 칸만 Task 5 · 6 대기 | `cc3f1fa8` |
 
@@ -1105,7 +1105,7 @@ Task 5 에 들어가기 전에 한 번 돌린다.
 
 ---
 
-- [ ] **Step 0: 앱이 살아 있는지 확인하고, 필요하면 재시드한다**
+- [x] **Step 0: 앱이 살아 있는지 확인하고, 필요하면 재시드한다**
 
 **이 태스크만 `commerce-api` 가 필요하다.** Task 2 · 3 · 6 은 MySQL 만으로 돌았으므로 앱이 내려간
 채였을 수 있고, 그렇다면 여기서 처음 올리게 된다. **올리는 순간 `ddl-auto: create` 가 스키마를
@@ -1128,17 +1128,24 @@ docker compose -f docker/loadtest-compose.yml exec -T mysql \
 
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
   mysql --default-character-set=utf8mb4 -uapplication -papplication loopers -e "
-CREATE INDEX idx_products_brand_like ON products (brand_id, like_count DESC, id DESC);
-CREATE INDEX idx_products_like       ON products (like_count DESC, id DESC);"
+CREATE INDEX idx_products_brand_del_like ON products (brand_id, deleted_at, like_count DESC, id DESC);
+CREATE INDEX idx_products_del_like       ON products (deleted_at, like_count DESC, id DESC);"
 ```
 
-B 안이 채택됐으면 마지막 블록의 인덱스를 B 안 것으로 바꾼다. 재시드했다면 `verify-seed.sql` 로
-분포를 다시 확인한다 — Task 1 Step 6 의 기대값과 같아야 한다.
+> **인덱스 이름이 계획 작성 시점과 다르다.** 이 블록은 원래 A 안(`idx_products_brand_like`)으로
+> 적혀 있었고 "B 안이 채택됐으면 바꾼다" 는 단서가 붙어 있었다. **채택된 것은 계획 작성 시점에
+> 없던 C 안이므로 그 단서로는 덮이지 않는다.** Step 3 · 4 의 `DROP` · `CREATE` 블록도 같은
+> 이유로 C 안으로 바꿨다. 정본은 `loadtest/indexes-ab.sql` 의 "C 안 = 채택안" 블록이다.
+>
+> 이미 실행된 Task 3 · 4 의 스텝 본문은 당시 의도대로 두지만, **아직 실행되지 않은 스텝은
+> 기록이 아니라 명령이다.** 그대로 돌리면 진 안을 복원하게 된다.
+
+재시드했다면 `verify-seed.sql` 로 분포를 다시 확인한다 — Task 1 Step 6 의 기대값과 같아야 한다.
 
 **여기서 앱을 올렸다면 Step 2 이후로는 절대 다시 재기동하지 않는다.** 그 순간 이 Step 을 처음부터
 다시 밟아야 하고, `before` 와 `after` 가 서로 다른 워밍업 상태에서 측정된다.
 
-- [ ] **Step 1: k6 스크립트를 쓴다**
+- [x] **Step 1: k6 스크립트를 쓴다**
 
 Create `loadtest/products.js`:
 
@@ -1241,7 +1248,7 @@ export function handleSummary(data) {
 }
 ```
 
-- [ ] **Step 2: `after` 를 먼저 측정한다 (인덱스가 이미 있는 상태)**
+- [x] **Step 2: `after` 를 먼저 측정한다 (인덱스가 이미 있는 상태)**
 
 ```bash
 for i in 1 2; do
@@ -1261,13 +1268,13 @@ Expected: `product_list_status_200` 이 전체이고 `dropped_iterations` 가 0.
 개선폭이 실제보다 크게 나온다. **before·after 가 같은 도착률에서 모두 `dropped_iterations = 0` 이어야
 비교가 성립한다.**
 
-- [ ] **Step 3: 인덱스를 지우고 `before` 를 측정한다**
+- [x] **Step 3: 인덱스를 지우고 `before` 를 측정한다**
 
 ```bash
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
   mysql --default-character-set=utf8mb4 -uapplication -papplication loopers -e "
-DROP INDEX idx_products_brand_like ON products;
-DROP INDEX idx_products_like       ON products;"
+DROP INDEX idx_products_brand_del_like ON products;
+DROP INDEX idx_products_del_like       ON products;"
 
 for i in 1 2; do
   k6 run -e TARGET_TPS=300 -e LABEL=discard loadtest/products.js > /dev/null
@@ -1278,16 +1285,16 @@ k6 run -e TARGET_TPS=300 -e LABEL=before loadtest/products.js
 
 **앱을 재기동하지 않는다.** 같은 JVM 위에서 인덱스만 바꿔야 워밍업 상태가 같다.
 
-- [ ] **Step 4: 인덱스를 복구한다**
+- [x] **Step 4: 인덱스를 복구한다**
 
 ```bash
 docker compose -f docker/loadtest-compose.yml exec -T mysql \
   mysql --default-character-set=utf8mb4 -uapplication -papplication loopers -e "
-CREATE INDEX idx_products_brand_like ON products (brand_id, like_count DESC, id DESC);
-CREATE INDEX idx_products_like       ON products (like_count DESC, id DESC);"
+CREATE INDEX idx_products_brand_del_like ON products (brand_id, deleted_at, like_count DESC, id DESC);
+CREATE INDEX idx_products_del_like       ON products (deleted_at, like_count DESC, id DESC);"
 ```
 
-- [ ] **Step 5: p95 를 비교한다**
+- [x] **Step 5: p95 를 비교한다**
 
 ```bash
 for f in loadtest/results/products-before-300.json loadtest/results/products-after-300.json; do
@@ -1306,7 +1313,7 @@ done
 네트워크가 섞여 있어 인덱스 효과가 희석된다 (설계 문서 5.6 장). 버퍼 풀에 전부 올라가 있어
 디스크 I/O 감소분이 빠진 것도 같은 방향으로 작용한다 (4.1 장).
 
-- [ ] **Step 6: README 에 k6 절차를 추가하고 커밋**
+- [x] **Step 6: README 에 k6 절차를 추가하고 커밋**
 
 `loadtest/README.md` 의 "상품 목록 인덱스 측정" 절 끝에 3 번 항목을 추가한다.
 
@@ -1339,6 +1346,69 @@ before 측정에서 앱을 재기동하지 않는다. 같은 JVM 위에서 인�
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
+
+---
+
+### 실행 결과 (2026-09-24, commit `8cd7f276`)
+
+**결과 — 방향은 유지됐고 크기는 희석됐다.** 같은 도착률 30 TPS, 둘 다 `dropped_iterations = 0`.
+
+| | p95 | med | max | 200 | dropped |
+|---|---:|---:|---:|---:|---:|
+| before (인덱스 없음) | 22.3 ms | 20.2 ms | 39.9 ms | 2,102 | 0 |
+| after (C 안) | **15.7 ms** | **11.9 ms** | 486.5 ms | 2,100 | 0 |
+| 개선 | 1.42 배 (−29.4%) | 1.70 배 (−41.2%) | | | |
+
+설계 5.6 장의 게이트("k6 가 판정의 *방향*을 뒤집으면 격자를 의심한다")는 통과했다 —
+after 가 before 보다 빠르다. **격자가 재지 않은 쿼리가 요청 안에 있다는 신호는 없다.**
+
+**절차가 세 군데에서 바뀌었다.**
+
+**① 도착률이 300 이 아니라 30 이다. 이것이 이 태스크의 가장 큰 발견이다.**
+Step 2 의 300 TPS 로 재 보니 `before` 가 붕괴했다 — p95 60,002ms(60 초 타임아웃), `dropped`
+16,063, 성공은 21,000 건 중 494 건뿐이었다. Step 2 가 예고한 "before 쪽이 먼저 포화된다" 가
+그대로 나왔고, 같은 절이 정한 조건(**둘 다 `dropped = 0`**)에 따라 도착률을 낮춰 다시 찾았다.
+
+```
+개선 전 상태의 도착률 곡선
+  10 ~ 50 TPS   dropped      0   p95     22 ~ 35 ms   깨끗
+  60 TPS        dropped    144   p95      8,143 ms    <- 절벽
+  100 TPS       dropped    696   p95     16,816 ms
+  300 TPS       dropped 16,063   p95     60,002 ms    (타임아웃)
+```
+
+**절벽이 50 과 60 사이에 있다.** 그 아래에서는 성공 처리량이 47~58/s 에 고정되어, 도착률을
+올려도 대기열만 길어진다. 본 측정은 상한의 약 55% 인 **30 TPS** 로 잡았다.
+
+> **300 TPS 의 수치를 "개선" 으로 적었다면 12,000 배가 나왔을 것이다**(5.0ms 대 60,002ms).
+> 인덱스는 절벽을 오른쪽으로 옮기므로 **한쪽만 절벽 아래인 상황이 쉽게 만들어지고**, 그 비교는
+> 개선폭을 임의의 크기로 부풀린다. 계획서가 도착률을 300 으로 먼저 박아 둔 것이 실수였다 —
+> **비교 가능한 구간을 찾는 일 자체가 측정의 일부**였다.
+
+**② 측정 순서가 `after` → `before` 가 아니라 `after`(300) → `before`(30) → `after`(30) 였다.**
+Step 2 를 300 TPS 로 먼저 돌린 뒤 `before` 에서 붕괴를 발견했으므로, 도착률을 바꾼 다음에는
+`after` 도 30 TPS 에서 다시 재야 했다. 앱은 한 번도 재기동하지 않았고 인덱스만 SQL 로
+전환했으므로 Step 3 의 조건("같은 JVM 위에서 인덱스만 바꾼다")은 지켜졌다.
+
+**③ Step 0 · 3 · 4 의 인덱스 이름을 A 안에서 C 안으로 바꾼 뒤 실행했다.** 계획 작성 시점에
+C 안이 없어 A 안 이름이 박혀 있었고 "B 안이 채택됐으면 바꾼다" 는 단서로는 덮이지 않았다.
+그대로 돌렸으면 진 안을 복원했을 것이다 (Step 0 의 인용 블록 참조).
+
+**Step 0 에서 시드가 실제로 날아갔다.** 앱을 올리기 전 `products` 는 100,000 행이었고, 올린
+직후 **137 행**이 됐다 — `ddl-auto: create` 가 스키마를 재생성하고 `LocalDataSeeder` 가 심은
+수다. Global Constraints 가 경고한 그대로다. 재시드 후 `verify-seed.sql` 로 Task 1 Step 6 의
+기대값(총 100,000 · 브랜드 200 · 삭제 5,263 · 버킷 100/900/9,000/90,000 · 버킷별 삭제율
+5.00~5.27%)과 전부 대조해 통과했다.
+
+**관측 하나 — `after` 의 절대값은 도착률에 따라 달라진다.** 같은 인덱스·같은 JVM인데
+300 TPS 에서는 p95 5.0ms, 30 TPS 에서는 15.7ms 였다. `http_req_connecting` 이 0.0ms 이므로
+커넥션 비용이 아니고 거의 전부 `http_req_waiting`(서버 처리)이다. **before·after 를 같은
+도착률에서 잰 비교는 이 영향을 함께 받으므로 유효하지만, 절대값을 다른 도착률의 값과 나란히
+놓으면 안 된다.** 설계 4.6 장의 "절대값이 아니라 같은 환경에서의 상대 비교만" 이 도착률에도
+적용된다는 뜻이다.
+
+**p95 수치는 설계 문서 4.1 장에 아직 없다.** 여기 적은 것은 계획서의 실행 기록이고, 판정에
+쓰이는 자리는 설계 4.1 장이다 (Task 7 Step 5). 그 반영 전까지 이 숫자는 확정된 근거가 아니다.
 
 ---
 
@@ -1599,7 +1669,7 @@ Step 1~4 · 6 · 7 이 실행됐다. **Step 5 는 절반만 들어갔다** — 4
 - [x] A/B/C 판정 근거가 설계 문서 3.7 장에 있다 — "A 가 진 이유" · "B 가 진 이유" · "C 가 이긴 이유" 세 절
 - [x] 채택되지 않은 인덱스는 코드에 없다
 - [ ] 전체 테스트 750 건 통과 (기존 748 + 인덱스 테스트 2) — Task 4 Step 5 의 기록이 없다
-- [ ] `loadtest/README.md` 만 보고 측정을 처음부터 재현할 수 있다 — §1 시드 · §2 인덱스 전환까지 있고 §3 k6 는 Task 5
+- [x] `loadtest/README.md` 만 보고 측정을 처음부터 재현할 수 있다 — §1 시드 · §2 인덱스 전환 · §3 k6
 - [x] `EXPLAIN` 측정에 쓴 SQL 파일이 그대로 재실행된다 (`AS ''` 없음, charset 플래그 포함)
 
 > **세 번째 항목의 기준을 `rows` 에서 `actual rows` 로 바꿨다.** `EXPLAIN` 의 `rows` 는 추정치이고,
