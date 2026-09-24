@@ -45,7 +45,10 @@
 -- 정렬이 인덱스로 해결되는 조건은 "정렬 키 앞의 컬럼이 전부 등치로 고정될 것" 하나뿐이고,
 -- brand_id 와 deleted_at 중 어느 쪽이 먼저인지는 그 조건과 무관하다. 그래서 C 안은 B 안의
 -- count 커버링(Extra: Using index)을 그대로 유지하면서 선두가 brand_id 라 기존 인덱스를 흡수한다.
--- 실측도 B 안과 같거나 근소하게 빨랐다 (경로 ① 요청 합 4.6ms → 4.34ms).
+-- 실측은 B 안과 대등했다 - 더 빠른 것이 아니다 (경로 ① 요청 합 4.6ms 대 4.34ms).
+-- C 안의 우위는 타이밍이 아니라 구조다. 두 안의 count 5 회 분포가 겹치고(B 4.02~5.15ms,
+-- C 3.95~4.63ms) 같은 인덱스를 쓰는 경로 ② content 조차 0.416 / 0.337ms 로 갈린다.
+-- 이긴 칸은 idx_products_brand_id 흡수 하나뿐이다. (설계 문서 3.7 장)
 --
 -- 경로 ② 인덱스는 B 안의 것을 그대로 쓴다. 그 경로에는 brand_id 조건이 없어 선두에 둘 수 없다.
 -- CREATE INDEX idx_products_brand_del_like ON products (brand_id, deleted_at, like_count DESC, id DESC);
