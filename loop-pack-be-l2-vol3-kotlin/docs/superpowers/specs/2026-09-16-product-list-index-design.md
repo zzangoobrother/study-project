@@ -694,6 +694,10 @@ CREATE INDEX idx_products_del_brand_like
     ON products (deleted_at, brand_id, like_count DESC, id DESC);
 ```
 
+> **실측 후 — 파일에는 블록이 네 개가 아니라 일곱 개다.** A·B 생성·제거 넷에 오름차순 확인용
+> 블록 하나(3.4 장)가 있고, 측정 중에 C 안(3.3 · 3.7 장)이 나와 "C 안 = 채택안" 생성·제거
+> 블록 둘이 더해졌다. 위 문단의 "네 블록" 은 A/B 이분법을 전제로 쓴 측정 전 서술이다.
+
 ### 5.4 `EXPLAIN` 격자 — 12 칸
 
 **한 요청이 쿼리 두 개다.** 목록(content)만 재면 요청 비용의 절반만 재는 것이고, 하필 그 절반이
@@ -705,6 +709,10 @@ A 와 B 의 차이가 거의 없는 쪽이다 (3.3 장). 그래서 네 쿼리를
 | 경로 ② content 필터 없음 | ○ | ○ | ○ |
 | 경로 ① count `brandId=1` | ○ | ○ | ○ |
 | 경로 ② count 필터 없음 | ○ | ○ | ○ |
+
+> **실측 후 — 격자는 12 칸이 아니라 16 칸이 됐다.** A·B 를 잰 뒤 C 안이 나와 같은 네 쿼리를
+> 한 열 더 쟀다(`after-c.txt`). 위 표는 측정 전 계획을 그대로 둔다 — 지우면 C 안이 계획에 없던
+> 안이라는 사실이 함께 사라진다. 실제 격자는 3.6 장에 있다.
 
 각 칸에서 기록하는 것:
 
@@ -789,7 +797,7 @@ loadtest/products.js  (신규)
 | `loadtest/seed-products.sql` | 신규 | Task 1 |
 | `loadtest/verify-seed.sql` | 신규 (시드 분포 검증) | Task 1 |
 | `loadtest/explain-product-list.sql` | 신규 (content · count 네 쿼리) | Task 2 |
-| `loadtest/indexes-ab.sql` | 신규 (A·B 전환 + `DESC` 확인용) | Task 3 |
+| `loadtest/indexes-ab.sql` | 신규 (A·B·C 전환 + `DESC` 확인용. C 안은 측정 중 추가 — 3.7 장) | Task 3 |
 | `loadtest/results/explain/*.txt` | 측정 산출물. **커밋한다** — `.gitignore` 가 이 디렉터리만 예외로 연다 | Task 2 · 3 · 6 |
 | `ProductModel.kt` · `ProductModelPersistenceTest.kt` | `@Index` 교체와 존재 단언 | **판정 후, 채택안만** (Task 4) |
 | `loadtest/products.js` | 신규 | Task 5 |
