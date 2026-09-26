@@ -1302,12 +1302,18 @@ for f in loadtest/results/products-before-300.json loadtest/results/products-aft
   python3 -c "
 import json, sys
 d = json.load(open('$f'))
-m = d['metrics']['http_req_duration']['values']
+m = d['metrics']['http_req_duration{phase:measurement}']['values']
 print(f\"  p95 {m['p(95)']:.1f}ms  med {m['med']:.1f}ms  max {m['max']:.1f}ms\")
 print(f\"  dropped {d['metrics'].get('dropped_iterations', {}).get('values', {}).get('count', 0)}\")
 "
 done
 ```
+
+> **2026-09-26 수정 — 읽는 키가 `http_req_duration` 이 아니라 `http_req_duration{phase:measurement}` 다.**
+> 원래 스니펫은 전체 `http_req_duration` 을 읽어 워밍업 10 초가 p95 에 섞였다. 실행 결과의
+> 200 건수 2,100 이 30 TPS × 70 초(워밍업 포함)와 정확히 맞는 것이 그 흔적이다. `products.js` 가
+> 측정 구간 서브메트릭을 만들도록 함께 고쳤다. 파일명의 `-300` 은 당시 명령 그대로 두었다 —
+> 재측정은 30 TPS 이므로 `products-before-30.json` · `products-after-30.json` 을 읽는다.
 
 **개선폭이 `EXPLAIN` 의 `rows` 감소폭보다 훨씬 작아도 정상이다.** p95 에는 JVM · 직렬화 ·
 네트워크가 섞여 있어 인덱스 효과가 희석된다 (설계 문서 5.6 장). 버퍼 풀에 전부 올라가 있어
