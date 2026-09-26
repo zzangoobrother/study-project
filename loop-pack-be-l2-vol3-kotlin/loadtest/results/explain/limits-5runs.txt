@@ -1,0 +1,11 @@
+# explain-limits.sql 5 회 반복 — 최상위 Limit 노드의 actual time(종료 시각). limits.txt 캡처 직후 연속 실행 (2026-09-26)
+run1 Limit: 20 0.29ms
+run1 Limit/Offset: 20/90000 61.3ms
+run2 Limit: 20 0.253ms
+run2 Limit/Offset: 20/90000 57.2ms
+run3 Limit: 20 0.27ms
+run3 Limit/Offset: 20/90000 50.9ms
+run4 Limit: 20 0.283ms
+run4 Limit/Offset: 20/90000 51.6ms
+run5 Limit: 20 0.294ms
+run5 Limit/Offset: 20/90000 49ms
