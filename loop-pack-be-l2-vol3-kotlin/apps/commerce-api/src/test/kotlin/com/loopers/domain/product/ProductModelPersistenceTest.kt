@@ -161,7 +161,7 @@ class ProductModelPersistenceTest @Autowired constructor(
         @Test
         fun columnOrderMatchesAdoptedPlan() {
             // 정렬 방향(Collation)은 단언하지 않는다. Hibernate 6.6.11 이 columnList 의 desc 를
-            // 통과시켜 실제로 D 인덱스가 만들어지는 것은 2026-09-20 에 확인했지만, 오름차순이어도
+            // 통과시켜 실제로 D 인덱스가 만들어지는 것은 2026-09-21 에 확인했지만, 오름차순이어도
             // Backward index scan 으로 같은 계획이 나오므로(가설 3.5.5) 방향이 바뀌는 것은 회귀가 아니다.
             // 회귀인 것은 컬럼 순서다 - 아래가 그것만 본다.
             assertAll(
