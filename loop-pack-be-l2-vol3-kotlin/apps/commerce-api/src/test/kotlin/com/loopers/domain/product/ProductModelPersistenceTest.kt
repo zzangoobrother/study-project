@@ -154,8 +154,9 @@ class ProductModelPersistenceTest @Autowired constructor(
          * 컬럼 순서까지 보는 이유는 이 순서 자체가 측정으로 정해졌기 때문이다.
          * brand_id 가 선두여야 기존 idx_products_brand_id 를 흡수하고, deleted_at 이 그다음에
          * 등치로 고정돼야 뒤의 정렬 키(like_count, id)가 인덱스 순서 그대로 쓰인다.
-         * 순서가 바뀌면 컴파일도 테스트도 통과하지만 count 쿼리가 인덱스 온리를 잃는다
-         * (2026-09-20 실측 4.06ms → 10.6ms).
+         * 컬럼이 빠지면 count 쿼리가 인덱스 온리를 잃고(2026-09-20 실측 4.06ms → 10.6ms, A 안),
+         * 순서가 바뀌면 커버링은 남지만 idx_products_brand_id 흡수를 잃는다(B 안).
+         * 둘 다 컴파일도 다른 테스트도 통과하므로 이 단언만 잡는다. (설계 문서 6.4 장)
          */
         @DisplayName("두 인덱스의 컬럼 순서가 채택안(C 안)과 일치한다.")
         @Test
