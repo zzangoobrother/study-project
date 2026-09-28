@@ -338,7 +338,8 @@ B 채택  idx_products_del_brand_like = (deleted_at, brand_id, ...)
 실행 2 회를 먼저 돌렸다. 데이터는 `loadtest/seed-products.sql` 로 매번 같은 것을 썼다. `actual
 time` 은 1 회 측정이 아니라 **안별 5 회 반복의 중앙값**이다 — A 안 count ① 의 단발 측정이 개선
 전보다 느리게 나와(11.6ms > 9.16ms) 1 회로는 판정할 수 없었다(`after-a.txt`). 그래서 뒤에 5 회
-시리즈를 따로 돌렸고(`timing-5runs.txt`), 아래 표의 `actual time` 은 그 중앙값이다. `rows` ·
+시리즈를 따로 돌렸고(`timing-5runs.txt`), 아래 표의 `actual time` 은 그 중앙값이다 — **단, 개선 전
+행은 예외로 1 회 측정이다**(count 표 아래 인용 블록). `rows` ·
 `key` · `Extra` 는 흔들리지 않으므로 1 회로 충분하다.
 
 > **11.6ms 와 18.3ms 는 서로 다른 측정이다.** 11.6ms 는 5 회 규약을 만들게 한 `after-a.txt` 의
@@ -353,7 +354,7 @@ count 표를 목록(content) 표와 따로 둔 이유는 — **한 요청이 쿼
 
 | | `key` | `rows`(추정) | `Extra` | `actual rows` | `actual time`(중앙값) |
 |---|---|---|---|---|---|
-| 개선 전 | `idx_products_brand_id` | 49,420 | `Using where; Using filesort` | 25,000 | 21.1 ms |
+| 개선 전 | `idx_products_brand_id` | 49,420 | `Using where; Using filesort` | 25,000 | 21.1 ms *(1 회)* |
 | A 안 | `idx_products_brand_like` | 49,420 | `Using where` | 21 | 0.275 ms |
 | B 안 | `idx_products_del_brand_like` | 48,124 | `Using index condition` | 20 | 0.273 ms |
 | C 안 | `idx_products_brand_del_like` | 48,124 | `Using index condition` | 20 | 0.281 ms |
@@ -362,7 +363,7 @@ count 표를 목록(content) 표와 따로 둔 이유는 — **한 요청이 쿼
 
 | | `key` | `rows`(추정) | `Extra` | `actual rows` | `actual time`(중앙값) |
 |---|---|---|---|---|---|
-| 개선 전 | `NULL` (전체 스캔) | 99,692 | `Using where; Using filesort` | 100,000 | 35.1 ms |
+| 개선 전 | `NULL` (전체 스캔) | 99,692 | `Using where; Using filesort` | 100,000 | 35.1 ms *(1 회)* |
 | A 안 | `idx_products_like` | 20 | `Using where` | 22 | 0.101 ms |
 | B 안 | `idx_products_del_like` | 49,846 | `Using index condition` | 20 | 0.416 ms |
 | C 안 | `idx_products_del_like` | 49,846 | `Using index condition` | 20 | 0.337 ms |
@@ -382,8 +383,8 @@ count 표를 목록(content) 표와 따로 둔 이유는 — **한 요청이 쿼
 
 | | `key` | `Extra` (`Using index` 유무) | `actual time`(중앙값) |
 |---|---|---|---|
-| 개선 전 ① | `idx_products_brand_id` | `Using where` (없음) | 9.16 ms *(1 회 측정 — 아래 참고)* |
-| 개선 전 ② | `NULL` | `Using where` (없음) | 14.9 ms |
+| 개선 전 ① | `idx_products_brand_id` | `Using where` (없음) | 9.16 ms *(1 회)* |
+| 개선 전 ② | `NULL` | `Using where` (없음) | 14.9 ms *(1 회)* |
 | A 안 ① | `idx_products_brand_id` | `Using where` (없음) | 10.6 ms |
 | A 안 ② | `NULL` | `Using where` (없음) | 14.9 ms |
 | B 안 ① | `idx_products_del_brand_like` | `Using where; Using index` (있음) | 4.37 ms |
@@ -391,13 +392,15 @@ count 표를 목록(content) 표와 따로 둔 이유는 — **한 요청이 쿼
 | C 안 ① | `idx_products_brand_del_like` | `Using where; Using index` (있음) | 4.06 ms |
 | C 안 ② | `idx_products_del_like` | `Using where; Using index` (있음) | 14.1 ms |
 
-> **개선 전 count ① 의 9.16ms 는 1 회 측정이다.** 5 회 반복 규약은 Task 3 에서 생겼고 기준선은
-> 그전에 쟀다. A 안 중앙값(10.6ms)보다 빠른 값이라 이 둘만으로 "A 가 개선 전보다 느리다" 를
-> 판정할 수는 없지만, 채택안(C 안 4.06ms)과의 비교에는 영향이 없다.
+> **개선 전 네 칸(content ① 21.1 · content ② 35.1 · count ① 9.16 · count ② 14.9 ms)은 전부 1 회
+> 측정이다** (`before.txt`). 5 회 반복 규약은 Task 3 에서 생겼고 기준선은 그전에 쟀다. content 는
+> 개선폭이 두 자릿수 배라 1 회로도 흔들리지 않지만, count ① 의 9.16ms 는 A 안 중앙값(10.6ms)보다
+> 빠른 값이라 이 둘만으로 "A 가 개선 전보다 느리다" 를 판정할 수는 없다. 채택안(C 안 4.06ms)과의
+> 비교에는 영향이 없다.
 
-> **요청 1 회(content + count) 합산 중앙값.**
+> **요청 1 회(content + count) — 두 중앙값의 합.** 요청마다 합을 낸 뒤 중앙값을 잡은 것이 아니다.
 > ```
-> 경로 ①   A 10.9 ms    B 4.6 ms     C 4.34 ms
+> 경로 ①   A 10.9 ms    B 4.64 ms    C 4.34 ms
 > 경로 ②   A 15.0 ms    B 14.4 ms    C 14.4 ms
 > ```
 > 경로 ② count 는 세 안이 같다 — 커버링 인덱스를 써도 94,737 행을 세는 일 자체는 줄지 않기
@@ -451,9 +454,11 @@ index`)을 **B 와 대등하게** 유지하면서(4.06ms 대 4.37ms) 선두가 `
 count 성능을 동시에 가진 안이었다.**
 
 **C 가 B 를 타이밍으로 이긴 것은 아니다.** 5 회 원본을 열면 두 분포가 거의 완전히 겹친다 —
-B 는 `4.02 ~ 5.15ms`, C 는 `3.95 ~ 4.63ms` 다(`timing-5runs.txt`). 중앙값 0.31ms 차이를 우위로
-읽으면 안 되는 이유는 격자 안에 있다 — 같은 인덱스를 쓰는 B·C 의 경로 ② content 가 0.416ms 와
-0.337ms 로 갈렸다(3.6 장). 그 폭보다 작은 차이다.
+B 는 `4.02 ~ 5.15ms`, C 는 `3.95 ~ 4.63ms` 다(`timing-5runs.txt`). 중앙값 0.31ms 차이는 이
+겹침 안에 있다. 격자 안에도 보조 근거가 있다 — 같은 인덱스를 쓰는 B·C 의 경로 ② content 가
+0.416ms 와 0.337ms 로 **19%** 갈렸다(3.6 장). 0.31ms 는 B 의 4.37ms 대비 **7%** 로, 상대 폭으로
+그보다 작다. 절대값(0.31ms 대 0.079ms)으로 비교하면 안 된다 — 두 측정의 크기가 10 배 넘게 달라
+노이즈도 크기에 비례해 커진다.
 
 **그래서 C 의 승리는 실측이 아니라 구조다.** count 에서 B 와 비긴 상태에서, 선두가 `brand_id`
 라 인덱스를 하나 덜 남길 수 있다는 것만으로 이겼다. 이 구분을 적어 두는 이유는 — 다음에 이
