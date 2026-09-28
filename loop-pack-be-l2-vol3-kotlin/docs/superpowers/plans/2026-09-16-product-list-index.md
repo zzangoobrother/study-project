@@ -852,8 +852,8 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **절차가 두 군데에서 바뀌었다.** 둘 다 측정 중에 드러난 것이라 계획 단계에서는 알 수 없었다.
 
-**① `actual time` 을 5 회 반복 중앙값으로 읽는다.** 개선 전 count ① 이 9.16 ms 였는데 A 안 1 회차가
-11.6 ms 로 나왔다 — 인덱스를 걸고 더 느려 보이는 값이라 1 회 측정으로는 판정이 불가능했다.
+**① `actual time` 을 5 회 반복 중앙값으로 읽는다.** 개선 전 count ① 이 9.16 ms 였는데 A 안 단발
+측정(`after-a.txt`)이 11.6 ms 로 나왔다 — 인덱스를 걸고 더 느려 보이는 값이라 1 회 측정으로는 판정이 불가능했다.
 `explain-product-list.sql` 을 안별로 5 회씩 돌려 중앙값을 읽으니 A 안은 10.6 ms 였다
 (`loadtest/results/explain/timing-5runs.txt`).
 
@@ -885,10 +885,10 @@ Step 7 이 예고한 대로 **A 안 count ① 의 `key` 는 A 안 인덱스가 �
 였다.** 둘 다 `deleted_at` 이 없어 행 접근이 필요하니 옵티마이저가 더 좁은 쪽을 골랐을 뿐이고,
 여기서 판정하는 것은 어느 인덱스가 선택됐는가가 아니라 `Using index` 가 있는가다.
 
-요청 1 회(content + count) 합산 중앙값:
+요청 1 회(content + count) — 두 중앙값의 합 (요청별 합의 중앙값이 아니다):
 
 ```
-경로 ①   A 10.9 ms    B 4.6 ms     C 4.34 ms
+경로 ①   A 10.9 ms    B 4.64 ms    C 4.34 ms
 경로 ②   A 15.0 ms    B 14.4 ms    C 14.4 ms
 ```
 
@@ -1270,6 +1270,14 @@ export function handleSummary(data) {
     return result;
 }
 ```
+
+> **2026-09-28 — 위 코드는 최초 작성본(`8cd7f276`)이다. 지금의 `loadtest/products.js` 는 `bd4a957d`
+> 기준으로 두 군데가 다르다.** ① `TARGET_TPS` 기본값이 300 이 아니라 **30** 이다(실행 결과 ①).
+> ② `options.thresholds` 에 `'http_req_duration{phase:measurement}'` 가 선언돼 있다 — k6 는
+> thresholds 에 선언된 태그 서브메트릭만 요약에 남기므로, 이 선언 없이는 Step 5 스니펫이 읽는 키가
+> 존재하지 않아 `KeyError` 로 죽는다. 요약(`buildConsoleSummary`)도 같은 키를 읽는다.
+> 재현할 때는 이 블록이 아니라 파일을 쓴다. 아래 Step 2 · 3 · 6 의 `TARGET_TPS=300` 도 당시 명령
+> 그대로이며, 실제 측정은 30 이다.
 
 - [x] **Step 2: `after` 를 먼저 측정한다 (인덱스가 이미 있는 상태)**
 
