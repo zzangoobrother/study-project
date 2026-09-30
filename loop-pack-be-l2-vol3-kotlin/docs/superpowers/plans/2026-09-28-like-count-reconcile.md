@@ -52,7 +52,9 @@ JUnit 5 · AssertJ · mockito-kotlin (`@MockitoSpyBean`) / Testcontainers
 2. **좋아요 행이 하나도 없는데 카운트가 양수인 상품** — `INNER JOIN` 으로 쓰면 정확히 이 방향이 빠진다(2026-09-28 설계 문서 3.1 장). → Task 1 `includesProductsWithoutAnyLikeRow`
 3. **탐지와 재검증 사이에 상품이 삭제됨** — 보정도 실패도 아닌 건너뜀이어야 한다. → Task 1 `returnsProductGone_whenProductIsDeleted`
 4. **후보 하나의 실패(락 대기 초과 등)** — 나머지 후보는 보정되고, 잡은 `FAILED` 로 끝나 재실행 대상임이 드러나야 한다. → Task 2 `correctsOthersAndFails_whenOneProductFails`
-5. **보정 직후 재실행** — 두 번째 실행은 후보 0 건으로 정상 종료해야 한다(`RunIdIncrementer`). → Task 2 `findsNothing_whenRunAgainAfterCorrection`
+5. **보정 직후 재실행** — 두 번째 실행은 후보 0 건으로 정상 종료해야 한다. → Task 2 `findsNothing_whenRunAgainAfterCorrection`
+6. **직전 실행이 `dryRun=false` 였고 이번엔 생략** — Boot 러너는 직전 파라미터를 incrementer 에 넘기고 `RunIdIncrementer` 는 그것을 복사하므로
+   `dryRun=false` 가 조용히 이어진다(2026-09-28 설계 문서 2.2 장). 덮어쓰지 않아야 한다. → Task 2 `doesNotCarryOverDryRun_whenOmittedOnNextLaunch`
 
 ---
 
@@ -94,6 +96,7 @@ Repository 와 Reconciler 를 나누는 이유: Task 3 의 경합 테스트가 *
 - `docs/superpowers/specs/2026-08-20-product-like-design.md` — 2 장 제외 표, 11.3 장 머리
 - `docs/superpowers/specs/2026-09-28-like-count-reconcile-design.md` — 상태 줄
 - `apps/commerce-api/src/main/kotlin/com/loopers/application/like/LikeFacade.kt` — 클래스 KDoc 한 단락
+- `apps/commerce-batch/src/main/kotlin/com/loopers/batch/job/likecount/LikeCountReconciler.kt` — `REQUIRES_NEW` 근거 단락
 - `CLAUDE.md` (Gradle 루트) — 테스트 명령, 새 파일 위치 규칙의 예외
 
 ---
@@ -103,9 +106,9 @@ Repository 와 Reconciler 를 나누는 이유: Task 3 의 경합 테스트가 *
 | # | 태스크 | 산출물 | 테스트 |
 |---|---|---|---|
 | 1 | 탐지·재검증 SQL 과 보정 트랜잭션 | Repository, Reconciler, 테스트 DDL·헬퍼 | 통합 7 |
-| 2 | 잡 · Tasklet | JobConfig, Tasklet | E2E 5 |
+| 2 | 잡 · Tasklet | JobConfig, Tasklet | E2E 6 |
 | 3 | 경합 테스트 | (테스트만) | 경합 3 |
-| 4 | 문서 갱신 | 설계 문서 2 개, KDoc, CLAUDE.md | — |
+| 4 | 문서 갱신 | 설계 문서 2 개, KDoc 2 개, CLAUDE.md | — |
 
 태스크가 끝날 때마다 멈춰 보고하고 다음 진행 여부를 묻는다.
 
@@ -610,6 +613,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - 잡는 예외는 `DataAccessException`(락 대기 초과·교착 상태 희생 등 SQL 실패)과 `TransactionException`(커밋 실패)이다. 그 밖의 예외는 버그이므로 잡지 않고 즉시 스텝을 끝낸다.
 - `StepContribution` 에는 읽기 건수를 한 번에 더하는 메서드가 없어 `incrementReadCount()` 를 후보 수만큼 부른다.
 - 테스트에서 `spring.batch.job.enabled=false` 를 준다. 안 주면 컨텍스트 기동 시 Boot 의 `JobLauncherApplicationRunner` 가 테이블 생성(`@Sql`) 전에 잡을 한 번 돌린다.
+- **`RunIdIncrementer` 를 쓰지 않는다** (리뷰 초점 6, 2026-09-28 설계 문서 2.2 장). Boot 러너는 `getNextJobParameters(job)` 로 직전 실행의 파라미터를
+  incrementer 에 넘기고, `RunIdIncrementer` 는 그것을 복사한 채 `run.id` 만 올린다. `run.id` 만 새로 만드는 incrementer 를 쓴다.
+  `uniqueJobParametersBuilder` 는 incrementer 를 거치지 않으므로, 이 경로를 검증하는 테스트는 `JobParametersBuilder(jobExplorer).getNextJobParameters(job)` 로
+  Boot 러너와 같은 방식으로 파라미터를 만든다.
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다**
 
@@ -631,6 +638,8 @@ import org.mockito.kotlin.whenever
 import org.springframework.batch.core.ExitStatus
 import org.springframework.batch.core.Job
 import org.springframework.batch.core.JobExecution
+import org.springframework.batch.core.JobParametersBuilder
+import org.springframework.batch.core.explore.JobExplorer
 import org.springframework.batch.test.JobLauncherTestUtils
 import org.springframework.batch.test.context.SpringBatchTest
 import org.springframework.beans.factory.annotation.Autowired
@@ -655,6 +664,7 @@ class LikeCountReconcileJobE2ETest @Autowired constructor(
     // IDE 정적 분석 상 [SpringBatchTest] 의 주입보다 [SpringBootTest] 의 주입이 우선되어 오류처럼 보일 수 있으나 정상 동작한다. (DemoJobE2ETest 와 같다)
     private val jobLauncherTestUtils: JobLauncherTestUtils,
     @param:Qualifier(LikeCountReconcileJobConfig.JOB_NAME) private val job: Job,
+    private val jobExplorer: JobExplorer,
     jdbcTemplate: JdbcTemplate,
 ) {
     @MockitoSpyBean
@@ -685,6 +695,15 @@ class LikeCountReconcileJobE2ETest @Autowired constructor(
         return jobLauncherTestUtils.launchJob(builder.toJobParameters())
     }
 
+    /**
+     * `--job.name` 기동 때 Boot 의 JobLauncherApplicationRunner 가 파라미터를 만드는 방식과 같다 —
+     * 직전 실행의 파라미터를 잡의 incrementer 에 넘긴다. uniqueJobParametersBuilder 는 incrementer 를 거치지 않는다.
+     */
+    private fun launchLikeBootRunner(): JobExecution {
+        jobLauncherTestUtils.job = job
+        return jobLauncherTestUtils.launchJob(JobParametersBuilder(jobExplorer).getNextJobParameters(job).toJobParameters())
+    }
+
     @DisplayName("dryRun 을 주지 않으면, ")
     @Nested
     inner class DefaultDryRun {
@@ -705,6 +724,28 @@ class LikeCountReconcileJobE2ETest @Autowired constructor(
                 { assertThat(step.writeCount).isEqualTo(0L) },
                 { assertThat(tables.likeCountOf(1L)).isEqualTo(5L) },
                 { assertThat(tables.likeCountOf(2L)).isEqualTo(0L) },
+            )
+        }
+
+        @DisplayName("직전 실행이 dryRun=false 였어도, 이전 파라미터를 이어받지 않아 덮어쓰지 않는다.")
+        @Test
+        fun doesNotCarryOverDryRun_whenOmittedOnNextLaunch() {
+            // arrange — 한 번 보정한 뒤 새로 어긋난 상품을 만든다
+            arrangeProducts()
+            launch(dryRun = "false")
+            tables.insertProduct(id = 5L, likeCount = 4L) // 실제 0
+
+            // act
+            val execution = launchLikeBootRunner()
+
+            // assert
+            val step = execution.stepExecutions.single()
+            assertAll(
+                { assertThat(execution.jobParameters.getString("dryRun")).isNull() },
+                { assertThat(execution.exitStatus.exitCode).isEqualTo(ExitStatus.COMPLETED.exitCode) },
+                { assertThat(step.readCount).isEqualTo(1L) },
+                { assertThat(step.writeCount).isEqualTo(0L) },
+                { assertThat(tables.likeCountOf(5L)).isEqualTo(4L) },
             )
         }
     }
@@ -910,10 +951,11 @@ import com.loopers.batch.job.likecount.step.LikeCountReconcileTasklet
 import com.loopers.batch.listener.JobListener
 import com.loopers.batch.listener.StepMonitorListener
 import org.springframework.batch.core.Job
+import org.springframework.batch.core.JobParametersBuilder
+import org.springframework.batch.core.JobParametersIncrementer
 import org.springframework.batch.core.Step
 import org.springframework.batch.core.configuration.annotation.JobScope
 import org.springframework.batch.core.job.builder.JobBuilder
-import org.springframework.batch.core.launch.support.RunIdIncrementer
 import org.springframework.batch.core.repository.JobRepository
 import org.springframework.batch.core.step.builder.StepBuilder
 import org.springframework.batch.support.transaction.ResourcelessTransactionManager
@@ -939,12 +981,25 @@ class LikeCountReconcileJobConfig(
     companion object {
         const val JOB_NAME = "likeCountReconcileJob"
         private const val STEP_NAME = "likeCountReconcileStep"
+        private const val RUN_ID = "run.id"
+
+        /**
+         * run.id 만 새로 만들고 직전 실행의 나머지 파라미터는 버린다.
+         *
+         * RunIdIncrementer 를 쓰지 않는 이유: Boot 러너는 직전 실행의 파라미터를 incrementer 에 넘기고, RunIdIncrementer 는
+         * 그것을 복사한 채 run.id 만 올린다. 어제 dryRun=false 로 돌렸다면 오늘 dryRun 을 생략해도 false 가 이어져 덮어쓰기가 된다.
+         * (2026-09-28 설계 문서 2.2 장)
+         */
+        private val RUN_ID_ONLY_INCREMENTER = JobParametersIncrementer { previous ->
+            val lastRunId = previous?.getLong(RUN_ID) ?: 0L
+            JobParametersBuilder().addLong(RUN_ID, lastRunId + 1).toJobParameters()
+        }
     }
 
     @Bean(JOB_NAME)
     fun likeCountReconcileJob(): Job =
         JobBuilder(JOB_NAME, jobRepository)
-            .incrementer(RunIdIncrementer())
+            .incrementer(RUN_ID_ONLY_INCREMENTER)
             .start(likeCountReconcileStep())
             .listener(jobListener)
             .build()
@@ -965,10 +1020,16 @@ class LikeCountReconcileJobConfig(
 ./gradlew :apps:commerce-batch:test --tests 'com.loopers.job.likecount.LikeCountReconcileJobE2ETest'
 ```
 
-기대: **5 tests / 0 failures**.
+기대: **6 tests / 0 failures**.
 
 `correctsOthersAndFails_whenOneProductFails` 가 `COMPLETED` 로 끝나면 스파이 스텁이 먹지 않은 것이다.
 `doThrow(...).whenever(repository)` 형태인지 확인한다 — `whenever(repository.lockLikeCount(1L))` 형태는 스텁 설정 중에 실제 메서드를 호출한다.
+
+**`doesNotCarryOverDryRun_whenOmittedOnNextLaunch` 가 실제로 이어받기를 잡는지 한 번 확인한다 (커밋하지 않는다).**
+`.incrementer(RUN_ID_ONLY_INCREMENTER)` 를 잠깐 `.incrementer(RunIdIncrementer())` 로 바꿔 이 테스트만 실행한다.
+기대: **실패** — `dryRun` 이 `"false"` 로 이어지고 상품 5 가 0 으로 덮인다. 확인했으면 되돌린다.
+실패하지 않으면 멈추고 보고한다 — 리뷰 초점 6 의 전제(2026-09-28 설계 문서 2.2 장)가 이 Spring Batch 버전에서 성립하지 않는다는 뜻이므로
+설계 문서를 먼저 고쳐야 한다.
 
 - [ ] **Step 6: 전체 테스트와 린트**
 
@@ -976,7 +1037,7 @@ class LikeCountReconcileJobConfig(
 ./gradlew :apps:commerce-batch:test :apps:commerce-batch:ktlintCheck
 ```
 
-기대: **15 tests / 0 failures** (10 + 5), ktlint 통과.
+기대: **16 tests / 0 failures** (10 + 6), ktlint 통과.
 Tasklet 의 `log.warn("[dryRun] ...")` 줄이 130 자를 넘으면 메시지 문자열을 두 줄로 나눠 `+` 로 잇는다.
 
 - [ ] **Step 7: 커밋**
@@ -1239,6 +1300,7 @@ class LikeCountReconcileConcurrencyTest @Autowired constructor(
 (a) `LikeCountReconcileRepository.COUNT_ACTIVE_LIKES_SQL` 끝에 ` LOCK IN SHARE MODE` 를 붙인다 — 설계 문서 3.4 장의 잠금 읽기.
 
 기대: `doesNotWait_whenLikeRowIsUncommitted` 가 `TimeoutException` 으로 **실패**한다.
+실제 락 대기나 교착 상태가 생기므로 `innodb_lock_wait_timeout`(기본 50 초)만큼 늘어질 수 있다. **느려도 정상이다** — 실패로 끝나기만 하면 된다.
 
 (b) `LikeCountReconciler.reconcile` 의 `@Transactional(...)` 줄을 지운다 — 문장마다 자동 커밋.
 
@@ -1256,7 +1318,7 @@ git diff --stat apps/commerce-batch/src/main   # 되돌린 뒤 비어 있어야 
 ./gradlew :apps:commerce-batch:test :apps:commerce-batch:ktlintCheck
 ```
 
-기대: **18 tests / 0 failures** (15 + 3), ktlint 통과.
+기대: **19 tests / 0 failures** (16 + 3), ktlint 통과.
 
 - [ ] **Step 5: 커밋**
 
@@ -1275,6 +1337,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - 수정: `docs/superpowers/specs/2026-08-20-product-like-design.md` — 2 장 제외 표의 "좋아요 수 보정 배치" 행, 11.3 장 머리
 - 수정: `docs/superpowers/specs/2026-09-28-like-count-reconcile-design.md` — 머리의 상태 줄
 - 수정: `apps/commerce-api/src/main/kotlin/com/loopers/application/like/LikeFacade.kt` — 클래스 KDoc
+- 수정: `apps/commerce-batch/src/main/kotlin/com/loopers/batch/job/likecount/LikeCountReconciler.kt` — 클래스 KDoc 의 `REQUIRES_NEW` 단락
 - 수정: `CLAUDE.md` (Gradle 루트 `loop-pack-be-l2-vol3-kotlin/CLAUDE.md`)
 
 **인터페이스:**
@@ -1330,6 +1393,26 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 첫 줄이 130 자를 넘으면 `상품 행을 나중에 갱신하는 순서는` 뒤에서 줄을 나눈다.
 
+- [ ] **Step 4-1: `LikeCountReconciler` 클래스 KDoc — `REQUIRES_NEW` 근거 바로잡기**
+
+지금 스텝은 `ResourcelessTransactionManager` 로 돌아 바깥에 DB 트랜잭션이 없다. 그래서 `REQUIRED` 여도 상품마다 새 트랜잭션이 열린다.
+현재 단락은 `REQUIRES_NEW` 가 **지금** 필요한 것처럼 읽히므로, 실제로 지키는 것(나중의 변경)으로 고친다. 동작은 바뀌지 않는다.
+
+다음 단락을
+
+```kotlin
+ * REQUIRES_NEW 인 이유: 스텝은 ResourcelessTransactionManager 로 돈다. 상품마다 트랜잭션을 끊어야
+ * 한 상품의 락이 다음 상품을 처리하는 동안 남지 않는다. (2026-09-28 설계 문서 3.2 장)
+```
+
+아래로 바꾼다.
+
+```kotlin
+ * 상품마다 트랜잭션을 끊어야 한 상품의 락이 다음 상품을 처리하는 동안 남지 않는다. (2026-09-28 설계 문서 3.2 장)
+ * 지금은 스텝이 ResourcelessTransactionManager 로 돌아 바깥 DB 트랜잭션이 없으므로 REQUIRED 여도 같다.
+ * REQUIRES_NEW 는 누군가 스텝 트랜잭션 매니저를 실제 DB 매니저로 바꿨을 때 모든 상품이 한 트랜잭션에 묶이는 것을 막는다.
+```
+
 - [ ] **Step 5: `CLAUDE.md`**
 
 (a) 맨 위 명령 블록에 한 줄을 더한다.
@@ -1356,7 +1439,7 @@ KDoc 만 바꿨지만 commerce-api 도 컴파일·린트를 확인한다.
 ./gradlew :apps:commerce-api:compileKotlin :apps:commerce-api:ktlintCheck :apps:commerce-batch:test
 ```
 
-기대: 성공, commerce-batch **18 tests / 0 failures**.
+기대: 성공, commerce-batch **19 tests / 0 failures**.
 
 - [ ] **Step 7: 커밋**
 
@@ -1364,6 +1447,7 @@ KDoc 만 바꿨지만 commerce-api 도 컴파일·린트를 확인한다.
 git add docs/superpowers/specs/2026-08-20-product-like-design.md \
         docs/superpowers/specs/2026-09-28-like-count-reconcile-design.md \
         apps/commerce-api/src/main/kotlin/com/loopers/application/like/LikeFacade.kt \
+        apps/commerce-batch/src/main/kotlin/com/loopers/batch/job/likecount/LikeCountReconciler.kt \
         CLAUDE.md
 git commit -m "docs : 좋아요 수 보정 배치 도입을 설계 문서와 규약에 반영한다
 
