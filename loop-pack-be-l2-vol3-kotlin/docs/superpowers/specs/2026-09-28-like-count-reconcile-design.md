@@ -30,7 +30,7 @@
 - `apps/commerce-batch` 에 잡 `likeCountReconcileJob` 1 개 (Tasklet 스텝 1 개)
 - 잡 파라미터 `dryRun` — 기본 `true`
 - 탐지(집계 쿼리 1 회) → 후보별 재검증·보정(후보당 짧은 트랜잭션 1 개)
-- E2E 테스트, 경합 테스트 2 종
+- 보정 로직 통합 테스트, E2E 테스트, 경합 테스트 3 종
 - 2026-08-20 설계 문서 · 루트 `CLAUDE.md` 의 관련 서술 갱신
 
 ### 제외
@@ -50,7 +50,7 @@
 ### 2.1 잡 구성
 
 ```
-likeCountReconcileJob (RunIdIncrementer, JobListener)
+likeCountReconcileJob (run.id 만 올리는 incrementer — 2.2 장, JobListener)
 └── likeCountReconcileStep (Tasklet, StepMonitorListener)
     ├── ① 탐지    : 어긋난 후보 상품 ID 목록 조회 (락 없음, 1 회)
     └── ② 재검증·보정 : 후보마다 트랜잭션 1 개 — dryRun=false 일 때만
@@ -75,6 +75,12 @@ Chunk 의 청크 단위 트랜잭션도 맞지 않는다 — 여러 상품 행�
 "보정 잡인데 기본이 탐지만 한다" 는 놀라움보다 **이 사고를 한 번 막는 쪽이 비싸다.** 덮어쓰려면 `dryRun=false` 를 명시한다.
 
 `dryRun=true` 는 ① 탐지만 하고 후보를 로그로 남긴다. 재검증은 하지 않으므로 일시적 불일치가 섞여 있을 수 있고, 로그 문구에 그 사실을 적는다.
+
+**기본값이 실제로 적용되려면 `RunIdIncrementer` 를 쓰지 않는다.** `--job.name` 기동 시 Boot 의 `JobLauncherApplicationRunner` 는
+`JobParametersBuilder.getNextJobParameters(job)` 로 **직전 실행의 파라미터 전체**를 incrementer 에 넘기고,
+`RunIdIncrementer` 는 그것을 복사한 채 `run.id` 만 올린다. 이번 기동에 준 키만 덮어쓰므로,
+어제 `dryRun=false` 로 돌렸다면 오늘 `dryRun` 을 생략해도 `false` 가 이어져 덮어쓰기가 된다 — 이 장이 막으려던 사고 그대로다.
+그래서 이 잡은 **`run.id` 만 올리고 나머지 파라미터는 버리는 incrementer** 를 쓴다. `DemoJobConfig` 와 다른 유일한 지점이다.
 
 ### 2.3 commerce-api 밖에 두는 것 — `CLAUDE.md` 규칙의 예외
 
@@ -194,21 +200,28 @@ commerce-batch 에는 엔티티가 없어 `ddl-auto: create` 가 `products` · `
 |---|---|
 | 카운트가 실제보다 큼 (좋아요 행 0, `like_count` 5) | 0 으로 보정 |
 | 카운트가 실제보다 작음 | 실제 행 수로 보정 |
-| 소프트 삭제된 좋아요 행 | 세지 않는다 |
 | 정합한 상품 | 변경 없음, `writeCount` 에 포함되지 않음 |
 | 삭제된 상품 (어긋나 있어도) | 변경 없음 |
 | `dryRun` 미지정 | 아무것도 바뀌지 않음, `readCount` = 후보 수 |
-| 보정 후 `updated_at` | 그대로 |
+| 직전 실행이 `dryRun=false`, 이번엔 생략 (Boot 러너와 같은 파라미터 경로) | 아무것도 바뀌지 않음 — 2.2 장 |
+| `dryRun` 오타 | 아무것도 바뀌지 않고 잡 실패 |
+| 한 상품의 실패 | 나머지는 보정, 잡은 `FAILED` |
+
+"소프트 삭제된 좋아요 행은 세지 않는다", "보정 후 `updated_at` 그대로", "재검증 시점에 삭제된 상품은 건너뜀" 은
+잡을 거치지 않는 보정 로직 통합 테스트(`LikeCountReconcilerIntegrationTest`)가 맡는다. 잡 단위에서 다시 검증할 것이 없다.
 
 ### 4.3 경합 (`LikeCountReconcileConcurrencyTest`)
 
 실제 `LikeFacade` 는 commerce-batch 에 없으므로 그 쓰기 순서(좋아요 행 → 상품 행 UPDATE, 한 트랜잭션)를 `JdbcTemplate` 으로 재현하고,
-`CountDownLatch` 로 3.3 장 표의 두 줄을 고정한다.
+`CountDownLatch` 로 3.3 장 표의 두 줄과, 배치 쪽이 멈춘 한 상황을 고정한다.
 
 1. **좋아요 행만 넣고 멈춘 T** — 배치가 대기 없이 N 을 쓰고 끝난다. T 를 재개해 커밋하면 최종값은 N+1.
-2. **상품 행 UPDATE 까지 하고 커밋 전에 멈춘 T** — 배치가 (1) 에서 대기한다. T 커밋 후 배치가 N+1 을 쓴다(= 변경 없음).
+2. **상품 행 UPDATE 까지 하고 커밋 전에 멈춘 T** — 배치가 (1) 에서 대기한다. T 커밋 후 배치가 실제 값(N+1)을 쓴다.
+3. **배치가 센 뒤 쓰기 전에 멈춤, 그때 T 시작** — T 가 상품 행에서 대기한다. 잠금·세기·쓰기가 한 트랜잭션이라는 증거다.
+   이것이 없으면 `JdbcTemplate` 이 트랜잭션에 묶이지 않고 문장마다 자동 커밋되는 사고를 못 잡는다 — 1·2 번은 덮어쓰는 값이 절댓값이라 그 상태에서도 통과한다.
 
-3.4 장의 한 문장 UPDATE 로 바꾸면 1 번이 교착 상태나 대기로 깨져야 한다. 구현 중 한 번 확인해 이 테스트가 실제로 순서를 검증하는지 본다.
+테스트가 실제로 순서를 검증하는지 구현 중 한 번 확인한다. 세는 SELECT 를 잠금 읽기(`LOCK IN SHARE MODE`, 3.4 장의 한 문장 UPDATE 와 같은 성질)로 바꾸면
+1 번이 깨져야 하고, 보정의 `@Transactional` 을 지우면 3 번이 깨져야 한다.
 
 ---
 
@@ -241,6 +254,9 @@ commerce-api 에 스키마 마이그레이션 도구가 생기면 테스트 DDL 
 3.3 장의 안전성은 "좋아요 행 먼저, 상품 행 나중, 한 트랜잭션" 에 기댄다. 누군가 `LikeFacade` 에서 순서를 뒤집거나
 카운트 갱신을 비동기(이벤트 · Redis, 2026-08-20 11.4 장)로 옮기면 **이 배치가 틀린 값을 쓰기 시작한다.**
 `LikeFacade` KDoc 에 이 의존을 한 줄 남긴다.
+
+JPA 쪽에서도 이 순서를 받치는 설정이 있다. `ProductJpaRepository.increaseLikeCount` 의 `flushAutomatically = true` 는
+`save()` 의 INSERT 가 쓰기 지연으로 미뤄져도 상품 UPDATE 직전에 flush 되게 한다. 이 옵션을 빼면 SQL 수준에서 순서가 뒤집힐 수 있다.
 
 ### 6.4 로컬 · 측정 DB 에서 `dryRun=false`
 
