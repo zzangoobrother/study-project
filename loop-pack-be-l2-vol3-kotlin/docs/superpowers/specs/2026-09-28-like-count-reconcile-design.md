@@ -2,7 +2,7 @@
 
 - 작성일: 2026-09-28
 - 대상 모듈: `apps/commerce-batch` (이 프로젝트에서 처음으로 commerce-api 밖에 새 코드를 둔다 — 2.3 장)
-- 상태: **설계 승인 대기**
+- 상태: **구현 완료 (2026-10-02)** — 계획은 [plans/2026-09-28-like-count-reconcile.md](../plans/2026-09-28-like-count-reconcile.md)
 - 선행 문서:
   - [2026-08-20 상품 좋아요 API 설계](2026-08-20-product-like-design.md) — `like_count` 증감 경로(6.4 장), "보정 배치는 두지 않는다"는 원래 결정(2 장 제외 표, 11.3 장), 시드 불일치(11.2 장), `product_id` 인덱스 부재(11.7 장)
   - [2026-09-16 상품 목록 인덱스 설계](2026-09-16-product-list-index-design.md) — 합성 `like_count` 를 심은 10 만 건 측정 시드의 출처
