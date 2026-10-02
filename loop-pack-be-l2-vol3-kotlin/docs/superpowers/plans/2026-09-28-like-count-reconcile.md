@@ -1062,7 +1062,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - 제공: 없음 (마지막 코드 태스크)
 
 **배경:** 2026-09-28 설계 문서 3.3 장 표의 세 상황을 래치로 고정한다. commerce-batch 에는 `LikeFacade` 가 없으므로
-그 쓰기 순서(좋아요 행 INSERT → 상품 행 `like_count + 1`, 한 트랜잭션)를 `JdbcTemplate` 으로 재현한다.
+그 쓰기(한 트랜잭션 안에서 좋아요 행 INSERT → 상품 행 `like_count + 1`)를 `JdbcTemplate` 으로 재현한다.
+순서는 배치의 전제가 아니지만, 지금 순서가 "좋아요 행만 바뀐" 순간을 만드는 더 어려운 쪽이라 그대로 따른다.
 
 | 케이스 | 좋아요 트랜잭션 T 의 위치 | 보는 것 |
 |---|---|---|
@@ -1070,7 +1071,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 | 2 | 상품 행까지 갱신하고 커밋 전 멈춤 | 보정이 상품 행 잠금에서 **기다린다**. T 커밋 뒤 최종값 = 실제 |
 | 3 | 보정이 센 뒤 쓰기 전에 멈춤, 그때 T 시작 | T 가 상품 행에서 **기다린다** — 잠금·세기·쓰기가 한 트랜잭션이라는 증거. 최종값 = 실제 |
 
-케이스 3 은 설계 문서 4.3 장의 두 케이스에 **더한 것**이다. 케이스 3 이 없으면 `JdbcTemplate` 이 `@Transactional` 트랜잭션에 묶이지 않아 문장마다 자동 커밋되는 사고를 잡지 못한다.
+케이스 3 은 설계 문서 4.3 장의 3 번이다. 케이스 3 이 없으면 `JdbcTemplate` 이 `@Transactional` 트랜잭션에 묶이지 않아 문장마다 자동 커밋되는 사고를 잡지 못한다.
 케이스 1·2 는 그 상태에서도 통과한다 — 덮어쓰는 값이 절댓값이라서다.
 
 모든 대기에는 시간 제한을 둔다. 멈춘 스레드가 락을 쥔 채 남으면 `@AfterEach` 의 `TRUNCATE` 가 걸려 테스트 전체가 멈추므로,
@@ -1143,7 +1144,9 @@ class LikeCountReconcileConcurrencyTest @Autowired constructor(
     }
 
     /**
-     * LikeFacade.doLike 의 쓰기 순서를 재현한다 — 좋아요 행 먼저, 상품 행 UPDATE 나중, 한 트랜잭션.
+     * LikeFacade.doLike 의 쓰기를 재현한다 — 한 트랜잭션 안에서 좋아요 행 먼저, 상품 행 UPDATE 나중.
+     * 순서는 배치의 전제가 아니지만, "좋아요 행만 바뀐" 순간이 생기는 지금 순서가 더 어려운 쪽이라 그대로 따른다.
+     * (2026-09-28 설계 문서 3.3 장)
      * 두 SQL 은 commerce-api 의 LikeService.like(신규 행 저장)와 ProductJpaRepository.increaseLikeCount 와 같은 모양이다.
      */
     private fun startLike(userId: Long, afterLikeRow: Gate, afterProductRow: Gate): Future<*> =
@@ -1387,13 +1390,32 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ```kotlin
  *
- * doLike / doUnlike 가 좋아요 행을 먼저 바꾸고 상품 행을 나중에 갱신하는 순서는 commerce-batch 의 좋아요 수 보정 배치가 전제한다.
- * 순서를 뒤집거나 카운트 갱신을 이 트랜잭션 밖(이벤트 · Redis)으로 옮기면 그 배치가 틀린 값을 쓴다. (2026-09-28 설계 문서 3.3, 6.3 장)
+ * doLike / doUnlike 가 좋아요 행 변경과 카운트 갱신을 한 트랜잭션에서 하는 것은 commerce-batch 의 좋아요 수 보정 배치가 전제한다.
+ * 카운트 갱신을 이 트랜잭션 밖(이벤트 · Redis)으로 옮기면 그 배치가 틀린 값을 쓴다. 두 쓰기의 순서는 상관없다.
+ * (2026-09-28 설계 문서 3.3, 6.3 장)
 ```
 
-첫 줄이 130 자를 넘으면 `상품 행을 나중에 갱신하는 순서는` 뒤에서 줄을 나눈다.
+첫 줄이 130 자를 넘으면 `한 트랜잭션에서 하는 것은` 뒤에서 줄을 나눈다.
 
-- [ ] **Step 4-1: `LikeCountReconciler` 클래스 KDoc — `REQUIRES_NEW` 근거 바로잡기**
+- [ ] **Step 4-1: `LikeCountReconciler` 클래스 KDoc — 첫 단락과 `REQUIRES_NEW` 근거 바로잡기**
+
+(a) 첫 단락은 `LikeFacade` 의 쓰기 순서를 근거로 삼는데, 순서는 전제가 아니다(2026-09-28 설계 문서 3.3 장). 다음 단락을
+
+```kotlin
+ * 순서가 전부다 — 상품 행을 먼저 잠그고, 그 뒤에 락 없이 센다. LikeFacade 는 좋아요 행을 먼저 바꾸고
+ * 상품 행을 나중에 갱신하므로, 이 순서면 진행 중인 좋아요 트랜잭션이 어느 지점에 있어도 최종값이 맞는다.
+ * (2026-09-28 설계 문서 3.3 장)
+```
+
+아래로 바꾼다.
+
+```kotlin
+ * 순서가 전부다 — 상품 행을 먼저 잠그고, 그 뒤에 락 없이 센다. LikeFacade 는 좋아요 행 변경과 카운트 갱신을
+ * 한 트랜잭션에서 하고 상품 행 락을 커밋까지 쥐므로, 이 순서면 진행 중인 좋아요 트랜잭션이 어느 지점에 있어도 최종값이 맞는다.
+ * (2026-09-28 설계 문서 3.3 장)
+```
+
+(b) `REQUIRES_NEW` 단락:
 
 지금 스텝은 `ResourcelessTransactionManager` 로 돌아 바깥에 DB 트랜잭션이 없다. 그래서 `REQUIRED` 여도 상품마다 새 트랜잭션이 열린다.
 현재 단락은 `REQUIRES_NEW` 가 **지금** 필요한 것처럼 읽히므로, 실제로 지키는 것(나중의 변경)으로 고친다. 동작은 바뀌지 않는다.
