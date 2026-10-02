@@ -32,6 +32,10 @@ import org.springframework.transaction.support.TransactionTemplate
  *
  * 읽기 경로인 getLikedProducts 에는 @Transactional(readOnly = true) 가 붙어 있다.
  * 그쪽은 예외를 흡수할 일이 없어 위 근거가 적용되지 않고, 필요한 것이 정반대 — 여러 조회가 같은 스냅샷을 보는 것 — 이다.
+ *
+ * doLike / doUnlike 가 좋아요 행 변경과 카운트 갱신을 한 트랜잭션에서 하는 것은 commerce-batch 의 좋아요 수 보정 배치가 전제한다.
+ * 카운트 갱신을 이 트랜잭션 밖(이벤트 · Redis)으로 옮기면 그 배치가 틀린 값을 쓴다. 두 쓰기의 순서는 상관없다.
+ * (2026-09-28 설계 문서 3.3, 6.3 장)
  */
 @Component
 class LikeFacade(

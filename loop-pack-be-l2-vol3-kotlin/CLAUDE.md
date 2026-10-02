@@ -5,6 +5,7 @@ Kotlin 2.0 / Spring Boot 3.4 / JPA + QueryDSL / MySQL 8.0 멀티 모듈. 패키�
 ```bash
 ./gradlew :apps:commerce-api:test          # 전체 테스트 (Docker 필요 — Testcontainers)
 ./gradlew :apps:commerce-api:ktlintCheck   # 스타일 검사 (커밋 전 필수)
+./gradlew :apps:commerce-batch:test        # 배치 잡 테스트 (Docker 필요)
 ```
 
 ---
@@ -18,6 +19,10 @@ supports/  add-on (jackson, logging, monitoring)
 ```
 
 **새 파일은 `apps/commerce-api` 아래에 만든다.** `modules/*`, `supports/*` 는 수정하지 않는다 — 특히 `modules/jpa` 의 `BaseEntity` 는 세 앱이 공유한다. 수정이 필요하면 먼저 확인받는다.
+
+예외는 **배치 잡**이다. 잡은 `apps/commerce-batch` 의 `batch/job/<잡>/` 에 둔다. commerce-batch 는 commerce-api 를 의존하지 않아
+도메인 클래스를 쓸 수 없으므로 `JdbcTemplate` 으로 테이블을 직접 다루고, 테스트 스키마는 `src/test/resources/sql/` 에 따로 둔다
+— 엔티티와 자동으로 동기화되지 않으니 컬럼을 바꾸면 같이 고친다. (2026-09-28 좋아요 수 보정 설계 2.3 장)
 
 > 루트 `supports/`(Gradle 모듈)와 `com.loopers.support`(횡단 관심사 — error, auth, seed)는 무관하다.
 
