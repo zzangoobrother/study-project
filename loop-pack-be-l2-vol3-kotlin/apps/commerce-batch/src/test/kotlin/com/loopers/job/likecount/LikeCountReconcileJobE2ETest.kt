@@ -190,8 +190,11 @@ class LikeCountReconcileJobE2ETest @Autowired constructor(
             val execution = launch(dryRun = "false")
 
             // assert
+            val step = execution.stepExecutions.single()
             assertAll(
                 { assertThat(execution.exitStatus.exitCode).isEqualTo(ExitStatus.FAILED.exitCode) },
+                { assertThat(step.readCount).isEqualTo(2L) },
+                { assertThat(step.writeCount).isEqualTo(1L) },
                 { assertThat(tables.likeCountOf(1L)).isEqualTo(5L) },
                 { assertThat(tables.likeCountOf(2L)).isEqualTo(2L) },
             )
