@@ -83,12 +83,15 @@
 ### 3.2 구성 요소와 계층
 
 ```
-application/product/   ProductFacade (수정), ProductCache (interface)
-application/brand/     BrandCache (interface)
-infrastructure/product/ ProductRedisCache, ProductCacheValue, ProductListCacheValue
-infrastructure/brand/   BrandRedisCache, BrandCacheValue
+application/product/    ProductFacade (수정), ProductCache (interface), ProductCacheValue, ProductListCacheValue
+application/brand/      BrandCache (interface), BrandCacheValue
+infrastructure/cache/   RedisCacheOperations — JSON 직렬화 · TTL · 장애 흡수(7.1 장)를 한곳에
+infrastructure/product/ ProductRedisCache
+infrastructure/brand/   BrandRedisCache
 support/transaction/    AfterCommit — 커밋 뒤 실행 헬퍼 (5.1 장)
 ```
+
+캐시 값 DTO 는 인터페이스 시그니처에 나타나므로 인터페이스와 같은 `application` 에 둔다.
 
 **인터페이스를 `application` 에 둔다.** 캐시는 도메인 규칙이 아니라 유스케이스의 성능 장치다.
 `domain` 에 두면 도메인이 "캐시가 있다" 는 사실을 알게 된다. 대가로 `infrastructure → application` 화살표가 하나 생긴다 —
@@ -236,7 +239,8 @@ commerce-batch · commerce-streamer 는 Redis 명령을 보내지 않으므로 �
 - **Redis 에 CPU 를 배분한다.** 지금 `docker/loadtest-compose.yml` 은 VM 5 CPU 를 MySQL 2 + 앱 3 으로 모두 쓰고,
   Redis 는 "주문 경로는 Redis 를 쓰지 않는다" 는 이유로 배분이 없다. 이번에는 Redis 가 요청 경로에 들어오므로 배분을 바꾼다.
   배분을 바꾸면 2026-09-16 의 결과와 조건이 달라지므로 **캐시 적용 전(before)도 새 배분에서 다시 잰다.** 기존 결과를 재사용하지 않는다.
-  구체적인 배분은 계획서에서 정한다.
+  배분은 MySQL 2.0 · 앱 2.5 · redis-master 0.25 · redis-readonly 0.25 다(합 5.0). 읽기는 replica 로 가지만(6.3 장) 미스 저장과 삭제는 master 로 간다.
+  **기본 compose 파일은 고치지 않고 override 파일로 얹는다** — 기본 파일의 배분은 주문 측정(2026-09-06 · 09-09)의 재현 조건이다.
 - 목록은 기존 `loadtest/products.js`(고정 브랜드 · 0 페이지)를 쓴다. 한 키만 요청하므로 적중률이 거의 100% 인 **최선의 경우**다. 결과에 그렇게 적는다.
 - 상세는 시나리오를 새로 만든다. 10 만 건에 고르게 요청하면 측정 시간 안에 적중이 거의 없으므로,
   요청의 80% 를 상위 100 개 상품에, 20% 를 전체에서 무작위로 보낸다. 이 분포는 가정이며 결과에 그렇게 적는다.
@@ -277,14 +281,16 @@ commerce-api 테스트는 `@AfterEach` 에서 DB 만 비운다(`truncateAllTable
 | 테스트 | 검증 |
 |---|---|
 | `ProductRedisCacheTest` · `BrandRedisCacheTest` (Testcontainers Redis) | 저장 · 조회 왕복, TTL 이 걸린다, `MGET` 부분 적중, 키 형식 |
-| `ProductFacadeIntegrationTest` 추가 | 두 번째 조회는 DB 를 부르지 않는다(`@MockitoSpyBean ProductService` 호출 횟수) |
+| `RedisCommandTimeoutTest` | 두 커넥션 팩토리 모두 명령 타임아웃이 500ms 다(7.2 장) |
+| `ProductCacheIntegrationTest` (신규) | 두 번째 조회는 DB 를 부르지 않는다(`@MockitoSpyBean ProductService` 호출 횟수) |
 | | 좋아요 · 취소 뒤 상세에 새 카운트 |
 | | 어드민 상품 수정 뒤 상세에 새 값, 삭제 뒤 404 |
 | | 어드민 브랜드 수정 뒤 상세 · 목록 모두 새 브랜드 이름 |
 | | 어드민 브랜드 삭제 뒤 연쇄 삭제된 상품의 상세가 404 |
 | | 상품 삭제 트랜잭션이 롤백되면 캐시가 남고 그 값이 DB 와 같다 |
 | | 목록은 TTL 안에서 옛 값을 돌려준다(2 장의 결정을 테스트로 고정) |
-| 장애 우회 | 캐시 구현이 `RedisConnectionFailureException` 을 던져도 상세 · 목록이 DB 값으로 정상 응답한다 |
+| `RedisCacheOperationsFailureTest` | 닫힌 포트를 가리키는 커넥션에서 조회는 `null`(미스), 저장 · 삭제는 예외 없이 끝난다. 구현이 장애를 삼키므로 Facade 는 미스와 같은 경로로 DB 에 간다 |
+| `ProductRedisCacheTest` 추가 | 깨진 JSON 이 저장돼 있으면 미스로 본다 |
 | 기존 테스트 | 9.4 장의 Redis 정리 추가 후 전체 통과 |
 
 ---
