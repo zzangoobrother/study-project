@@ -7,6 +7,8 @@ spring:
 datasource:
   redis:
     database: 0
+    # 정상 GET 은 1ms 미만이다. 장애 때 요청 하나가 잃는 시간을 반 초로 묶는다. (2026-10-04 상품 캐시 설계 7.2 장)
+    command-timeout: 500ms
     master:
       host: ${REDIS_MASTER_HOST}
       port: ${REDIS_MASTER_PORT}
