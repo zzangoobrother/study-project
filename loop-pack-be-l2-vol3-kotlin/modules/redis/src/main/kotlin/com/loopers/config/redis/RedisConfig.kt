@@ -11,6 +11,7 @@ import org.springframework.data.redis.connection.lettuce.LettuceClientConfigurat
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.data.redis.serializer.StringRedisSerializer
+import java.time.Duration
 
 @Configuration
 @EnableConfigurationProperties(RedisProperties::class)
@@ -25,8 +26,8 @@ class RedisConfig(
     @Primary
     @Bean
     fun defaultRedisConnectionFactory(): LettuceConnectionFactory {
-        val (database, master, replicas) = redisProperties
-        return lettuceConnectionFactory(database, master, replicas) {
+        val (database, master, replicas, commandTimeout) = redisProperties
+        return lettuceConnectionFactory(database, master, replicas, commandTimeout) {
             readFrom(ReadFrom.REPLICA_PREFERRED)
         }
     }
@@ -34,8 +35,8 @@ class RedisConfig(
     @Qualifier(CONNECTION_MASTER)
     @Bean
     fun masterRedisConnectionFactory(): LettuceConnectionFactory {
-        val (database, master, replicas) = redisProperties
-        return lettuceConnectionFactory(database, master, replicas) {
+        val (database, master, replicas, commandTimeout) = redisProperties
+        return lettuceConnectionFactory(database, master, replicas, commandTimeout) {
             readFrom(ReadFrom.MASTER)
         }
     }
@@ -62,9 +63,11 @@ class RedisConfig(
         database: Int,
         master: RedisNodeInfo,
         replicas: List<RedisNodeInfo>,
+        commandTimeout: Duration,
         customizer: LettuceClientConfiguration.LettuceClientConfigurationBuilder.() -> Unit = {},
     ): LettuceConnectionFactory {
         val lettuceClientConfiguration = LettuceClientConfiguration.builder()
+            .commandTimeout(commandTimeout)
             .apply(customizer)
             .build()
         val masterReplicaConfig = RedisStaticMasterReplicaConfiguration(master.host, master.port)

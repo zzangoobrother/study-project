@@ -71,6 +71,9 @@ com.loopers
 
 **`infrastructure`** — `~RepositoryImpl` + `~JpaRepository` + `~QueryDslRepository`(동적 조회). 소프트 삭제 필터, `Pageable` 번역, `LocalDate` → 시각 경계 변환을 전부 흡수한다. 도메인은 "날짜 범위"만 알고 `created_at` 이 시각이라는 사실은 모른다.
 
+**캐시**는 예외다. 캐시 인터페이스와 값 DTO 는 `application` 에, Redis 구현은 `infrastructure` 에 둔다 — 캐시는 도메인 규칙이 아니라
+유스케이스의 성능 장치라 `domain` 에 두지 않는다. 그래서 `infrastructure → application` 화살표가 생긴다. (2026-10-04 상품 캐시 설계 3.2 장)
+
 ### DTO 는 계층마다 따로 만든다
 
 ```
