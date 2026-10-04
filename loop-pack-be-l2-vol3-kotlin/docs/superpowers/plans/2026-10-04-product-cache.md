@@ -23,7 +23,7 @@ JUnit 5 · AssertJ · mockito-kotlin(`@MockitoSpyBean`) / Testcontainers(MySQL �
 
 - **응답 · 주석 · 커밋 메시지 · 문서는 한국어.** 변수명 · 함수명은 영어.
 - **커밋 메시지 형식은 `<타입> : <내용>`** — 콜론 앞에 공백. 끝에 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` 를 붙인다.
-- **`modules/` 에서 고치는 것은 Task 1 의 `modules/redis` 명령 타임아웃뿐이다**(2026-10-04 사용자 승인, 설계 7.2 장). 저장소 루트의 `supports/` 는 고치지 않는다.
+- **`modules/` 에서 고치는 것은 Task 1 의 `modules/redis` 명령 타임아웃**(2026-10-04 사용자 승인, 설계 7.2 장)과 **Task 2 의 `RedisTestContainersConfig` 접속 정보 설정 시점**(2026-10-05 사용자 승인, 설계 9.4 장)뿐이다. 저장소 루트의 `supports/` 는 고치지 않는다.
 - **캐시 키 · TTL 은 설계 4 장 그대로다.** `product:v1:{id}` 10 분, `brand:v1:{id}` 10 분, `product:list:v1:{brandId|all}:{sort}:{page}:{size}` 30 초.
 - **캐시 구현은 Redis 예외(`DataAccessException`)와 역직렬화 실패(`JsonProcessingException`)만 삼킨다.** 그 밖의 예외는 버그이므로 올린다. (설계 7.1 장)
 - **무효화는 커밋 뒤에만 한다.** (설계 5.1 장)

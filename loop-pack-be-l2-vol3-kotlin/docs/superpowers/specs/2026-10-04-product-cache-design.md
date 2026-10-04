@@ -1,7 +1,7 @@
 # 상품 조회 Redis 캐시
 
 - 작성일: 2026-10-04
-- 대상 모듈: `apps/commerce-api`, `modules/redis`(명령 타임아웃 설정 1 개 — 7.2 장, 2026-10-04 사용자 승인)
+- 대상 모듈: `apps/commerce-api`, `modules/redis`(명령 타임아웃 설정 1 개 — 7.2 장, 2026-10-04 사용자 승인 · testFixtures 의 `RedisTestContainersConfig` 접속 정보 설정 시점 — 9.4 장, 2026-10-05 사용자 승인)
 - 상태: **설계 승인 대기**
 - 선행 문서:
   - [2026-08-13 브랜드·상품 API 설계](2026-08-13-brand-product-design.md) — 상품·브랜드를 조인 대신 조합하는 구조(6.2 장), 브랜드가 삭제돼도 상품은 남는 `brand: null`(6.3 장)
@@ -269,6 +269,11 @@ commerce-batch · commerce-streamer 는 Redis 명령을 보내지 않으므로 �
 commerce-api 테스트는 `@AfterEach` 에서 DB 만 비운다(`truncateAllTables`). 캐시가 생기면 앞 테스트가 남긴 `product:v1:1` 이
 다음 테스트의 상품 1 로 보인다. truncate 가 AUTO_INCREMENT 를 되돌려 ID 가 재사용되기 때문이다.
 **상품 · 브랜드 조회를 거치는 테스트 클래스는 `redisCleanUp.truncateAll()` 도 호출한다.** 대상 목록은 계획서에서 확정한다.
+
+같은 이유로 드러난 결함이 하나 더 있다. `modules/redis` testFixtures 의 `RedisTestContainersConfig` 는 컨테이너 접속 정보를
+인스턴스 `init` 에서 `System.setProperty` 로 넣어, `RedisProperties` 바인딩보다 늦을 수 있다. 그러면 테스트가 컨테이너가 아니라
+test 프로필의 `localhost:6379` 로 접속한다. 지금까지 commerce-api 테스트가 Redis 에 명령을 보낸 적이 없어 드러나지 않았다
+(Lettuce 는 첫 명령에서 접속한다). `MySqlTestContainersConfig` 처럼 `companion object` 의 `init` 으로 옮긴다. 2026-10-05 사용자 승인.
 
 ### 9.5 계층 규칙의 예외
 
