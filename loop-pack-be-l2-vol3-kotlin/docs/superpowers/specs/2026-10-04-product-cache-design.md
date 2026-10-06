@@ -2,7 +2,7 @@
 
 - 작성일: 2026-10-04
 - 대상 모듈: `apps/commerce-api`, `modules/redis`(명령 타임아웃 설정 1 개 — 7.2 장, 2026-10-04 사용자 승인 · testFixtures 의 `RedisTestContainersConfig` 접속 정보 설정 시점 — 9.4 장, 2026-10-05 사용자 승인)
-- 상태: **설계 승인 대기**
+- 상태: **승인 — 구현 중** (계획 [plans/2026-10-04-product-cache.md](../plans/2026-10-04-product-cache.md))
 - 선행 문서:
   - [2026-08-13 브랜드·상품 API 설계](2026-08-13-brand-product-design.md) — 상품·브랜드를 조인 대신 조합하는 구조(6.2 장), 브랜드가 삭제돼도 상품은 남는 `brand: null`(6.3 장)
   - [2026-08-20 상품 좋아요 API 설계](2026-08-20-product-like-design.md) — `like_count` 증감 경로와 `LikeFacade` 의 트랜잭션 구조
@@ -139,9 +139,9 @@ support/transaction/    AfterCommit — 커밋 뒤 실행 헬퍼 (5.1 장)
 | 쓰기 경로 | 지우는 키 | 시점 |
 |---|---|---|
 | `LikeFacade.like` / `unlike` | `product:v1:{productId}` | `transactionTemplate.execute` 반환 뒤. 이 시점엔 커밋이 끝나 있다 |
-| `ProductAdminFacade.change` | `product:v1:{productId}` | 서비스 호출 반환 뒤. 트랜잭션은 `ProductService.change` 의 것이라 이미 커밋됐다 |
+| `ProductAdminFacade.change` | `product:v1:{productId}` | `AfterCommit` 등록. 트랜잭션은 `ProductService.change` 의 것이라 이미 커밋됐으므로 즉시 실행된다 |
 | `ProductAdminFacade.delete` | `product:v1:{productId}` | `AfterCommit` 등록. Facade `@Transactional` 이 롤백되면 지우지 않는다 |
-| `BrandAdminFacade.change` | `brand:v1:{brandId}` | 서비스 호출 반환 뒤 |
+| `BrandAdminFacade.change` | `brand:v1:{brandId}` | `AfterCommit` 등록. 위와 같은 이유로 즉시 실행된다 |
 | `BrandAdminFacade.delete` | `brand:v1:{brandId}` + `deleteAllByBrandId` 가 돌려준 ID 의 `product:v1:*` | `AfterCommit` 등록. 상품 키는 500 개 단위로 묶어 `DEL` 한다 |
 | 상품 · 브랜드 등록 | 없음 | 새 상품은 상세 캐시가 없고(미스를 저장하지 않으므로), 목록에는 30 초 안에 나타난다 |
 | 주문(재고 차감 · 복구) | 없음 | 캐시 값에 재고가 없다 |
