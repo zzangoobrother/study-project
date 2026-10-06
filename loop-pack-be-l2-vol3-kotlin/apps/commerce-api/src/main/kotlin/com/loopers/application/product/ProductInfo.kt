@@ -29,5 +29,16 @@ data class ProductInfo(
                 brand = brand,
             )
         }
+
+        /** 캐시에서 읽은 값. DB 에서 읽은 값을 그대로 담았으므로 값 객체 검증에서 실패하지 않는다. */
+        fun of(value: ProductCacheValue, brand: BrandInfo?): ProductInfo {
+            return ProductInfo(
+                id = value.id,
+                name = ProductName(value.name),
+                price = Price(value.price),
+                likeCount = LikeCount(value.likeCount),
+                brand = brand,
+            )
+        }
     }
 }

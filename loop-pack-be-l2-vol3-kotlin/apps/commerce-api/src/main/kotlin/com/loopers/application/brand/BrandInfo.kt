@@ -21,5 +21,13 @@ data class BrandInfo(
                 description = model.description,
             )
         }
+
+        fun from(value: BrandCacheValue): BrandInfo {
+            return BrandInfo(
+                id = value.id,
+                name = BrandName(value.name),
+                description = BrandDescription(value.description),
+            )
+        }
     }
 }

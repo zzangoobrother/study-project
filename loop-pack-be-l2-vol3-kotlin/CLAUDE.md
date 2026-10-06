@@ -135,6 +135,7 @@ OrderV1Dto.OrderResponse ◀───from()──── OrderInfo            (ap
 - 메서드명은 영어. 실패 케이스는 `throwsBadRequest_whenItemsAreEmpty` 형태.
 - 본문은 `// arrange` / `// act` / `// assert`. 단언이 여럿이면 `assertAll` 로 묶는다. AssertJ 사용, 예외는 `assertThrows<CoreException>` 후 `errorType` 확인.
 - `@AfterEach` 에서 `databaseCleanUp.truncateAllTables()` 를 반드시 호출한다.
+- 상품 · 브랜드 조회(캐시)를 거치는 테스트는 `redisCleanUp.truncateAll()` 도 호출한다. truncate 가 AUTO_INCREMENT 를 되돌려 ID 가 재사용되므로 앞 테스트의 캐시가 다음 테스트의 같은 ID 로 보인다.
 
 ### 인증
 
