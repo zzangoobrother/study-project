@@ -15,6 +15,7 @@ import com.loopers.domain.support.PageQuery
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
 import com.loopers.utils.DatabaseCleanUp
+import com.loopers.utils.RedisCleanUp
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
@@ -22,6 +23,8 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
 import org.junit.jupiter.api.assertThrows
+import org.mockito.kotlin.any
+import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.springframework.beans.factory.annotation.Autowired
@@ -34,6 +37,7 @@ class ProductFacadeIntegrationTest @Autowired constructor(
     private val productRepository: ProductRepository,
     private val brandRepository: BrandRepository,
     private val databaseCleanUp: DatabaseCleanUp,
+    private val redisCleanUp: RedisCleanUp,
 ) {
     @MockitoSpyBean
     private lateinit var brandService: BrandService
@@ -60,6 +64,7 @@ class ProductFacadeIntegrationTest @Autowired constructor(
     @AfterEach
     fun tearDown() {
         databaseCleanUp.truncateAllTables()
+        redisCleanUp.truncateAll()
     }
 
     @DisplayName("상품 목록을 조회할 때, ")
@@ -133,7 +138,7 @@ class ProductFacadeIntegrationTest @Autowired constructor(
             assertAll(
                 { assertThat(result.content).isEmpty() },
                 { assertThat(result.totalElements).isZero() },
-                { verify(brandService, times(1)).getBrands(emptyList()) },
+                { verify(brandService, never()).getBrands(any()) },
             )
         }
 

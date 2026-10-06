@@ -1,6 +1,7 @@
 package com.loopers.application.like
 
 import com.loopers.application.brand.BrandInfo
+import com.loopers.application.product.ProductCache
 import com.loopers.application.product.ProductInfo
 import com.loopers.domain.brand.BrandService
 import com.loopers.domain.like.LikeService
@@ -44,6 +45,7 @@ class LikeFacade(
     private val productService: ProductService,
     private val likeService: LikeService,
     private val brandService: BrandService,
+    private val productCache: ProductCache,
     private val transactionTemplate: TransactionTemplate,
 ) {
     private val log = LoggerFactory.getLogger(LikeFacade::class.java)
@@ -54,8 +56,11 @@ class LikeFacade(
         } catch (e: DataIntegrityViolationException) {
             // 동시 최초 좋아요 경합에서 진 쪽이다. 이긴 쪽이 이미 행과 카운트를 확정했으므로
             // 이 트랜잭션이 통째로 롤백된 최종 상태가 정확하다. 클라이언트에게는 성공이다. (설계 문서 6.8 장)
+            // 바꾼 것이 없으므로 캐시도 지우지 않는다 — 이긴 쪽이 지운다. (2026-10-04 상품 캐시 설계 5.1 장)
             log.debug("좋아요 경합 패배 : loginId={}, productId={}", loginId.value, productId, e)
+            return
         }
+        evictProduct(productId)
     }
 
     /**
@@ -64,6 +69,16 @@ class LikeFacade(
      */
     fun unlike(loginId: LoginId, productId: Long) {
         transactionTemplate.execute { doUnlike(loginId, productId) }
+        evictProduct(productId)
+    }
+
+    /**
+     * execute 가 돌아왔으면 커밋은 끝났다. 커밋 전에 지우면 그 사이의 읽기가 옛 카운트를 다시 캐시에 넣는다.
+     * 상태가 실제로 바뀌지 않은 중복 요청에서도 지운다 — 전이 여부를 여기까지 끌어올리는 분기보다 키 하나 지우는 편이 싸다.
+     * (2026-10-04 상품 캐시 설계 5.1 장)
+     */
+    private fun evictProduct(productId: Long) {
+        productCache.evictProducts(listOf(productId))
     }
 
     private fun doLike(loginId: LoginId, productId: Long) {

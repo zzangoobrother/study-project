@@ -1,0 +1,14 @@
+# 상품 캐시 측정용 자원 배분. (2026-10-04 상품 캐시 설계 8.2 장)
+#
+# 기본 파일(loadtest-compose.yml)의 배분(MySQL 2 + 앱 3)은 주문 측정(2026-09-06 · 09-09)의 재현 조건이라 고치지 않는다.
+# 캐시 측정에서는 Redis 가 요청 경로에 들어오므로 앱 몫에서 0.5 를 떼어 준다. 합계는 VM 5 CPU 그대로다.
+# 읽기는 replica(redis-readonly), 미스 저장과 삭제는 master 로 간다.
+#
+# 사용: docker compose -f docker/loadtest-compose.yml -f docker/loadtest-cache.override.yml up -d
+services:
+  commerce-api:
+    cpus: "2.5"
+  redis-master:
+    cpus: "0.25"
+  redis-readonly:
+    cpus: "0.25"

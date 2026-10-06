@@ -85,6 +85,8 @@ JUnit 5 · AssertJ · mockito-kotlin(`@MockitoSpyBean`) / Testcontainers(MySQL �
 ### 수정 — main
 
 - `modules/redis/.../RedisProperties.kt`, `RedisConfig.kt`, `modules/redis/src/main/resources/redis.yml` — Task 1
+- `modules/redis/src/testFixtures/.../RedisTestContainersConfig.kt` — Task 2 실행 중 발견해 별도 커밋(`c86c9e4c`)으로 고쳤다.
+  접속 정보 설정을 인스턴스 `init` 에서 `companion object` 의 `init` 으로 옮겼다. (설계 9.4 장, 2026-10-05 사용자 승인)
 - `application/product/ProductFacade.kt`, `ProductInfo.kt`, `application/brand/BrandInfo.kt` — Task 3
 - `application/like/LikeFacade.kt`, `application/admin/product/ProductAdminFacade.kt`, `application/admin/brand/BrandAdminFacade.kt` — Task 4
 - `CLAUDE.md` — Task 2(계층 예외), Task 3(테스트 규약)
@@ -1224,7 +1226,7 @@ class ProductCacheIntegrationTest @Autowired constructor(
 
 - [ ] **Step 3: 캐시 값을 Info 로 바꾸는 팩토리를 더한다**
 
-`ProductInfo` 의 `companion object` 에 더한다. `import com.loopers.domain.product.*` 는 이미 있다(ProductName · Price · LikeCount).
+`ProductInfo` 의 `companion object` 에 더한다. `ProductName` · `Price` · `LikeCount` 는 이미 개별 import 돼 있다. star import 로 바꾸지 않는다(ktlint).
 
 ```kotlin
         /** 캐시에서 읽은 값. DB 에서 읽은 값을 그대로 담았으므로 값 객체 검증에서 실패하지 않는다. */
@@ -1506,21 +1508,18 @@ class AfterCommitTest @Autowired constructor(
 
 `ProductCacheIntegrationTest` 를 고친다.
 
-(a) 생성자에 더한다.
+(a) 생성자에 더한다. `transactionTemplate` 은 상품 삭제의 롤백을 일으키는 데 쓴다.
 
 ```kotlin
     private val likeFacade: LikeFacade,
     private val productAdminFacade: ProductAdminFacade,
     private val brandAdminFacade: BrandAdminFacade,
     private val userService: UserService,
+    private val transactionTemplate: TransactionTemplate,
 ```
 
-(b) 스파이를 하나 더한다. 상품 삭제의 롤백을 일으키는 데 쓴다.
-
-```kotlin
-    @MockitoSpyBean
-    private lateinit var likeService: LikeService
-```
+(b) 롤백은 스파이로 예외를 주입하지 않고 바깥 트랜잭션을 롤백시켜 일으킨다. 예외 주입 지점(`likeService.deleteAllByProductIds`)은
+무효화 등록보다 앞이라, 커밋 전에 지우도록 바꾼 구현에서도 삭제 줄에 도달하지 않아 테스트가 통과해 버린다(Step 9 가 이를 확인한다).
 
 (c) 픽스처를 더한다.
 
@@ -1547,7 +1546,6 @@ import com.loopers.application.admin.product.ProductAdminFacade
 import com.loopers.application.like.LikeFacade
 import com.loopers.domain.brand.BrandCommand
 import com.loopers.domain.brand.BrandDescription
-import com.loopers.domain.like.LikeService
 import com.loopers.domain.product.ProductCommand
 import com.loopers.domain.product.Stock
 import com.loopers.domain.user.BirthDate
@@ -1558,8 +1556,7 @@ import com.loopers.domain.user.UserCommand
 import com.loopers.domain.user.UserName
 import com.loopers.domain.user.UserService
 import com.loopers.support.error.ErrorType
-import org.mockito.kotlin.doThrow
-import org.mockito.kotlin.whenever
+import org.springframework.transaction.support.TransactionTemplate
 ```
 
 (e) `ReadAgain` 뒤에 `@Nested` 두 개를 더한다.
@@ -1693,10 +1690,12 @@ import org.mockito.kotlin.whenever
             // arrange
             val saved = saveProduct(brandId = saveBrand().id)
             productFacade.getProduct(saved.id)
-            doThrow(IllegalStateException("주입된 실패")).whenever(likeService).deleteAllByProductIds(listOf(saved.id))
 
-            // act
-            assertThrows<IllegalStateException> { productAdminFacade.delete(saved.id) }
+            // act — Facade 의 @Transactional 이 바깥 트랜잭션에 합류하므로, 삭제 · 무효화 등록이 모두 끝난 뒤 롤백된다
+            transactionTemplate.execute { status ->
+                productAdminFacade.delete(saved.id)
+                status.setRollbackOnly()
+            }
 
             // assert
             val inDb = productRepository.findById(saved.id)
@@ -1822,8 +1821,10 @@ object AfterCommit {
     /** 브랜드 검증을 하지 않는 이유는 수정으로 브랜드가 바뀌지 않기 때문이다. ProductCommand.Change 에 brandId 가 없다. */
     fun change(command: ProductCommand.Change): ProductAdminInfo {
         val changed = productService.change(command)
-        // 트랜잭션은 ProductService.change 의 것이라 여기서는 이미 커밋됐다. (2026-10-04 상품 캐시 설계 5.1 장)
-        productCache.evictProducts(listOf(command.id))
+        // 지금은 트랜잭션이 ProductService.change 의 것이라 여기서 이미 커밋됐고 AfterCommit 은 즉시 실행한다.
+        // 그래도 AfterCommit 을 거치는 이유는 이 메서드에 @Transactional 이 붙는 순간 커밋 전 삭제가 되지 않게 하기 위해서다.
+        // (2026-10-04 상품 캐시 설계 5.1 장)
+        AfterCommit.run { productCache.evictProducts(listOf(command.id)) }
         return toInfo(changed)
     }
 ```
@@ -1848,8 +1849,9 @@ import: `com.loopers.application.brand.BrandCache`, `com.loopers.application.pro
 ```kotlin
     fun change(command: BrandCommand.Change): BrandAdminInfo {
         val changed = brandService.change(command)
-        // 상품 캐시는 brandId 만 담으므로 브랜드 키 하나만 지우면 상세 · 목록 모두 새 이름을 본다. (2026-10-04 상품 캐시 설계 3.3 장)
-        brandCache.evictBrand(command.id)
+        // 상품 캐시는 brandId 만 담으므로 브랜드 키 하나만 지우면 상세 · 목록 모두 새 이름을 본다.
+        // AfterCommit 을 거치는 이유는 ProductAdminFacade.change 와 같다. (2026-10-04 상품 캐시 설계 3.3, 5.1 장)
+        AfterCommit.run { brandCache.evictBrand(command.id) }
         return BrandAdminInfo.from(changed)
     }
 ```
