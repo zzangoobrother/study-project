@@ -239,3 +239,23 @@ docker compose -f docker/loadtest-compose.yml exec -T mysql \
 `products-*.json` 은 커밋하지 않는다. `.gitignore` 가 `loadtest/results/*` 로 막고 있고
 `EXPLAIN` 출력만 예외로 열어 뒀다 — k6 요약은 특정 머신·시점의 출력이라 커밋하면 다음 측정과
 뒤섞인다. p95 수치는 파일이 아니라 설계 문서 4.1 장에 남긴다.
+
+## 상품 캐시 측정
+
+설계 문서: [`docs/superpowers/specs/2026-10-04-product-cache-design.md`](../docs/superpowers/specs/2026-10-04-product-cache-design.md)
+
+**compose 는 항상 override 를 얹어 띄운다** — Redis 에 CPU 를 배분한 조건이다(설계 8.2 장). 기본 파일만으로 띄운 결과와 섞지 않는다.
+
+    APP_JAR=<jar> docker compose -f docker/loadtest-compose.yml -f docker/loadtest-cache.override.yml up -d
+
+jar 를 바꾸면 컨테이너가 재기동되고 `ddl-auto: create` 로 스키마가 새로 생기므로 **jar 마다 시드를 다시 심는다**(위 "상품 목록 인덱스 측정" 1 절과 같은 명령).
+인덱스는 엔티티에 선언돼 있어 스키마와 함께 생긴다.
+
+측정 한 회의 순서:
+
+    ./loadtest/cache-snapshot.sh            # 직전
+    k6 run -e TARGET_TPS=30 -e LABEL=after loadtest/products.js
+    ./loadtest/cache-snapshot.sh            # 직후 — 두 줄의 차이를 기록한다
+
+상세는 `loadtest/product-detail.js` 에 `-e WRITE_RATIO=0.05` 처럼 쓰기 비율을 준다.
+캐시를 비우지 않는다 — 버리는 실행 2 회가 캐시를 데운 상태가 측정 조건이다.
