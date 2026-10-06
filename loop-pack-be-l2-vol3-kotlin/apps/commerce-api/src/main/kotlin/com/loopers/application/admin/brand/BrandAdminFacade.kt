@@ -1,5 +1,7 @@
 package com.loopers.application.admin.brand
 
+import com.loopers.application.brand.BrandCache
+import com.loopers.application.product.ProductCache
 import com.loopers.domain.brand.BrandCommand
 import com.loopers.domain.brand.BrandService
 import com.loopers.domain.like.LikeService
@@ -8,6 +10,7 @@ import com.loopers.domain.support.PageQuery
 import com.loopers.domain.support.PageResult
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
+import com.loopers.support.transaction.AfterCommit
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 
@@ -23,6 +26,8 @@ class BrandAdminFacade(
     private val brandService: BrandService,
     private val productService: ProductService,
     private val likeService: LikeService,
+    private val productCache: ProductCache,
+    private val brandCache: BrandCache,
 ) {
     fun getBrands(pageQuery: PageQuery): PageResult<BrandAdminInfo> {
         return brandService.getBrandPageIncludingDeleted(pageQuery)
@@ -44,7 +49,11 @@ class BrandAdminFacade(
     }
 
     fun change(command: BrandCommand.Change): BrandAdminInfo {
-        return BrandAdminInfo.from(brandService.change(command))
+        val changed = brandService.change(command)
+        // 상품 캐시는 brandId 만 담으므로 브랜드 키 하나만 지우면 상세 · 목록 모두 새 이름을 본다.
+        // AfterCommit 을 거치는 이유는 ProductAdminFacade.change 와 같다. (2026-10-04 상품 캐시 설계 3.3, 5.1 장)
+        AfterCommit.run { brandCache.evictBrand(command.id) }
+        return BrandAdminInfo.from(changed)
     }
 
     /**
@@ -62,5 +71,10 @@ class BrandAdminFacade(
         brandService.delete(id)
         val deletedProductIds = productService.deleteAllByBrandId(id)
         likeService.deleteAllByProductIds(deletedProductIds)
+        // 연쇄 삭제된 상품의 상세 키도 지운다. 남기면 삭제된 상품이 TTL 동안 200 으로 보인다. (2026-10-04 상품 캐시 설계 5.1 장)
+        AfterCommit.run {
+            brandCache.evictBrand(id)
+            productCache.evictProducts(deletedProductIds)
+        }
     }
 }

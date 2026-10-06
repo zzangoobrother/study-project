@@ -1,6 +1,7 @@
 package com.loopers.application.admin.product
 
 import com.loopers.application.admin.brand.BrandAdminInfo
+import com.loopers.application.product.ProductCache
 import com.loopers.domain.brand.BrandService
 import com.loopers.domain.like.LikeService
 import com.loopers.domain.product.ProductCommand
@@ -10,6 +11,7 @@ import com.loopers.domain.product.ProductService
 import com.loopers.domain.support.PageResult
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
+import com.loopers.support.transaction.AfterCommit
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 
@@ -24,6 +26,7 @@ class ProductAdminFacade(
     private val productService: ProductService,
     private val brandService: BrandService,
     private val likeService: LikeService,
+    private val productCache: ProductCache,
 ) {
     fun getProducts(criteria: ProductCriteria.AdminSearch): PageResult<ProductAdminInfo> {
         val products = productService.getProductPageIncludingDeleted(criteria)
@@ -63,7 +66,12 @@ class ProductAdminFacade(
 
     /** 브랜드 검증을 하지 않는 이유는 수정으로 브랜드가 바뀌지 않기 때문이다. ProductCommand.Change 에 brandId 가 없다. */
     fun change(command: ProductCommand.Change): ProductAdminInfo {
-        return toInfo(productService.change(command))
+        val changed = productService.change(command)
+        // 지금은 트랜잭션이 ProductService.change 의 것이라 여기서 이미 커밋됐고 AfterCommit 은 즉시 실행한다.
+        // 그래도 AfterCommit 을 거치는 이유는 이 메서드에 @Transactional 이 붙는 순간 커밋 전 삭제가 되지 않게 하기 위해서다.
+        // (2026-10-04 상품 캐시 설계 5.1 장)
+        AfterCommit.run { productCache.evictProducts(listOf(command.id)) }
+        return toInfo(changed)
     }
 
     /**
@@ -76,6 +84,8 @@ class ProductAdminFacade(
     fun delete(id: Long) {
         productService.delete(id)
         likeService.deleteAllByProductIds(listOf(id))
+        // 이 메서드의 트랜잭션이 커밋된 뒤에 지운다. 롤백되면 지우지 않는다. (2026-10-04 상품 캐시 설계 5.1 장)
+        AfterCommit.run { productCache.evictProducts(listOf(id)) }
     }
 
     private fun toInfo(product: ProductModel): ProductAdminInfo {
