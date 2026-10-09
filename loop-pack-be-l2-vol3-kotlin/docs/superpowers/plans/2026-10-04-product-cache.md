@@ -137,7 +137,7 @@ JUnit 5 · AssertJ · mockito-kotlin(`@MockitoSpyBean`) / Testcontainers(MySQL �
 - 사용: 없음
 - 제공: `RedisProperties.commandTimeout: Duration`. 이후 태스크는 이 값을 직접 쓰지 않는다 — 두 `LettuceConnectionFactory` 에 적용될 뿐이다.
 
-- [ ] **Step 1: 기준선 실측**
+- [x] **Step 1: 기준선 실측**
 
 ```bash
 ./gradlew :apps:commerce-api:test :apps:commerce-batch:test
@@ -145,7 +145,7 @@ JUnit 5 · AssertJ · mockito-kotlin(`@MockitoSpyBean`) / Testcontainers(MySQL �
 
 기대: 둘 다 성공. commerce-api 의 테스트 수를 보고에 적는다(`build/test-results/test/*.xml` 의 `tests=` 합). 실패하면 멈춰 보고한다.
 
-- [ ] **Step 2: 실패하는 테스트를 쓴다**
+- [x] **Step 2: 실패하는 테스트를 쓴다**
 
 `apps/commerce-api/src/test/kotlin/com/loopers/config/RedisCommandTimeoutTest.kt`
 
@@ -181,7 +181,7 @@ class RedisCommandTimeoutTest @Autowired constructor(
 }
 ```
 
-- [ ] **Step 3: 실패를 확인한다**
+- [x] **Step 3: 실패를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.config.RedisCommandTimeoutTest'
@@ -189,7 +189,7 @@ class RedisCommandTimeoutTest @Autowired constructor(
 
 기대: FAIL — `expected: PT0.5S but was: PT1M` (Lettuce 기본 60 초).
 
-- [ ] **Step 4: `RedisProperties` 에 필드를 더한다**
+- [x] **Step 4: `RedisProperties` 에 필드를 더한다**
 
 ```kotlin
 package com.loopers.config.redis
@@ -210,7 +210,7 @@ data class RedisProperties(
 )
 ```
 
-- [ ] **Step 5: `RedisConfig` 가 그 값을 쓰게 한다**
+- [x] **Step 5: `RedisConfig` 가 그 값을 쓰게 한다**
 
 두 팩토리 메서드의 구조 분해와 `lettuceConnectionFactory` 시그니처를 바꾼다.
 
@@ -250,7 +250,7 @@ data class RedisProperties(
 
 `import java.time.Duration` 을 더한다. 나머지 본문은 그대로다.
 
-- [ ] **Step 6: `redis.yml` 에 값을 둔다**
+- [x] **Step 6: `redis.yml` 에 값을 둔다**
 
 맨 위 문서의 `datasource.redis` 아래에 한 줄을 더한다. 프로필 문서마다 반복하지 않는다 — 세 앱(commerce-api · batch · streamer)이 모두 이 파일을 import 하므로 여기 한 곳이면 된다.
 
@@ -263,7 +263,7 @@ datasource:
     master:
 ```
 
-- [ ] **Step 7: 통과를 확인한다**
+- [x] **Step 7: 통과를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.config.RedisCommandTimeoutTest'
@@ -271,7 +271,7 @@ datasource:
 
 기대: PASS.
 
-- [ ] **Step 8: 회귀와 린트**
+- [x] **Step 8: 회귀와 린트**
 
 commerce-batch · streamer 도 `RedisProperties` 를 바인딩하므로 같이 확인한다.
 
@@ -282,7 +282,7 @@ commerce-batch · streamer 도 `RedisProperties` 를 바인딩하므로 같이 �
 
 기대: 성공. commerce-api 테스트 수 = 기준선 + 1.
 
-- [ ] **Step 9: 커밋**
+- [x] **Step 9: 커밋**
 
 ```bash
 git add modules/redis/src/main/kotlin/com/loopers/config/redis/RedisProperties.kt \
@@ -318,7 +318,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   - `data class BrandCacheValue(id: Long, name: String, description: String)` + `BrandCacheValue.from(model: BrandModel)`
   - `ProductRedisCache.productKey(id: Long): String`, `ProductRedisCache.listKey(criteria): String`, `BrandRedisCache.brandKey(id: Long): String` (companion, 테스트가 쓴다)
 
-- [ ] **Step 1: 계약과 값을 쓴다**
+- [x] **Step 1: 계약과 값을 쓴다**
 
 `application/product/ProductCache.kt`
 
@@ -454,7 +454,7 @@ data class BrandCacheValue(
 }
 ```
 
-- [ ] **Step 2: 장애 흡수 테스트를 쓴다 (실패 확인용)**
+- [x] **Step 2: 장애 흡수 테스트를 쓴다 (실패 확인용)**
 
 `infrastructure/cache/RedisCacheOperationsFailureTest.kt` — Spring 컨텍스트 없이, 닫힌 포트를 가리키는 커넥션으로 만든다.
 
@@ -546,7 +546,7 @@ class RedisCacheOperationsFailureTest {
 }
 ```
 
-- [ ] **Step 3: 실패를 확인한다**
+- [x] **Step 3: 실패를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.infrastructure.cache.RedisCacheOperationsFailureTest'
@@ -554,7 +554,7 @@ class RedisCacheOperationsFailureTest {
 
 기대: 컴파일 실패 — `Unresolved reference: RedisCacheOperations`.
 
-- [ ] **Step 4: `RedisCacheOperations` 를 쓴다**
+- [x] **Step 4: `RedisCacheOperations` 를 쓴다**
 
 `infrastructure/cache/RedisCacheOperations.kt`
 
@@ -656,7 +656,7 @@ class RedisCacheOperations(
 }
 ```
 
-- [ ] **Step 5: 장애 흡수 테스트 통과를 확인한다**
+- [x] **Step 5: 장애 흡수 테스트 통과를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.infrastructure.cache.RedisCacheOperationsFailureTest'
@@ -664,7 +664,7 @@ class RedisCacheOperations(
 
 기대: PASS (3 tests). 한 건이 수 초 이상 걸리면 접속 거부가 아니라 연결 타임아웃을 기다리는 것이니 멈춰 보고한다.
 
-- [ ] **Step 6: 키 · TTL 테스트를 쓴다**
+- [x] **Step 6: 키 · TTL 테스트를 쓴다**
 
 `infrastructure/product/ProductRedisCacheTest.kt`
 
@@ -909,7 +909,7 @@ class BrandRedisCacheTest @Autowired constructor(
 }
 ```
 
-- [ ] **Step 7: 실패를 확인한다**
+- [x] **Step 7: 실패를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.infrastructure.product.ProductRedisCacheTest' \
@@ -918,7 +918,7 @@ class BrandRedisCacheTest @Autowired constructor(
 
 기대: 컴파일 실패 — `Unresolved reference: ProductRedisCache`, `BrandRedisCache`.
 
-- [ ] **Step 8: Redis 구현을 쓴다**
+- [x] **Step 8: Redis 구현을 쓴다**
 
 `infrastructure/product/ProductRedisCache.kt`
 
@@ -1010,7 +1010,7 @@ class BrandRedisCache(
 }
 ```
 
-- [ ] **Step 9: 통과를 확인한다**
+- [x] **Step 9: 통과를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.infrastructure.*'
@@ -1020,7 +1020,7 @@ class BrandRedisCache(
 
 `StringRedisTemplate` 빈을 찾지 못한다는 오류가 나면 Spring Boot 의 `RedisAutoConfiguration` 이 꺼진 것이다. 테스트를 고치지 말고 멈춰 보고한다.
 
-- [ ] **Step 10: `CLAUDE.md` — 계층 예외 한 줄**
+- [x] **Step 10: `CLAUDE.md` — 계층 예외 한 줄**
 
 `### 계층별 책임` 의 `**`infrastructure`**` 단락 바로 뒤에 한 단락을 넣는다.
 
@@ -1029,7 +1029,7 @@ class BrandRedisCache(
 유스케이스의 성능 장치라 `domain` 에 두지 않는다. 그래서 `infrastructure → application` 화살표가 생긴다. (2026-10-04 상품 캐시 설계 3.2 장)
 ```
 
-- [ ] **Step 11: 전체 테스트와 린트**
+- [x] **Step 11: 전체 테스트와 린트**
 
 ```bash
 ./gradlew :apps:commerce-api:test :apps:commerce-api:ktlintCheck
@@ -1037,7 +1037,7 @@ class BrandRedisCache(
 
 기대: 성공. 테스트 수 = 기준선 + 1 + 16.
 
-- [ ] **Step 12: 커밋**
+- [x] **Step 12: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/application/product/ProductCache.kt \
@@ -1074,7 +1074,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   - `BrandInfo.from(value: BrandCacheValue): BrandInfo`
   - `ProductCacheIntegrationTest` 의 픽스처(`saveBrand`, `saveProduct`, `search`) — Task 4 가 같은 클래스에 `@Nested` 를 더한다
 
-- [ ] **Step 1: 실패하는 테스트를 쓴다**
+- [x] **Step 1: 실패하는 테스트를 쓴다**
 
 `application/product/ProductCacheIntegrationTest.kt` — Task 4 에서 쓰기 Facade 들이 더해진다. 지금은 읽기만 쓴다.
 
@@ -1216,7 +1216,7 @@ class ProductCacheIntegrationTest @Autowired constructor(
 }
 ```
 
-- [ ] **Step 2: 실패를 확인한다**
+- [x] **Step 2: 실패를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.application.product.ProductCacheIntegrationTest'
@@ -1224,7 +1224,7 @@ class ProductCacheIntegrationTest @Autowired constructor(
 
 기대: 앞의 세 건 FAIL(`Wanted 1 time ... But was 2 times`), `doesNotCacheMissingProduct` 는 PASS(아직 캐시가 없으므로 우연히 맞는다).
 
-- [ ] **Step 3: 캐시 값을 Info 로 바꾸는 팩토리를 더한다**
+- [x] **Step 3: 캐시 값을 Info 로 바꾸는 팩토리를 더한다**
 
 `ProductInfo` 의 `companion object` 에 더한다. `ProductName` · `Price` · `LikeCount` 는 이미 개별 import 돼 있다. star import 로 바꾸지 않는다(ktlint).
 
@@ -1253,7 +1253,7 @@ class ProductCacheIntegrationTest @Autowired constructor(
         }
 ```
 
-- [ ] **Step 4: `ProductFacade` 를 고친다**
+- [x] **Step 4: `ProductFacade` 를 고친다**
 
 파일 전체를 아래로 바꾼다.
 
@@ -1347,7 +1347,7 @@ class ProductFacade(
 }
 ```
 
-- [ ] **Step 5: 통과를 확인한다**
+- [x] **Step 5: 통과를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.application.product.ProductCacheIntegrationTest'
@@ -1355,7 +1355,7 @@ class ProductFacade(
 
 기대: PASS (4 tests).
 
-- [ ] **Step 6: 기존 테스트의 Redis 정리와 바뀐 기대값**
+- [x] **Step 6: 기존 테스트의 Redis 정리와 바뀐 기대값**
 
 `ProductFacadeIntegrationTest`:
 
@@ -1386,7 +1386,7 @@ class ProductFacade(
 
 상품 조회를 거치는 테스트 클래스는 이 둘과 Task 3 · 4 가 새로 만드는 클래스뿐이다(`grep -rlE 'productFacade|"/api/v1/products"|ENDPOINT_PRODUCT' apps/commerce-api/src/test` 로 확인했다 — 좋아요 E2E 는 쓰기만 하므로 캐시를 남기지 않는다).
 
-- [ ] **Step 7: `CLAUDE.md` — 테스트 규약 한 줄**
+- [x] **Step 7: `CLAUDE.md` — 테스트 규약 한 줄**
 
 `### 테스트` 의 `- `@AfterEach` 에서 `databaseCleanUp.truncateAllTables()` 를 반드시 호출한다.` 바로 아래에 더한다.
 
@@ -1394,7 +1394,7 @@ class ProductFacade(
 - 상품 · 브랜드 조회(캐시)를 거치는 테스트는 `redisCleanUp.truncateAll()` 도 호출한다. truncate 가 AUTO_INCREMENT 를 되돌려 ID 가 재사용되므로 앞 테스트의 캐시가 다음 테스트의 같은 ID 로 보인다.
 ```
 
-- [ ] **Step 8: 전체 테스트와 린트**
+- [x] **Step 8: 전체 테스트와 린트**
 
 ```bash
 ./gradlew :apps:commerce-api:test :apps:commerce-api:ktlintCheck
@@ -1402,7 +1402,7 @@ class ProductFacade(
 
 기대: 성공. 테스트 수 = 기준선 + 17 + 4.
 
-- [ ] **Step 9: 커밋**
+- [x] **Step 9: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/application/product/ProductFacade.kt \
@@ -1430,7 +1430,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - 사용: Task 2 의 `ProductCache.evictProducts`, `BrandCache.evictBrand`, Task 3 의 `ProductCacheIntegrationTest` 픽스처
 - 제공: `object AfterCommit { fun run(action: () -> Unit) }`
 
-- [ ] **Step 1: `AfterCommit` 테스트를 쓴다**
+- [x] **Step 1: `AfterCommit` 테스트를 쓴다**
 
 `support/transaction/AfterCommitTest.kt`
 
@@ -1504,7 +1504,7 @@ class AfterCommitTest @Autowired constructor(
 }
 ```
 
-- [ ] **Step 2: 무효화 테스트를 더한다**
+- [x] **Step 2: 무효화 테스트를 더한다**
 
 `ProductCacheIntegrationTest` 를 고친다.
 
@@ -1730,7 +1730,7 @@ import org.springframework.transaction.support.TransactionTemplate
     }
 ```
 
-- [ ] **Step 3: 실패를 확인한다**
+- [x] **Step 3: 실패를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.support.transaction.AfterCommitTest' \
@@ -1741,7 +1741,7 @@ import org.springframework.transaction.support.TransactionTemplate
 `AfterCommit` 만 먼저 만들고 다시 돌리면(Step 4 뒤) 7 건이 FAIL 한다 — `DetailAfterWrite` 의 좋아요 · 취소 · 수정 · 삭제 · 브랜드 수정 · 브랜드 삭제 6 건과
 `ListAfterWrite`(상세 카운트가 옛 값). `keepsCount_whenLikedTwice` · `keepsCacheConsistent_whenDeleteRollsBack` 은 PASS 한다(아직 아무것도 지우지 않으므로 우연히 맞는다).
 
-- [ ] **Step 4: `AfterCommit` 을 쓴다**
+- [x] **Step 4: `AfterCommit` 을 쓴다**
 
 `support/transaction/AfterCommit.kt`
 
@@ -1773,7 +1773,7 @@ object AfterCommit {
 }
 ```
 
-- [ ] **Step 5: `LikeFacade` 를 고친다**
+- [x] **Step 5: `LikeFacade` 를 고친다**
 
 생성자에 `private val productCache: ProductCache,` 를 `transactionTemplate` 앞에 더하고 `import com.loopers.application.product.ProductCache` 를 더한다.
 `like` · `unlike` 를 아래로 바꾼다. `unlike` 의 KDoc 은 그대로 둔다.
@@ -1813,7 +1813,7 @@ object AfterCommit {
     }
 ```
 
-- [ ] **Step 6: `ProductAdminFacade` 를 고친다**
+- [x] **Step 6: `ProductAdminFacade` 를 고친다**
 
 생성자에 `private val productCache: ProductCache,` 를 끝에 더한다. import: `com.loopers.application.product.ProductCache`, `com.loopers.support.transaction.AfterCommit`.
 
@@ -1841,7 +1841,7 @@ object AfterCommit {
     }
 ```
 
-- [ ] **Step 7: `BrandAdminFacade` 를 고친다**
+- [x] **Step 7: `BrandAdminFacade` 를 고친다**
 
 생성자에 `private val productCache: ProductCache,` 와 `private val brandCache: BrandCache,` 를 끝에 더한다.
 import: `com.loopers.application.brand.BrandCache`, `com.loopers.application.product.ProductCache`, `com.loopers.support.transaction.AfterCommit`.
@@ -1872,7 +1872,7 @@ import: `com.loopers.application.brand.BrandCache`, `com.loopers.application.pro
     }
 ```
 
-- [ ] **Step 8: 통과를 확인한다**
+- [x] **Step 8: 통과를 확인한다**
 
 ```bash
 ./gradlew :apps:commerce-api:test --tests 'com.loopers.support.transaction.AfterCommitTest' \
@@ -1881,7 +1881,7 @@ import: `com.loopers.application.brand.BrandCache`, `com.loopers.application.pro
 
 기대: PASS — `AfterCommitTest` 3, `ProductCacheIntegrationTest` 4 + 9 = 13.
 
-- [ ] **Step 9: 테스트가 커밋 전 삭제를 잡는지 한 번 확인한다 (커밋하지 않는다)**
+- [x] **Step 9: 테스트가 커밋 전 삭제를 잡는지 한 번 확인한다 (커밋하지 않는다)**
 
 `ProductAdminFacade.delete` 의 `AfterCommit.run { ... }` 을 벗겨 `productCache.evictProducts(listOf(id))` 로 바로 부르게 바꾼 뒤
 `keepsCacheConsistent_whenDeleteRollsBack` 을 돌린다. **FAIL 해야 한다**(롤백됐는데 캐시가 지워져 `null`). 확인 후 되돌린다.
@@ -1893,7 +1893,7 @@ git diff --stat apps/commerce-api/src/main   # 되돌린 뒤 ProductAdminFacade 
 
 PASS 하면 그 테스트는 롤백을 검증하지 못하는 것이다. 멈춰 보고한다.
 
-- [ ] **Step 10: 전체 테스트와 린트**
+- [x] **Step 10: 전체 테스트와 린트**
 
 ```bash
 ./gradlew :apps:commerce-api:test :apps:commerce-api:ktlintCheck
@@ -1901,7 +1901,7 @@ PASS 하면 그 테스트는 롤백을 검증하지 못하는 것이다. 멈춰 
 
 기대: 성공. 테스트 수 = 기준선 + 21 + 3 + 9 = 기준선 + 33.
 
-- [ ] **Step 11: 커밋**
+- [x] **Step 11: 커밋**
 
 ```bash
 git add apps/commerce-api/src/main/kotlin/com/loopers/support/transaction/AfterCommit.kt \
@@ -1930,7 +1930,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 이 태스크는 Docker 와 k6 가 필요하고 실행에 1 시간 남짓 걸린다. 실행 환경이 없으면 Step 1~4(파일)까지만 하고 커밋한 뒤 멈춰 보고한다.
 
-- [ ] **Step 1: 자원 배분 override**
+- [x] **Step 1: 자원 배분 override**
 
 `docker/loadtest-cache.override.yml`
 
@@ -1951,7 +1951,7 @@ services:
     cpus: "0.25"
 ```
 
-- [ ] **Step 2: 상세 시나리오**
+- [x] **Step 2: 상세 시나리오**
 
 `loadtest/product-detail.js`
 
@@ -2088,7 +2088,7 @@ export function handleSummary(data) {
 }
 ```
 
-- [ ] **Step 3: DB 쿼리 수 · 적중 수 스냅샷**
+- [x] **Step 3: DB 쿼리 수 · 적중 수 스냅샷**
 
 `loadtest/cache-snapshot.sh` — 측정 직전과 직후에 한 번씩 실행해 차이를 본다.
 
@@ -2115,7 +2115,7 @@ echo "com_select=${com_select} keyspace_hits=${hits} keyspace_misses=${misses}"
 chmod +x loadtest/cache-snapshot.sh
 ```
 
-- [ ] **Step 4: README 절 · 파일 커밋**
+- [x] **Step 4: README 절 · 파일 커밋**
 
 `loadtest/README.md` 끝에 절을 더한다.
 
@@ -2148,7 +2148,7 @@ git commit -m "test : 상품 캐시 측정용 자원 배분과 상세 조회 부
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
-- [ ] **Step 5: jar 두 개를 만든다**
+- [x] **Step 5: jar 두 개를 만든다**
 
 before 는 캐시가 없는 `main` 의 `0f0ed3b7`, after 는 Task 4 커밋이다. 저장소 루트(`study-project/`)의 작업 트리에 무관한 변경이 있으므로 worktree 로 빌드한다.
 
@@ -2171,7 +2171,7 @@ cp apps/commerce-api/build/libs/<실행 가능한 jar> apps/commerce-api/build/l
 
 기대: `commerce-api-cache-before.jar`, `commerce-api-cache-after.jar` 가 있다. `-plain.jar` 를 복사하지 않았는지 크기로 확인한다(수십 MB 여야 한다).
 
-- [ ] **Step 6: before 측정**
+- [x] **Step 6: before 측정**
 
 ```bash
 APP_JAR=commerce-api-cache-before.jar \
@@ -2190,7 +2190,7 @@ APP_JAR=commerce-api-cache-before.jar \
 
 B2 는 새 배분(앱 2.5 CPU)에서 목록의 절벽이 어디로 옮겼는지 확인하는 용도다. 2026-09-16 의 "50~60 TPS 사이" 를 그대로 믿지 않는다.
 
-- [ ] **Step 7: after 측정**
+- [x] **Step 7: after 측정**
 
 ```bash
 docker compose -f docker/loadtest-compose.yml -f docker/loadtest-cache.override.yml down
@@ -2210,7 +2210,9 @@ APP_JAR=commerce-api-cache-after.jar \
 
 A3 은 before 를 붙이지 않는다. before 는 B2 에서 이미 무너지므로 비교가 성립하지 않는다(README "상품 목록 인덱스 측정" 3 절의 이유).
 
-- [ ] **Step 8: 결과를 설계 문서에 남긴다**
+> 실측(2026-10-06)에서 B2 는 무너지지 않았다(p95 8.0ms). 이 전제는 틀렸고, 그래서 H1 뒤 절이 판정 보류가 됐다 — 설계 8.4 장.
+
+- [x] **Step 8: 결과를 설계 문서에 남긴다**
 
 설계 문서 8.2 장 뒤에 `### 8.3 실측 (YYYY-MM-DD)` 과 `### 8.4 판정` 을 더한다. 8.3 은 아래 표를 채운다.
 k6 요약의 p95 · med · dropped, 스냅샷 차이의 `Com_select` · 적중률(`hits / (hits + misses)`)을 그대로 옮긴다.
@@ -2239,7 +2241,7 @@ p99 가 30 초 주기로 튀었는지(9.3 장)도 k6 JSON 에서 확인해 한 �
 - 상태: **구현 · 측정 완료 (YYYY-MM-DD)** — 계획은 [plans/2026-10-04-product-cache.md](../plans/2026-10-04-product-cache.md), 실측은 8.3 장
 ```
 
-- [ ] **Step 9: 커밋**
+- [x] **Step 9: 커밋**
 
 ```bash
 git add docs/superpowers/specs/2026-10-04-product-cache-design.md
