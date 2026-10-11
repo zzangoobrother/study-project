@@ -972,8 +972,8 @@ A/B 중 채택되지 않은 인덱스는 코드에 남기지 않는다. 2026-09-
 | ✅ `mysql:8.0` 태그의 패치 버전이 `EXPLAIN ANALYZE` 를 지원하는가 | **8.0.46 — 지원한다** (2026-09-17 Task 1 에서 확인). 대체 계획 불필요 |
 | ✅ `DESC` 없이도 같은 계획이 나오는가 (가설 3.5.5) | **성립한다** — `Extra` 에 `Backward index scan`, `Using filesort` 없음 (2026-09-20 Task 3 Step 6, `desc-check.txt`. 3.6 장) |
 | ✅ Hibernate 6 의 `@Index` 가 `DESC` 를 통과시키는가 | **통과한다** — Hibernate 6.6.11, `Collation` 이 `D` 인 인덱스 생성 확인 (2026-09-21 Task 4. 4.3 장) |
-| C 채택 시 `idx_products_brand_id` 를 지울 것인가 (3.5 · 3.7 · 6.3 장) | 후속 — `latest` · `price_asc` 경로를 함께 재는 문서에서. 도달 가능하지만(2 개) 실제로 지우지는 않았다(현재 3 개) |
+| C 채택 시 `idx_products_brand_id` 를 지울 것인가 (3.5 · 3.7 · 6.3 장) | ✅ **제거로 결정** — [2026-10-12 문서 4 장](2026-10-12-product-list-latest-price-index-design.md)에서 네 경로를 재고 엔티티에서 뺐다. 영향은 저빈도 어드민 목록의 +1.4 ms 뿐이다 |
 | 버퍼 풀을 줄이면 A/B/C 판정이 뒤집히는가 | 후속 |
-| `latest` · `price_asc` 에도 같은 기법이 유효한가 | 후속 |
+| ✅ `latest` · `price_asc` 에도 같은 기법이 유효한가 | **유효하다** — [2026-10-12 문서](2026-10-12-product-list-latest-price-index-design.md) 3 장. 네 경로 모두 filesort 가 사라졌다 |
 | `OFFSET` 깊은 페이지를 커서 페이징으로 바꿀 것인가 | 후속 문서 — 출발점 수치는 4.4 장에 있다(`OFFSET 90000` 에서 90,020 행 · 51.6 ms) |
 | 마이그레이션 도구를 도입할 것인가 (4.2 장) | 후속 문서 |
