@@ -152,10 +152,10 @@ class ProductModelPersistenceTest @Autowired constructor(
 
         /**
          * 컬럼 순서까지 보는 이유는 이 순서 자체가 측정으로 정해졌기 때문이다.
-         * brand_id 가 선두여야 기존 idx_products_brand_id 를 흡수하고, deleted_at 이 그다음에
+         * brand_id 가 선두여야 brand_id 단독 인덱스를 접두사로 흡수하고, deleted_at 이 그다음에
          * 등치로 고정돼야 뒤의 정렬 키(like_count, id)가 인덱스 순서 그대로 쓰인다.
          * 컬럼이 빠지면 count 쿼리가 인덱스 온리를 잃고(2026-09-20 실측 4.06ms → 10.6ms, A 안),
-         * 순서가 바뀌면 커버링은 남지만 idx_products_brand_id 흡수를 잃는다(B 안).
+         * 순서가 바뀌면 커버링은 남지만 brand_id 단독 인덱스 흡수를 잃는다(B 안).
          * 둘 다 컴파일도 다른 테스트도 통과하므로 이 단언만 잡는다. (설계 문서 6.4 장)
          */
         @DisplayName("두 인덱스의 컬럼 순서가 채택안(C 안)과 일치한다.")
@@ -177,6 +177,71 @@ class ProductModelPersistenceTest @Autowired constructor(
             )
         }
 
+        @DisplayName("latest · price_asc 용 네 개가 존재한다.")
+        @Test
+        fun latestAndPriceIndexesExist() {
+            assertThat(indexNames()).contains(
+                "idx_products_brand_del_created",
+                "idx_products_del_created",
+                "idx_products_brand_del_price",
+                "idx_products_del_price",
+            )
+        }
+
+        /**
+         * 등치 컬럼(brand_id, deleted_at)이 앞이고 정렬 키가 뒤여야 LIMIT 20 이 인덱스 앞쪽만 읽고 멈춘다.
+         * 순서가 바뀌면 filesort 가 돌아오지만 컴파일도 다른 테스트도 통과한다. (2026-10-12 설계 문서 3 장)
+         */
+        @DisplayName("latest · price_asc 인덱스의 컬럼 순서가 설계와 일치한다.")
+        @Test
+        fun latestAndPriceColumnOrderMatchesDesign() {
+            assertAll(
+                {
+                    assertThat(columnsOf("idx_products_brand_del_created"))
+                        .containsExactly("brand_id", "deleted_at", "created_at", "id")
+                },
+                {
+                    assertThat(columnsOf("idx_products_del_created"))
+                        .containsExactly("deleted_at", "created_at", "id")
+                },
+                {
+                    assertThat(columnsOf("idx_products_brand_del_price"))
+                        .containsExactly("brand_id", "deleted_at", "price", "id")
+                },
+                {
+                    assertThat(columnsOf("idx_products_del_price"))
+                        .containsExactly("deleted_at", "price", "id")
+                },
+            )
+        }
+
+        /**
+         * 위 좋아요순은 방향을 단언하지 않지만 price 인덱스는 다르다. price_asc 정렬이 price ASC, id DESC 로
+         * 섞여 있어, id 가 ASC 로 바뀌면 Backward scan 으로도 해결되지 않아 동점 구간에서 filesort 가 돌아온다.
+         * SHOW INDEX 의 Collation 은 A(오름차순) / D(내림차순)다. (2026-10-12 설계 문서 3 장)
+         */
+        @DisplayName("price_asc 인덱스는 price 오름차순, id 내림차순으로 섞여 있다.")
+        @Test
+        fun priceIndexesKeepMixedDirection() {
+            assertAll(
+                {
+                    assertThat(collationsOf("idx_products_brand_del_price"))
+                        .containsExactly("A", "A", "A", "D")
+                },
+                {
+                    assertThat(collationsOf("idx_products_del_price"))
+                        .containsExactly("A", "A", "D")
+                },
+            )
+        }
+
+        /** 되살아나면 brand_id 선두 인덱스들과 중복이라 모든 쓰기가 쓸모없는 인덱스를 하나 더 갱신한다. (2026-10-12 설계 문서 4 장) */
+        @DisplayName("brand_id 단독 인덱스는 존재하지 않는다.")
+        @Test
+        fun brandIdOnlyIndexIsAbsent() {
+            assertThat(indexNames()).doesNotContain("idx_products_brand_id")
+        }
+
         /** SHOW INDEX 의 3 번째 컬럼이 Key_name 이다. */
         private fun indexNames(): Set<String> =
             rows().map { it[2] as String }.toSet()
@@ -186,6 +251,12 @@ class ProductModelPersistenceTest @Autowired constructor(
             rows().filter { it[2] == indexName }
                 .sortedBy { (it[3] as Number).toInt() }
                 .map { it[4] as String }
+
+        /** SHOW INDEX 의 7 번째가 Collation(A/D)이다. Seq_in_index 순으로 정렬한다. */
+        private fun collationsOf(indexName: String): List<String> =
+            rows().filter { it[2] == indexName }
+                .sortedBy { (it[3] as Number).toInt() }
+                .map { it[5].toString() }
 
         private fun rows(): List<Array<*>> =
             @Suppress("UNCHECKED_CAST")

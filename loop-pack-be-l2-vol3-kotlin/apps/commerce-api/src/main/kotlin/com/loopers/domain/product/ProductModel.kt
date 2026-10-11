@@ -33,15 +33,28 @@ import org.hibernate.annotations.Check
 @Table(
     name = "products",
     indexes = [
-        Index(name = "idx_products_brand_id", columnList = "brand_id"),
+        // brand_id 단독 인덱스는 두지 않는다. 아래 brand_id 선두 인덱스들이 모두 접두사로 대신하고,
+        // 이것만 쓰던 경로는 저빈도 어드민 목록(삭제 포함) 하나이며 지워도 +1.4ms 뿐이다. 되살리면 중복 인덱스다.
+        // (2026-10-12 설계 문서 4 장)
         // 경로 ① - 브랜드 필터 + 좋아요순. brand_id·deleted_at 이 둘 다 등치로 고정되므로
         // 그 뒤 정렬 키(like_count, id)가 인덱스 순서 그대로 쓰여 filesort 가 사라진다.
-        // brand_id 를 선두에 둔 것은 기존 idx_products_brand_id 를 흡수하기 위해서다. (설계 문서 3.5 장)
+        // brand_id 를 선두에 둔 것은 brand_id 단독 인덱스를 접두사로 흡수하기 위해서다. (설계 문서 3.5 장,
+        // 실제 제거는 2026-10-12 설계 문서 4 장)
         Index(name = "idx_products_brand_del_like", columnList = "brand_id, deleted_at, like_count desc, id desc"),
         // 경로 ② - 브랜드 필터 없는 좋아요순. 위 인덱스는 선두가 brand_id 라 이 경로에 쓸 수 없다. (설계 문서 3.2 장)
         // 두 인덱스 모두 id 가 마지막 정렬 키인 것은 2026-08-13 설계 문서 5.5 장의 전순서 규약 때문이다 -
         // like_count 동점 구간에서 다시 정렬이 필요해지면 인덱스를 건 의미가 절반 사라진다.
         Index(name = "idx_products_del_like", columnList = "deleted_at, like_count desc, id desc"),
+        // latest 정렬(created_at DESC, id DESC) - 좋아요순과 같은 모양이다. 기준선은 전량 filesort 였고
+        // 인덱스 순서대로 앞 20 행만 읽고 멈추게 한다. (2026-10-12 설계 문서 3 장)
+        Index(name = "idx_products_brand_del_created", columnList = "brand_id, deleted_at, created_at desc, id desc"),
+        // latest 의 브랜드 필터 없는 경로. 선두가 brand_id 인 위 인덱스는 쓸 수 없다. (2026-10-12 설계 문서 3 장)
+        Index(name = "idx_products_del_created", columnList = "deleted_at, created_at desc, id desc"),
+        // price_asc 정렬은 price ASC, id DESC 로 방향이 섞여 있다. 인덱스도 똑같이 섞어야 id 동점 구간에서
+        // 정렬이 다시 필요해지지 않는다. 둘 다 ASC 로 만들면 filesort 가 돌아온다. (2026-10-12 설계 문서 3 장)
+        Index(name = "idx_products_brand_del_price", columnList = "brand_id, deleted_at, price asc, id desc"),
+        // price_asc 의 브랜드 필터 없는 경로. 방향이 섞인 이유는 위와 같다. (2026-10-12 설계 문서 3 장)
+        Index(name = "idx_products_del_price", columnList = "deleted_at, price asc, id desc"),
     ],
 )
 @Check(name = "ck_products_stock_non_negative", constraints = "stock >= 0")

@@ -1,0 +1,36 @@
+# EXPLAIN ANALYZE 최상위(Limit) actual time 끝값, 5 회. 2026-10-12, loadtest-compose MySQL 8.0, 10 만 건 시드.
+# 열: 라벨 / 경로 / 중앙값 / 원본 5 회 / EXPLAIN 의 key | rows | Extra
+
+## 1) 기준선 — 엔티티가 만든 인덱스 그대로 (brand_id, brand_del_like, del_like)
+before	latest①	median=11ms	runs=[ 10.7 10.5 11 11.1 11.4 ]	idx_products_brand_id | rows=48856 | Using where; Using filesort
+before	latest②	median=50.9ms	runs=[ 49.9 50.9 48.3 55.2 53.5 ]	idx_products_del_like | rows=49783 | Using index condition; Using filesort
+before	price①	median=11.3ms	runs=[ 11.2 11.3 11.3 11.5 11.9 ]	idx_products_brand_id | rows=48856 | Using where; Using filesort
+before	price②	median=52.8ms	runs=[ 52.8 55.4 52.7 56 47.9 ]	idx_products_del_like | rows=49783 | Using index condition; Using filesort
+
+# 참고 — latest② 를 IGNORE INDEX 로 전체 스캔에 강제하면 30.4ms (1 회). 옵티마이저가 고른 del_like 경유가 더 느리다.
+
+## 2) 후보 4 개 추가 (brand_id 단독 인덱스 유지)
+after	latest①	median=0.222ms	runs=[ 0.285 0.194 0.226 0.192 0.222 ]	idx_products_brand_del_created | rows=48124 | Using index condition
+after	latest②	median=0.358ms	runs=[ 0.352 0.558 0.365 0.295 0.358 ]	idx_products_del_created | rows=48540 | Using index condition
+after	price①	median=0.223ms	runs=[ 0.283 0.223 0.203 0.252 0.199 ]	idx_products_brand_del_price | rows=48124 | Using index condition
+after	price②	median=0.254ms	runs=[ 0.282 0.254 0.247 0.294 0.253 ]	idx_products_del_price | rows=48540 | Using index condition
+
+## 3) brand_id 단독 인덱스에 기대던 경로 — 유지 / 제거
+with-brand_id	likes①	median=0.274ms	runs=[ 0.279 0.267 0.302 0.274 0.268 ]	idx_products_brand_del_like | rows=48124 | Using index condition
+with-brand_id	count①	median=2.68ms	runs=[ 2.75 2.71 2.67 2.68 2.6 ]	idx_products_brand_del_like | rows=48540 | Using where; Using index
+with-brand_id	admin①(전체·삭제포함)	median=11.4ms	runs=[ 11.7 10.9 11.6 11.3 11.4 ]	idx_products_brand_id | rows=48540 | Using filesort
+with-brand_id	브랜드삭제 대상조회	median=12.4ms	runs=[ 12.4 12.4 12.8 12.1 12.4 ]	idx_products_brand_del_created | rows=48124 | Using index condition
+without-brand_id	likes①	median=0.264ms	runs=[ 0.252 0.262 0.276 0.264 0.285 ]	idx_products_brand_del_like | rows=48124 | Using index condition
+without-brand_id	count①	median=2.74ms	runs=[ 2.85 3.46 2.71 2.64 2.74 ]	idx_products_brand_del_like | rows=49783 | Using where; Using index
+without-brand_id	admin①(전체·삭제포함)	median=12.8ms	runs=[ 13.1 12.5 12.8 14 12.7 ]	idx_products_brand_del_like | rows=49783 | Using filesort
+without-brand_id	브랜드삭제 대상조회	median=12.2ms	runs=[ 12 12 12.8 12.2 12.3 ]	idx_products_brand_del_created | rows=48124 | Using index condition
+
+## 4) 후보 4 개 + brand_id 단독 인덱스 제거 (최종 구성)
+after-no-brand_id	latest①	median=0.191ms	runs=[ 0.191 0.189 0.196 0.196 0.189 ]	idx_products_brand_del_created | rows=48124 | Using index condition
+after-no-brand_id	latest②	median=0.274ms	runs=[ 0.297 0.265 0.267 0.293 0.274 ]	idx_products_del_created | rows=49783 | Using index condition
+after-no-brand_id	price①	median=0.193ms	runs=[ 0.185 0.215 0.185 0.193 0.221 ]	idx_products_brand_del_price | rows=48124 | Using index condition
+after-no-brand_id	price②	median=0.263ms	runs=[ 0.263 0.293 0.26 0.287 0.262 ]	idx_products_del_price | rows=49783 | Using index condition
+
+## 인덱스 크기 (mysql.innodb_index_stats, size × 16KB)
+PRIMARY 9.52MB / brand_del_like 5.52 / del_like 5.52 / brand_id 3.52
+brand_del_created 3.52 / del_created 3.52 / brand_del_price 3.52 / del_price 3.52
