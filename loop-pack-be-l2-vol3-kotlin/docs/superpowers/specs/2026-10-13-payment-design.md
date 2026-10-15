@@ -53,7 +53,7 @@ PG(`pg-simulator`)의 성질:
 | 결제 실패 시 재고 · 쿠폰 복구(보상 트랜잭션) | 실패한 주문은 다른 카드로 다시 결제할 수 있게 둔다(3.2 장). 결제되지 않은 주문을 언제 포기로 볼지(만료)는 별도 결정이 필요하다. 2026-10-13 결정. |
 | 결제 취소 · 환불 | PG 에 취소 API 가 없다. |
 | 결제 조회 API · 수동 동기화 API | 사용자는 주문 조회로 결과를 본다(5.4 장). 동기화는 스케줄러가 맡는다. |
-| 분산 락(ShedLock 등) | 여러 인스턴스가 같은 건을 동기화해도 전이가 멱등이라 결과가 같다(5.3 장). |
+| 분산 락(ShedLock 등) | 여러 인스턴스가 같은 건을 동기화해도 주문은 조건부 UPDATE, 결제는 `@Version` 으로 직렬화돼 결과가 같다(3.1 · 5.3 장). |
 | Bulkhead · RateLimiter | 타임아웃 · 재시도 상한으로 요청당 최대 점유 시간이 3.6 s 로 묶인다(6.1 장). 스레드 고갈이 측정에서 관측되면 그때 다룬다. |
 | 어드민 주문 응답의 상태 노출 | 과제 범위 밖이다. |
 | 콜백 서명 검증 | PG 가 서명을 주지 않는다. 대신 콜백 본문을 믿지 않는다(5.1 장). |
@@ -80,6 +80,19 @@ pg-simulator 는 `jdbc:mysql://localhost:3306/paymentgateway` 를 쓰는데, `do
 - `infra-compose.yml` 의 mysql 에 `/docker-entrypoint-initdb.d` 로 마운트
 
 초기화 스크립트는 **볼륨이 비어 있을 때만** 실행된다. 이미 볼륨이 있으면 같은 SQL 을 한 번 수동으로 실행해야 한다 — README 에 적는다.
+
+**접속 URL 은 실행 인자로 넘긴다.** pg-simulator 의 `application.yml` 은 기본 문서에 `paymentgateway` 를 적었지만,
+그 파일이 들여오는 `modules/jpa` 의 `jpa.yml` 에서 `local` 프로필 문서가 `jdbc-url: .../loopers` 와 `ddl-auto: create` 를 갖는다.
+들여온 파일의 값이 들여온 쪽 파일보다 우선하므로(6 장과 같은 규칙) 그대로 띄우면 pg-simulator 가 `loopers` 에 붙고,
+두 앱이 기동할 때마다 **서로의 `payments` 테이블을 drop · create 한다.** 원본도 `modules/` 도 고치지 않고,
+우선순위가 가장 높은 명령줄 인자로 덮어쓴다. (2026-10-15 검토)
+
+```shell
+./gradlew :apps:pg-simulator:bootRun --args='--datasource.mysql-jpa.main.jdbc-url=jdbc:mysql://localhost:3306/paymentgateway'
+```
+
+기동한 뒤 `paymentgateway` 에만 `payments` 가 생기고 `loopers` 에는 생기지 않았는지 확인한다.
+테스트는 Testcontainers 라 영향이 없다. 이 문제는 수동 확인과 측정(11 장)에서만 드러난다.
 
 ### 2.3 포트
 
@@ -120,6 +133,11 @@ REQUESTED ──(PG 접수)──▶ PENDING ──(PG 결과)──▶ SUCCESS
 - **확정 상태(SUCCESS · FAILED)에서의 전이 요청은 무시한다.** 콜백과 스케줄러가 같은 결과를 동시에 들고 오는 것이
   정상 경로이므로, 예외를 던지면 둘 중 하나가 매번 500 이 된다.
 - `markPending` 은 REQUESTED 에서만 의미가 있다. 다른 상태면 무시한다.
+- **`@Version` 으로 낙관적 락을 건다.** 주문 전이는 조건부 UPDATE 로 직렬화되지만, 결제 전이는 엔티티를 읽고 바꿔 더티 체킹으로 반영한다.
+  버전이 없으면 동시에 REQUESTED 를 읽은 두 경로가 각자 커밋한다. 예를 들어 1 분이 지나 포기하는 sync 와 PG 승인을 확정하는 sync 가 겹치면,
+  주문 행은 먼저 UPDATE 한 쪽이, 결제 행은 마지막에 커밋한 쪽이 이긴다. 그러면 **결제는 FAILED 인데 주문은 PAID** 처럼
+  어긋난 채 둘 다 확정될 수 있고, 확정 상태라 동기화도 고치지 못한다. 같은 이유로 tx2 의 `markPending` 이 콜백의 SUCCESS 를 PENDING 으로 되돌릴 수 있다.
+  `BaseEntity` 는 세 앱이 공유하므로 `PaymentModel` 에만 둔다. 충돌 처리는 5.2 장. (2026-10-15 검토)
 
 인덱스:
 
@@ -260,6 +278,11 @@ PaymentSyncScheduler ─────────────┘
   사용자가 재결제한 뒤 원래 요청까지 승인돼 이중 결제가 난다.
 - **금액 검증.** 확정 전에 PG 상세의 `amount` 가 `payment.amount` 와 같은지 본다. 다르면 반영하지 않고 ERROR 로그 — 위조나 버그의 신호다.
 - **확정은 한 트랜잭션**이다. 결제 `succeed()` + `completePayment`, 또는 결제 `fail()` + `failPayment`.
+- **버전 충돌은 정상 경합이다.** 확정 트랜잭션은 결제 전이를 주문 UPDATE 보다 먼저 한다. 그러면 조건부 UPDATE 의 flush 가
+  결제 변경을 먼저 내보내면서 버전을 검사하므로, 진 쪽은 **주문을 건드리기 전에** 실패하고 통째로 롤백된다.
+  sync 는 이 예외(`OptimisticLockingFailureException`)를 잡고 아무것도 하지 않는다. 아직 확정 전이면 다음 주기가 다시 묻는다.
+  예외를 올리면 콜백이 500 이 된다.
+  결제 요청의 tx2 가 콜백의 확정에 지면, 덮어쓰지 않고 현재 결제 상태를 응답한다 — 콜백 쪽이 더 최신이다. (2026-10-15 검토)
 
 ### 5.3 스케줄러
 
@@ -269,7 +292,8 @@ PaymentSyncScheduler ─────────────┘
   PG 처리 지연이 최대 5 s 이므로 정상이면 콜백이 먼저 처리했을 건만 남는다.
 - 건마다 `sync` 를 부르고, 한 건의 예외가 나머지를 막지 않게 건 단위로 잡아 로그를 남긴다.
 - `pg.sync.enabled` 로 켜고 끈다. 테스트 프로필은 끈다(10 장).
-- 여러 인스턴스가 같은 건을 처리해도 결제 전이는 멱등, 주문 전이는 조건부 UPDATE 라 늦은 쪽은 아무 일도 하지 않는다.
+- 여러 인스턴스가 같은 건을 처리해도 주문 전이는 조건부 UPDATE, 결제 전이는 `@Version` 으로 직렬화돼 늦은 쪽은 아무 일도 하지 않는다(3.1 · 5.2 장).
+  전이 메서드의 멱등만으로는 부족하다 — 그건 순차 실행에서의 성질이고, 동시에 읽은 두 트랜잭션은 막지 못한다.
 
 ### 5.4 사용자가 결과를 보는 길
 
@@ -448,10 +472,11 @@ PAYMENT_PENDING · PAYMENT_FAILED 주문의 재고와 쿠폰은 돌아오지 않
 | 계층 | 테스트 | 검증 | PG |
 |---|---|---|---|
 | 단위 | `PaymentModelTest`, `CardNoTest`, `OrderModelTest`(보강) | 전이 규칙, 확정 후 전이 무시, 카드 형식, 주문 초기 상태 | — |
-| 영속성 | `PaymentModelPersistenceTest` | 저장 · 조회, 스케줄러 대상 조회 조건 | — |
+| 영속성 | `PaymentModelPersistenceTest` | 저장 · 조회, 스케줄러 대상 조회 조건, **같은 결제를 동시에 수정하면 늦은 쪽이 낙관적 락 예외** | — |
 | 통합 | `OrderServiceIntegrationTest`(보강) | 3.3 장 세 메서드, **동시 `startPayment` 두 건 중 하나만 성공** | — |
 | 어댑터 | `PgPaymentGatewayTest` | 아래 | WireMock |
-| 통합 | `PaymentFacadeIntegrationTest` | 4.2 장 세 결과, 5.2 장 표 모든 행, 0 원 주문, 409, 404 | `@MockitoBean PaymentGateway` |
+| 통합 | `PaymentFacadeIntegrationTest` | 4.2 장 세 결과, 0 원 주문, 409, 404 | `@MockitoBean PaymentGateway` |
+| 통합 | `PaymentSyncIntegrationTest` | 5.2 장 표 모든 행, **서로 다른 결과로 동시에 확정해도 결제와 주문이 어긋나지 않고 예외가 새지 않음** | `@MockitoBean PaymentGateway` |
 | E2E | `PaymentV1ApiE2ETest` | 요청 API, 콜백 API, **위조 콜백(SUCCESS)이 와도 PG 조회가 PENDING 이면 상태 불변** | `@MockitoBean PaymentGateway` |
 
 어댑터 테스트는 결과가 아니라 **호출 횟수와 시간**을 단언한다. yml 키를 하나 틀리면 기본값으로 돌아가면서도 아무 에러가 나지 않는다.
