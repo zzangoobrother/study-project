@@ -3,6 +3,7 @@ package com.loopers.infrastructure.order
 import com.loopers.domain.order.OrderCriteria
 import com.loopers.domain.order.OrderModel
 import com.loopers.domain.order.OrderRepository
+import com.loopers.domain.order.OrderStatus
 import com.loopers.domain.support.PageResult
 import org.springframework.stereotype.Component
 
@@ -25,5 +26,9 @@ class OrderRepositoryImpl(
 
     override fun findAllForAdmin(criteria: OrderCriteria.AdminSearch): PageResult<OrderModel> {
         return orderQueryDslRepository.searchForAdmin(criteria)
+    }
+
+    override fun changeStatus(orderId: Long, expected: Set<OrderStatus>, next: OrderStatus): Boolean {
+        return orderJpaRepository.changeStatus(orderId = orderId, expected = expected, next = next) > 0
     }
 }

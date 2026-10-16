@@ -163,6 +163,7 @@ class OrderV1ApiE2ETest @Autowired constructor(
             assertAll(
                 { assertThat(response.statusCode).isEqualTo(HttpStatus.OK) },
                 { assertThat(response.body?.data?.totalPrice).isEqualTo(30_000L) },
+                { assertThat(response.body?.data?.status).isEqualTo("PAYMENT_PENDING") },
                 { assertThat(response.body?.data?.items).hasSize(1) },
                 { assertThat(response.body?.data?.items?.first()?.productName).isEqualTo("운동화") },
                 { assertThat(stockOf(product.id)).isEqualTo(7L) },
