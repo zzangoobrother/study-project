@@ -42,6 +42,7 @@ class OrderV1Dto {
      *
      * items 의 productName 과 unitPrice 가 주문 시점의 값이다.
      * 지금 상품을 조회해 채운 값이 아니므로, 상품이 이후 바뀌거나 삭제돼도 이 응답은 그대로다.
+     * status 는 결제 상태다. 결제 결과를 기다리는 클라이언트가 이 값으로 확인한다. (2026-10-13 결제 설계 5.4 장)
      */
     data class OrderResponse(
         val id: Long,
@@ -49,6 +50,7 @@ class OrderV1Dto {
         val discountAmount: Long,
         val paidAmount: Long,
         val itemCount: Int,
+        val status: String,
         val orderedAt: ZonedDateTime,
         val items: List<Item>,
     ) {
@@ -67,6 +69,7 @@ class OrderV1Dto {
                 discountAmount = info.discountAmount,
                 paidAmount = info.paidAmount,
                 itemCount = info.itemCount,
+                status = info.status,
                 orderedAt = info.orderedAt,
                 items = info.items.map {
                     Item(
@@ -93,6 +96,7 @@ class OrderV1Dto {
         val discountAmount: Long,
         val paidAmount: Long,
         val itemCount: Int,
+        val status: String,
         val orderedAt: ZonedDateTime,
     ) {
         companion object {
@@ -102,6 +106,7 @@ class OrderV1Dto {
                 discountAmount = info.discountAmount,
                 paidAmount = info.paidAmount,
                 itemCount = info.itemCount,
+                status = info.status,
                 orderedAt = info.orderedAt,
             )
         }

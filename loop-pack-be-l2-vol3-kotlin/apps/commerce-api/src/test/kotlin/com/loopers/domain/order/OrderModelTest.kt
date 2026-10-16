@@ -41,6 +41,16 @@ class OrderModelTest {
     @DisplayName("주문을 만들 때, ")
     @Nested
     inner class CreateOrder {
+        @DisplayName("결제 대기 상태로 만들어진다.")
+        @Test
+        fun startsAsPaymentPending() {
+            // act
+            val order = OrderModel.create(userId = 1L, items = listOf(item()))
+
+            // assert
+            assertThat(order.status).isEqualTo(OrderStatus.PAYMENT_PENDING)
+        }
+
         @DisplayName("총액은 항목 소계의 합이다.")
         @Test
         fun totalPriceIsSumOfSubtotals() {

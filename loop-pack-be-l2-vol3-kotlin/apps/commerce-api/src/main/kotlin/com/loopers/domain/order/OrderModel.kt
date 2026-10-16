@@ -9,6 +9,8 @@ import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
 import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
 import jakarta.persistence.Index
 import jakarta.persistence.OneToMany
@@ -83,6 +85,15 @@ class OrderModel private constructor(
     /** 어떤 쿠폰을 썼는지 추적한다. 쿠폰 없는 주문이 정상이라 nullable 이다. */
     @Column(name = "used_coupon_id")
     var usedCouponId: Long? = usedCouponId
+        protected set
+
+    /**
+     * 결제 상태. 엔티티 메서드로 바꾸지 않는다 — 전이는 OrderRepository.changeStatus 의 조건부 UPDATE 로만 일어난다.
+     * 메모리에서 읽고 바꾸면 동시 결제 요청 두 건이 같은 상태를 읽고 둘 다 통과한다. (2026-10-13 결제 설계 3.3 장)
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    var status: OrderStatus = OrderStatus.PAYMENT_PENDING
         protected set
 
     /**

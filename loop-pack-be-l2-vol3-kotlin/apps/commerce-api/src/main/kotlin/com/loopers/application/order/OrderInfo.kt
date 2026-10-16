@@ -16,6 +16,7 @@ data class OrderInfo(
     val discountAmount: Long,
     val paidAmount: Long,
     val itemCount: Int,
+    val status: String,
     val orderedAt: ZonedDateTime,
     val items: List<Item>,
 ) {
@@ -35,6 +36,7 @@ data class OrderInfo(
             discountAmount = model.discountAmount.value,
             paidAmount = model.paidAmount.value,
             itemCount = model.itemCount,
+            status = model.status.name,
             orderedAt = model.createdAt,
             items = model.items.map {
                 Item(
@@ -57,6 +59,7 @@ data class OrderInfo(
             discountAmount = model.discountAmount.value,
             paidAmount = model.paidAmount.value,
             itemCount = model.itemCount,
+            status = model.status.name,
             orderedAt = model.createdAt,
             items = emptyList(),
         )

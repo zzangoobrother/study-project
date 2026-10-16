@@ -13,6 +13,9 @@ import org.junit.jupiter.api.assertAll
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import java.time.LocalDate
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 @SpringBootTest
 class OrderServiceIntegrationTest @Autowired constructor(
@@ -260,6 +263,129 @@ class OrderServiceIntegrationTest @Autowired constructor(
             assertAll(
                 { assertThat(result.content).isEmpty() },
                 { assertThat(result.totalElements).isEqualTo(1L) },
+            )
+        }
+    }
+
+    @DisplayName("주문의 결제 상태를 바꿀 때, ")
+    @Nested
+    inner class ChangePaymentStatus {
+        private fun statusOf(orderId: Long) = orderService.getOrder(orderId)!!.status
+
+        @DisplayName("결제 대기 주문은 결제 중이 된다.")
+        @Test
+        fun startsPayment_whenPaymentPending() {
+            // arrange
+            val order = place(items = arrayOf(item()))
+
+            // act
+            val result = orderService.startPayment(order.id)
+
+            // assert
+            assertAll(
+                { assertThat(result).isTrue() },
+                { assertThat(statusOf(order.id)).isEqualTo(OrderStatus.PAYING) },
+            )
+        }
+
+        @DisplayName("이미 결제 중이면 시작하지 못한다.")
+        @Test
+        fun cannotStartPayment_whenAlreadyPaying() {
+            // arrange
+            val order = place(items = arrayOf(item()))
+            orderService.startPayment(order.id)
+
+            // act
+            val result = orderService.startPayment(order.id)
+
+            // assert
+            assertThat(result).isFalse()
+        }
+
+        @DisplayName("결제에 실패한 주문은 다시 결제를 시작할 수 있다.")
+        @Test
+        fun startsPaymentAgain_whenPaymentFailed() {
+            // arrange
+            val order = place(items = arrayOf(item()))
+            orderService.startPayment(order.id)
+            orderService.failPayment(order.id)
+
+            // act
+            val result = orderService.startPayment(order.id)
+
+            // assert
+            assertAll(
+                { assertThat(result).isTrue() },
+                { assertThat(statusOf(order.id)).isEqualTo(OrderStatus.PAYING) },
+            )
+        }
+
+        @DisplayName("결제 완료된 주문은 다시 결제를 시작하지 못한다.")
+        @Test
+        fun cannotStartPayment_whenPaid() {
+            // arrange
+            val order = place(items = arrayOf(item()))
+            orderService.startPayment(order.id)
+            orderService.completePayment(order.id)
+
+            // act
+            val result = orderService.startPayment(order.id)
+
+            // assert
+            assertAll(
+                { assertThat(result).isFalse() },
+                { assertThat(statusOf(order.id)).isEqualTo(OrderStatus.PAID) },
+            )
+        }
+
+        @DisplayName("결제 중이 아니면 완료 · 실패로 바뀌지 않는다.")
+        @Test
+        fun cannotCompleteOrFail_whenNotPaying() {
+            // arrange
+            val order = place(items = arrayOf(item()))
+
+            // act
+            val completed = orderService.completePayment(order.id)
+            val failed = orderService.failPayment(order.id)
+
+            // assert
+            assertAll(
+                { assertThat(completed).isFalse() },
+                { assertThat(failed).isFalse() },
+                { assertThat(statusOf(order.id)).isEqualTo(OrderStatus.PAYMENT_PENDING) },
+            )
+        }
+
+        /**
+         * 이중 결제를 막는 1 차 방어선이다. 조회 후 판단으로 바꾸면 두 요청이 모두 PAYMENT_PENDING 을 읽고 둘 다 통과한다.
+         * (2026-10-13 결제 설계 3.3 장)
+         */
+        @DisplayName("두 요청이 동시에 결제를 시작하면, 하나만 성공한다.")
+        @Test
+        fun onlyOneStarts_whenStartedConcurrently() {
+            // arrange
+            val order = place(items = arrayOf(item()))
+            val executor = Executors.newFixedThreadPool(2)
+            val ready = CountDownLatch(2)
+            val start = CountDownLatch(1)
+
+            // act
+            val futures = (1..2).map {
+                executor.submit<Boolean> {
+                    ready.countDown()
+                    start.await()
+                    orderService.startPayment(order.id)
+                }
+            }
+            ready.await()
+            start.countDown()
+            val results = futures.map { it.get(5, TimeUnit.SECONDS) }
+            executor.shutdown()
+
+            // assert
+            assertAll(
+                { assertThat(results.count { it }).isEqualTo(1) },
+                { assertThat(statusOf(order.id)).isEqualTo(OrderStatus.PAYING) },
             )
         }
     }

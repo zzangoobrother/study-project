@@ -50,4 +50,25 @@ class OrderService(
     fun getOrdersForAdmin(criteria: OrderCriteria.AdminSearch): PageResult<OrderModel> {
         return orderRepository.findAllForAdmin(criteria)
     }
+
+    /**
+     * 결제를 시작한다. false 면 이미 결제 중이거나 완료된 주문이다.
+     * 결제 실패 주문도 시작할 수 있다 — 다른 카드로 다시 결제하는 경로다. (2026-10-13 결제 설계 3.2 장)
+     */
+    @Transactional
+    fun startPayment(orderId: Long): Boolean = orderRepository.changeStatus(
+        orderId = orderId,
+        expected = setOf(OrderStatus.PAYMENT_PENDING, OrderStatus.PAYMENT_FAILED),
+        next = OrderStatus.PAYING,
+    )
+
+    /** false 면 다른 경로(콜백 · 스케줄러)가 먼저 확정했다. 호출자는 무시한다. */
+    @Transactional
+    fun completePayment(orderId: Long): Boolean =
+        orderRepository.changeStatus(orderId, setOf(OrderStatus.PAYING), OrderStatus.PAID)
+
+    /** false 면 다른 경로가 먼저 확정했다. 호출자는 무시한다. */
+    @Transactional
+    fun failPayment(orderId: Long): Boolean =
+        orderRepository.changeStatus(orderId, setOf(OrderStatus.PAYING), OrderStatus.PAYMENT_FAILED)
 }

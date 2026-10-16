@@ -17,4 +17,10 @@ interface OrderRepository {
 
     /** 회원을 가리지 않고 최근순으로 페이징 조회한다. 소프트 삭제된 주문은 제외된다. */
     fun findAllForAdmin(criteria: OrderCriteria.AdminSearch): PageResult<OrderModel>
+
+    /**
+     * 현재 상태가 expected 중 하나일 때만 next 로 바꾼다. 바꿨으면 true.
+     * false 는 "다른 요청이 먼저 바꿨다" 와 "주문이 없다" 를 함께 뜻한다. 호출자는 조회로 존재를 이미 확인한 뒤 부른다.
+     */
+    fun changeStatus(orderId: Long, expected: Set<OrderStatus>, next: OrderStatus): Boolean
 }

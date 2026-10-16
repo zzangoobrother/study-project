@@ -13,6 +13,17 @@ make init
 ```shell
 docker-compose -f ./docker/infra-compose.yml up
 ```
+
+결제 연동을 확인하려면 PG 시뮬레이터(`apps/pg-simulator`, 포트 8082)를 함께 띄웁니다. PG 는 `paymentgateway` 스키마를 씁니다.
+MySQL 볼륨을 이 변경 전에 만들었다면 스키마가 없으므로 한 번 수동으로 만듭니다.
+
+```shell
+docker exec -i $(docker ps -qf "ancestor=mysql:8.0") mysql -uroot -proot < ./docker/mysql/init/01-paymentgateway.sql
+./gradlew :apps:pg-simulator:bootRun --args='--datasource.mysql-jpa.main.jdbc-url=jdbc:mysql://localhost:3306/paymentgateway'
+```
+
+`--args` 를 빼면 안 됩니다. 공용 `jpa.yml` 의 `local` 설정이 PG 의 접속 URL 을 `loopers` 로 덮어써,
+commerce-api 와 PG 가 기동할 때마다 서로의 `payments` 테이블을 지웁니다.
 ### Monitoring
 `local` 환경에서 모니터링을 할 수 있도록, `docker-compose` 를 통해 `prometheus` 와 `grafana` 를 제공합니다.
 
