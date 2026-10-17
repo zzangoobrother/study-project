@@ -1,0 +1,28 @@
+# 결제 회복탄력성 측정용 구성. (2026-10-13 결제 설계 11.2 장)
+#
+# 기본 파일(loadtest-compose.yml)은 주문 · 캐시 측정의 재현 조건이라 고치지 않고, 결제용 차이를 이 파일에만 둔다.
+# commerce-api → PG 사이에 Toxiproxy 를 두어 지연(가설 3)과 장애(가설 2)를 원본 수정 없이 넣는다.
+# Toxiproxy 에 0.25 CPU 를 앱 몫에서 떼어 주므로 합계는 VM 5 CPU 그대로다.
+# pg-simulator 는 callbackUrl 제약 때문에 컨테이너가 아니라 호스트에서 띄운다(호스트 8082).
+# pg.callback-url 은 기본값(http://localhost:8080/...)을 그대로 둔다 — 호스트의 PG 가 호스트 8080 으로 콜백하면 컨테이너로 이어진다.
+#
+# 사용: docker compose -f docker/loadtest-compose.yml -f docker/loadtest-payment.override.yml up -d
+#       (이어서 loadtest/pg-proxy.sh create — Toxiproxy 는 재시작하면 프록시를 잊는다)
+services:
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.9.0
+    cpus: "0.25"
+    ports:
+      - "8474:8474"   # 관리 API — 호스트의 pg-proxy.sh 가 부른다
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # 호스트에서 도는 pg-simulator 로 나간다
+  commerce-api:
+    cpus: "2.75"      # 0.25 를 Toxiproxy 에 뗀다. 합계는 VM 5 CPU 그대로
+    depends_on:
+      toxiproxy:
+        condition: service_started
+    environment:
+      PG_BASE_URL: http://toxiproxy:18082
+      SERVER_TOMCAT_MBEANREGISTRY_ENABLED: "true"   # tomcat_threads_busy_threads 지표
+    ports:
+      - "8081:8081"   # actuator — 샘플러가 호스트에서 읽는다
