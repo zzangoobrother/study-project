@@ -90,6 +90,9 @@ class OrderModel private constructor(
     /**
      * 결제 상태. 엔티티 메서드로 바꾸지 않는다 — 전이는 OrderRepository.changeStatus 의 조건부 UPDATE 로만 일어난다.
      * 메모리에서 읽고 바꾸면 동시 결제 요청 두 건이 같은 상태를 읽고 둘 다 통과한다. (2026-10-13 결제 설계 3.3 장)
+     *
+     * 주의 — dev·qa·prd 는 ddl-auto 가 none 이므로 이 컬럼을 스키마에 직접 추가해야 한다(설계 3.2 장의 ALTER TABLE).
+     * 기존 행을 DEFAULT 'PAYMENT_PENDING' 으로 채우지 않으면 빈 문자열이 EnumType.STRING 매핑에서 실패해 주문 조회가 500 이 된다.
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)

@@ -23,6 +23,8 @@ import jakarta.persistence.Version
  *
  * 전이 메서드가 확정 상태에서 예외 없이 무시하는 이유는 콜백과 스케줄러가 같은 결과를 동시에 들고 오는 것이 정상 경로이기 때문이다.
  * 예외를 던지면 둘 중 하나가 매번 500 이 된다. (설계 3.1 장)
+ *
+ * 주의 — dev·qa·prd 는 ddl-auto 가 none 이므로 payments 테이블을 스키마에 직접 만들어야 한다(설계 3.1 장의 CREATE TABLE).
  */
 @Entity
 @Table(

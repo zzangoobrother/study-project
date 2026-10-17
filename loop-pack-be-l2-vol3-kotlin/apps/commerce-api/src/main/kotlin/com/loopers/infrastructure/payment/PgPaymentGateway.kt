@@ -19,6 +19,10 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * 즉시 실패(NotSent)로 번역하는 것은 보내지 않은 것이 확실한 두 경우 — 서킷이 막았을 때와 첫 시도의 연결이 거부됐을 때 — 뿐이다.
  * 5xx 도 Unknown 이다 — 실제 PG 는 어디까지 처리했는지 장담할 수 없다. 시뮬레이터의 구현 세부에 기대지 않는다.
+ *
+ * 그런데도 5xx 를 재시도하는 것은 모순이 아니라 비용이 다른 두 판단이다. 분류를 보수적으로 하는 것은 싸고(동기화가 정리한다),
+ * 재시도는 성공률을 올리는 대신 "PG 의 5xx 는 거래를 남기지 않았다" 는 가정에 건다. 실제 PG 에 붙일 때는 멱등 키를 확인하고,
+ * 없으면 application.yml 의 pgRequest retry-exceptions 에서 5xx 를 뺀다. (설계 6.2 · 9.7 장)
  */
 @Component
 class PgPaymentGateway(
