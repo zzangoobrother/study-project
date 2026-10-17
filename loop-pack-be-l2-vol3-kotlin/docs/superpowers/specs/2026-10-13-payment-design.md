@@ -647,27 +647,74 @@ PG 라면 재시도마다 거래가 하나씩 늘어 이중 결제가 된다. �
 
 ## 11. 측정 (선택 태스크)
 
-### 11.1 가설
+계획: [plans/2026-10-17-payment-resilience-measurement.md](../plans/2026-10-17-payment-resilience-measurement.md)
+
+### 11.1 사전 점검과 가설
+
+**사전 점검 P0 — PG 의 시도 단위 실패율이 40% 인가.** 6.2 · 6.3 장의 수치(요청 성공률 93.6%, 요청 실패율 6.4%, 오탐 확률)는
+모두 이 값에서 나온다. 2026-10-17 수동 확인에서 시도 18 회 중 14 회(78%)가 500 이었다. 표본이 작지만 40% 에서 이 정도가 나올
+확률은 약 0.05% 다. 가설 1 을 재기 전에 PG 를 직접(commerce-api 를 거치지 않고) 1,000 회 불러 실패율을 잰다.
+95% 구간이 대략 ±3%p 이므로 **37 ~ 43% 밖이면 멈추고** 원인을 찾는다 — 가설 1 의 전제가 깨진 것이다. (2026-10-17 검토)
 
 1. PG 정상 상태에서 `pgRequest` 서킷은 10 분 부하 동안 한 번도 열리지 않는다(6.3 장 — 요청 단위 실패율 6.4%, 합계 0.1% 미만).
    시도 단위로 셌다면 약 92% 확률로 열렸을 조건이다.
 2. PG 를 끄면 요청 10 건 안에 서킷이 열리고, 이후 결제 요청 p99 가 50 ms 이하로 떨어진다(호출하지 않으므로).
    열리기 전 요청도 연결 거부로 `FAILED` 를 받는다 — `REQUESTED` 로 남는 응답이 없다(4.2 장).
-3. PG 에 응답 지연을 주어도 상품 조회 API 의 p99 가 변하지 않는다(4.1 장 트랜잭션 분리).
+3. PG 에 응답 지연을 주어도 **PG 와 무관한 DB 조회 API(주문 상세 `GET /api/v1/orders/{orderId}`)** 의 p99 가 변하지 않는다(4.1 장 트랜잭션 분리).
+   처음엔 상품 조회로 정했지만 상품 목록 · 상세는 Redis 캐시(2026-10-04 상품 캐시 설계)를 타서 DB 커넥션 풀이 말라도 드러나지 않는다.
+   주문 상세는 캐시 없이 매번 커넥션을 잡는다. (2026-10-17 검토)
 
-### 11.2 방법
+### 11.2 환경
 
-k6 로 결제 요청과 상품 조회를 섞어 보내고, `/actuator/prometheus` 의 `resilience4j_circuitbreaker_state` ·
-`resilience4j_circuitbreaker_calls_*` 지표와 응답 시간을 기록한다(`circuitbreakers` 엔드포인트는 열지 않는다 — 6 장).
-판정과 수치 보정은 실측 뒤 이 장에 적는다.
+기존 부하 하네스(`docker/loadtest-compose.yml` — MySQL 2 CPU · 앱 3 CPU, k6 는 호스트)를 그대로 쓰고, 결제용 차이는 override 파일
+`docker/loadtest-payment.override.yml` 에만 둔다. 기본 파일은 주문 · 캐시 측정의 재현 조건이라 고치지 않는다.
+
+| 구성 | 위치 | 이유 |
+|---|---|---|
+| pg-simulator | **호스트**(`bootRun`) | PG 는 `callbackUrl` 이 `http://localhost:8080` 으로 시작해야 받는다. 호스트의 8080 은 commerce-api 컨테이너로 이어지므로 콜백이 도착한다. 컨테이너에 넣으면 localhost 가 PG 자신이 된다 |
+| Toxiproxy | 컨테이너(0.25 CPU, 앱 몫에서 뗌 → 앱 2.75) | commerce-api → PG 사이에 두어 지연(가설 3)과 장애(가설 2)를 원본 수정 없이 넣는다 |
+| commerce-api | 컨테이너 | `PG_BASE_URL` 로 Toxiproxy 를 보게 하고, actuator 8081 을 호스트에 열고, Tomcat 스레드 지표(`mbeanregistry`)를 켠다 |
+
+**PG 장애는 Toxiproxy 프록시를 끄는(`enabled: false`) 것으로 만든다 — 프록시 뒤의 PG 를 죽이는 것이 아니다.**
+프록시가 살아 있고 PG 만 죽으면 프록시가 연결을 받은 뒤 끊어 commerce-api 에는 연결 거부가 아니라 읽기 실패로 보인다(`Unknown`).
+실제 PG 프로세스가 죽은 상황은 연결 거부이므로, 리스너 자체를 닫는 쪽이 맞다. 측정 전에 닫힌 프록시가 연결 거부를 내는지 확인한다.
 
 **PG 의 처리 처리량을 먼저 맞춘다.** pg-simulator 는 결제 처리(1 ~ 5 s sleep)와 콜백 전송을 `@Async` 로 돌리는데,
 실행기가 Spring Boot 기본값(코어 스레드 8 · 큐 무제한)이다. 처리량이 초당 약 8 / 3 s ≈ **2.7 건**이라, 결제 요청을 그보다 빨리 보내면
 PG 큐가 끝없이 쌓여 콜백이 몇 분씩 늦어진다. 그러면 5.3 장의 "처리 지연 최대 5 s" 가 깨지고 9.6 장의 PENDING 적체가 측정 결과에 섞인다.
-가설 1(서킷)은 요청 경로만 보므로 영향이 없지만, 확정 지연을 함께 보려면 원본을 고치지 않고 2.2 장처럼 실행 인자로 풀을 키운다.
+원본을 고치지 않고 2.2 장처럼 실행 인자로 풀을 키운다. 가장 빠른 부하(가설 3 의 결제 70 rps)를 받도록 **코어 256(초당 약 85 건)** 으로 둔다.
 
 ```shell
-./gradlew :apps:pg-simulator:bootRun --args='--datasource.mysql-jpa.main.jdbc-url=jdbc:mysql://localhost:3306/paymentgateway --spring.task.execution.pool.core-size=64'
+./gradlew :apps:pg-simulator:bootRun --args='--datasource.mysql-jpa.main.jdbc-url=jdbc:mysql://localhost:3306/paymentgateway --spring.task.execution.pool.core-size=256'
 ```
 
-코어 64 면 초당 약 21 건이다. 부하의 결제 요청 rps 는 이 값 아래로 둔다. (2026-10-17 검토)
+### 11.3 방법과 판정 기준
+
+k6 스크립트 `loadtest/payment.js` 하나가 `MODE` 로 넷을 고른다. 결제 반복 한 번은 주문 생성 → 결제 요청이다(결제마다 결제 대기 주문이 필요하다).
+지표는 `loadtest/payment-metrics.sh` 가 1 초마다 `/actuator/prometheus` 에서 뽑아 CSV 로 남긴다 — 서킷 상태(`pgRequest` · `pgQuery`),
+`not_permitted` 누계, Hikari `active` · `pending`, Tomcat 바쁜 스레드 수. 측정마다 commerce-api 를 재시작해 서킷 윈도우를 비운다
+(2026-10-17 수동 확인에서 앞선 실패가 윈도우에 남아 서킷이 2 건째에 열렸다).
+
+| 측정 | 부하 | 판정(모두 만족해야 참) |
+|---|---|---|
+| P0 | PG 직접 `POST`, 20 rps × 50 s(1,000 회) | 500 비율이 37 ~ 43% |
+| 가설 1 | 결제 10 rps × 10 분(6,000 건), Toxiproxy 통과 · 독성 없음 | 샘플 전 구간 `pgRequest` CLOSED · `not_permitted` 0 · 응답 `FAILED` 0 건 |
+| 가설 2 | 결제 10 rps × 75 s, 시작 직전 프록시 끔. 앞 15 s(`opening`) · 뒤 60 s(`open`) 를 나눠 집계 | 첫 "서킷이 열려" 로그 전의 연결 거부 로그 ≤ 10 건 · 전 구간 `REQUESTED` 0 건 · `open` 구간 결제 p99 ≤ 50 ms |
+| 가설 3 | 주문 상세 100 rps 를 세 번 — A 단독, B 결제 70 rps 동반, C 결제 70 rps 동반 + PG 지연 400 ms. 각 10 s 워밍업 + 120 s | C 의 주문 상세 p99 ≤ B 의 1.2 배 · C 의 Hikari `pending` 최댓값 0 |
+
+부가 기록(판정에 쓰지 않는다):
+
+- 가설 1 의 요청 실패율(`REQUESTED` 비율) — 기대 6.4%(6,000 건이면 ±0.6%p 안팎)와 `slow_call_rate`.
+- 가설 3 의 A 대비 B · C — 결제 부하 자체(주문 생성 · tx1 · tx2)가 DB 에 주는 영향은 B 에 이미 들어 있다. 가설이 보는 것은 B → C, 즉 **PG 지연만** 의 효과다.
+
+측정이 성립하는 조건(어기면 판정하지 않고 다시 잰다):
+
+- 모든 측정에서 k6 `dropped_iterations` 0.
+- 가설 3 의 C 에서 `pgRequest` 서킷이 계속 CLOSED. 열리면 결제가 PG 를 부르지 않아 지연이 스레드를 쥐지 않는다 — 가설이 공짜로 참이 된다.
+  지연 400 ms 면 시도당 500 ~ 900 ms 로 읽기 타임아웃(1 s) 아래이고, 느린 호출(2.5 s)은 세 번 시도한 일부 요청에서만 나온다.
+- 가설 3 의 C 에서 Tomcat 바쁜 스레드 최댓값 > 40(Hikari 최대 풀 크기). 이보다 작으면 PG 호출이 트랜잭션 안에 있었더라도 풀이 마르지 않았을
+  부하라 트랜잭션 분리를 구분하지 못한다. 결제 rps 를 올려 다시 잰다(Tomcat 최대 200 을 넘지 않게).
+
+### 11.4 결과
+
+(실측 뒤 적는다. 판정과 6 장 수치의 보정 여부를 함께 남긴다.)
