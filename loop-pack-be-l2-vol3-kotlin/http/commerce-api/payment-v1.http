@@ -1,0 +1,37 @@
+// 위에서 아래로 순서대로 실행하는 것을 전제로 한다.
+// 실행 전: docker infra(README), pg-simulator(:8082 — README 의 --args 로 paymentgateway 스키마 지정), commerce-api(:8080) 를 띄운다.
+// PG 는 요청의 40% 를 500 으로 거부하지만 commerce-api 가 최대 3 번 시도하므로 대부분 PENDING 이 돌아온다.
+
+### 결제할 주문 만들기
+POST {{commerce-api}}/api/v1/orders
+X-Loopers-LoginId: seeduser01
+Content-Type: application/json
+
+{ "items": [{ "productId": 2, "quantity": 1 }] }
+
+> {% client.global.set("orderId", response.body.data.id); %}
+
+### 결제 요청 - 카드 번호 형식 오류 (400 Bad Request)
+POST {{commerce-api}}/api/v1/payments
+X-Loopers-LoginId: seeduser01
+Content-Type: application/json
+
+{ "orderId": {{orderId}}, "cardType": "SAMSUNG", "cardNo": "1234567898141451" }
+
+### 결제 요청 (200 - PENDING / REQUESTED / FAILED)
+POST {{commerce-api}}/api/v1/payments
+X-Loopers-LoginId: seeduser01
+Content-Type: application/json
+
+{ "orderId": {{orderId}}, "cardType": "SAMSUNG", "cardNo": "1234-5678-9814-1451" }
+
+### 같은 주문 다시 결제 (409 Conflict - 결제 중)
+POST {{commerce-api}}/api/v1/payments
+X-Loopers-LoginId: seeduser01
+Content-Type: application/json
+
+{ "orderId": {{orderId}}, "cardType": "KB", "cardNo": "1234-5678-9814-1451" }
+
+### 결과 확인 - 5 초 뒤 실행. status 가 PAID 또는 PAYMENT_FAILED (콜백) / REQUESTED 였다면 최대 1 분 30 초 뒤 (스케줄러)
+GET {{commerce-api}}/api/v1/orders/{{orderId}}
+X-Loopers-LoginId: seeduser01

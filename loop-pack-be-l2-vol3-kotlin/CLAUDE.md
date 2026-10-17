@@ -24,6 +24,10 @@ supports/  add-on (jackson, logging, monitoring)
 도메인 클래스를 쓸 수 없으므로 `JdbcTemplate` 으로 테이블을 직접 다루고, 테스트 스키마는 `src/test/resources/sql/` 에 따로 둔다
 — 엔티티와 자동으로 동기화되지 않으니 컬럼을 바꾸면 같이 고친다. (2026-09-28 좋아요 수 보정 설계 2.3 장)
 
+**`apps/pg-simulator`** 도 예외다. 과제가 제공한 외부 PG 시뮬레이터를 다른 저장소에서 그대로 들여온 모듈이다. 동작을 바꾸지 않으며
+(빌드 통과를 위한 형식 수정만 허용), commerce-api 는 코드가 아니라 HTTP 로만 의존한다. 띄울 때는 `--args` 로 `paymentgateway` 스키마를
+지정한다 — README 참고. (2026-10-13 결제 설계 2 장, 사용자 승인)
+
 > 루트 `supports/`(Gradle 모듈)와 `com.loopers.support`(횡단 관심사 — error, auth, seed)는 무관하다.
 
 ---
