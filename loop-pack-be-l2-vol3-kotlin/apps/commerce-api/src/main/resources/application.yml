@@ -29,6 +29,68 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+# PG 연동 (2026-10-13 결제 설계 6 장). 수치를 바꾸면 PgPaymentGatewayTest 가 깨지는 것이 정상이다.
+pg:
+  base-url: http://localhost:8082
+  callback-url: http://localhost:8080/api/v1/payments/callback
+  sync:
+    enabled: true
+
+spring.cloud.openfeign.client.config:
+  pg-simulator:
+    connect-timeout: 500   # 같은 망이면 수 ms. 연결이 안 되면 PG 가 죽은 것이다
+    read-timeout: 1000     # PG 최대 지연 500 ms 의 2 배. 길수록 PG 가 느려질 때 스레드를 오래 쥔다
+
+# 서킷이 재시도 바깥이다 — CircuitBreaker( Retry( 호출 ) ). 애노테이션 기본 순서의 반대라 aspect-order 로 뒤집는다(값이 작을수록 바깥).
+# 키를 틀리면 기본 순서로 돌아가면서도 에러가 없다. PgPaymentGatewayTest 의 "서킷 실패 1 건" 단언이 잡는다. (설계 6.4 장)
+resilience4j:
+  retry:
+    retry-aspect-order: 2
+    instances:
+      pgRequest:
+        max-attempts: 3
+        wait-duration: 200ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        # 5xx 만 재시도한다. 타임아웃(RetryableException)은 PG 에 이미 저장됐을 수 있어 재시도하면 거래가 하나 더 생긴다.
+        # 연결 거부(같은 RetryableException)는 PG 가 죽은 신호라 재시도하지 않고 바로 NotSent 로 돌린다. (설계 6.2 장)
+        retry-exceptions:
+          - feign.FeignException$FeignServerException
+  circuitbreaker:
+    circuit-breaker-aspect-order: 1
+    instances:
+      pgRequest:
+        # 요청 단위로 센다. 평소 요청 실패율은 0.4³ ≈ 6.4% 다. 시도 단위(40%)로 세면 정상 PG 에서도 열린다. (설계 6.3 장)
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        # 재시도까지 포함한 시간이다. 정상 PG 에서도 재시도가 붙으면 최대 2.1 s 가 걸린다.
+        slow-call-duration-threshold: 2500ms
+        slow-call-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 5
+        record-exceptions:
+          - feign.FeignException$FeignServerException
+          - feign.RetryableException
+        ignore-exceptions:
+          - feign.FeignException$FeignClientException
+      pgQuery:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        slow-call-duration-threshold: 800ms
+        slow-call-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 5
+        record-exceptions:
+          - feign.FeignException$FeignServerException
+          - feign.RetryableException
+        # 404 는 "거래 없음" 이라는 정상 응답이다.
+        ignore-exceptions:
+          - feign.FeignException$FeignClientException
+
 ---
 spring:
   config:
@@ -61,4 +123,15 @@ spring:
 
 springdoc:
   api-docs:
+    enabled: false
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+
+# 테스트 도중 스케줄러가 끼어들면 결과가 흔들린다. 테스트는 PaymentFacade.syncPending 을 직접 부른다. (설계 10 장)
+pg:
+  sync:
     enabled: false
