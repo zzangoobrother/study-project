@@ -2,7 +2,8 @@
 
 - 작성일: 2026-10-13
 - 대상 모듈: `apps/commerce-api`, `apps/pg-simulator`(신규 — 다른 저장소에서 복사, 2026-10-13 사용자 승인), `settings.gradle.kts`, `docker/`(PG 용 DB 초기화 — 2.2 장)
-- 상태: **설계 승인 대기** — 2026-10-16 검토 반영(서킷을 재시도 바깥으로 · 연결 거부는 NotSent · 고아 거래 키 · 금액 불일치 종료)
+- 상태: **승인 · 구현 중** (Task 1 · 2 완료) — 2026-10-16 검토 반영(서킷을 재시도 바깥으로 · 연결 거부는 NotSent · 고아 거래 키 · 금액 불일치 종료),
+  2026-10-17 검토 반영(5xx 재시도의 가정 · 가는 중인 요청의 연결 유예 · PG 처리량 · 결제 DDL · 카드 번호 저장)
 - 선행 문서:
   - [2026-08-24 주문 API 설계](2026-08-24-order-design.md) — 주문 애그리거트, `paidAmount`, 인증 없는 공개 API(11.1 장)
   - [2026-08-30 쿠폰 설계](2026-08-30-coupon-design.md) — 주문 시점의 쿠폰 소모
@@ -148,6 +149,32 @@ REQUESTED ──(PG 접수)──▶ PENDING ──(PG 결과)──▶ SUCCESS
 | `idx_payments_order_id` | `order_id` | 주문의 결제 건 조회 |
 | `idx_payments_status_updated_at` | `status, updated_at` | 스케줄러 대상 조회(5.3 장) |
 
+운영 DB 반영 DDL(`ddl-auto: none` 환경). 다른 테이블과 같이 애그리거트 간 외래 키는 걸지 않는다. (2026-10-17 검토)
+
+```sql
+CREATE TABLE payments (
+    id              BIGINT       NOT NULL AUTO_INCREMENT,
+    order_id        BIGINT       NOT NULL,
+    user_id         BIGINT       NOT NULL,
+    amount          BIGINT       NOT NULL,
+    card_type       VARCHAR(20)  NOT NULL,
+    card_no         VARCHAR(255) NOT NULL,
+    transaction_key VARCHAR(255) NULL,
+    status          VARCHAR(20)  NOT NULL,
+    failure_reason  VARCHAR(255) NULL,
+    version         BIGINT       NOT NULL,
+    created_at      DATETIME(6)  NOT NULL,
+    updated_at      DATETIME(6)  NOT NULL,
+    deleted_at      DATETIME(6)  NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_payments_transaction_key UNIQUE (transaction_key),
+    INDEX idx_payments_order_id (order_id),
+    INDEX idx_payments_status_updated_at (status, updated_at)
+);
+```
+
+`card_no` 에는 카드 번호 전체가 평문으로 들어간다 — 9.8 장.
+
 ### 3.2 주문 상태 — `OrderStatus` (`orders.status` 추가)
 
 ```
@@ -224,7 +251,7 @@ tx1 을 먼저 커밋하는 것이 복구의 전제다. tx2 가 실패하거나 
   예외 메시지로만 구분된다. 메시지 문자열에 판정을 걸지 않는다.
 - 연결 거부를 `NotSent` 로 보는 덕분에, PG 가 죽은 직후 서킷이 열리기 전에 들어온 요청도 REQUESTED 로 묶이지 않고 바로 재결제할 수 있다. (2026-10-16 검토)
 - 5xx 는 `Unknown` 이다. 이 시뮬레이터는 저장 전에 실패하지만 실제 PG 는 어디까지 처리했는지 장담할 수 없다.
-  시뮬레이터의 구현 세부에 기대지 않는다.
+  시뮬레이터의 구현 세부에 기대지 않는다. 단 **재시도는 "5xx 는 미처리" 에 기대고 있다** — 6.2 · 9.7 장.
 - 세 경우 모두 **200 + 상태값**으로 응답한다(Fallback). 새 `ErrorType`(503)을 만들지 않고, 클라이언트는 `status` 만 보면 된다.
 - PG 가 4xx 를 주면(우리 요청 형식의 버그) `Unknown` 과 같이 다루되 ERROR 로그를 남긴다. 입력은 우리 쪽에서 이미 검증했으므로 정상 경로에선 나오지 않는다.
 
@@ -275,6 +302,7 @@ PaymentSyncScheduler ─────────────┘
 | PENDING | `GET /payments/{key}` | SUCCESS · FAILED | 확정 |
 | | | PENDING | 없음 — 다음 주기 |
 | | | 금액이 `payment.amount` 와 다름 | FAILED("PG 결제 금액이 주문 금액과 다릅니다") + ERROR 로그 |
+| REQUESTED, **생성 후 6 s 이내** | — | — | 없음 — 요청이 아직 가는 중일 수 있다(아래) |
 | REQUESTED | `GET /payments?orderId=` | 우리가 모르는 키가 **정확히 하나** | 키 연결(`markPending`) 후 위 PENDING 규칙 |
 | | | 우리가 모르는 키가 **둘 이상** | 연결하지 않음 + ERROR 로그. 생성 후 1 분 경과면 FAILED("PG 거래를 특정할 수 없습니다") |
 | | | 없음(404) · 모르는 키 없음, **생성 후 1 분 이내** | 없음 — 다음 주기 |
@@ -289,6 +317,12 @@ PaymentSyncScheduler ─────────────┘
   이중 결제가 조용히 묻힌다. 그래서 **둘 이상이면 연결하지 않고** 사람에게 넘긴다(9.5 장). (2026-10-16 검토)
 - 모르는 키가 하나인데 사실은 고아이고 이번 요청은 PG 에 닿지 않은 경우도 있다. 이때는 연결한다 — 같은 주문 · 같은 금액의
   거래라 주문 상태가 PG 의 실제 결과와 맞는다. 결제 건의 카드 정보만 실제 거래와 다를 수 있다(9.5 장).
+- **생성 후 6 s 동안은 연결하지 않는다 — 요청이 아직 가는 중일 수 있다.** 이번 요청이 PG 에 "닿지 않은 것" 과 "아직 닿지 않은 것" 은
+  다르다. 재결제 P2 가 PG 호출 중(키 없음)일 때 고아 거래의 콜백이 오면, 대체 경로(5.1 장)가 P2 를 찾고 PG 목록의 모르는 키는
+  고아 하나뿐이라 P2 에 연결해 확정한다. 그 뒤 P2 자신의 거래도 PG 에 저장 · 승인되면 **이중 결제**이고 ERROR 로그로만 드러난다.
+  읽기 타임아웃으로 끝난 요청도 PG 쪽에서는 계속 처리되므로, 기준은 tx2 완료가 아니라 요청의 최대 점유 시간(5.1 s, 6.1 장)에 여유를 둔 **6 s** 다.
+  대가로 6 s 안에 온 콜백은 REQUESTED 건을 확정하지 못하고 스케줄러(30 s 뒤)가 맡는다. REQUESTED 는 원래 드문 경로라 받아들인다.
+  (2026-10-17 검토)
 - **1 분을 기다리는 이유.** 조회 순간에 요청이 아직 네트워크 위에 있거나 PG 가 저장 중일 수 있다. 바로 FAILED 로 확정하면
   사용자가 재결제한 뒤 원래 요청까지 승인돼 이중 결제가 난다.
 - **금액 검증.** 확정 전에 PG 상세의 `amount` 가 `payment.amount` 와 같은지 본다. 다르면 위조나 버그의 신호다.
@@ -308,6 +342,7 @@ PaymentSyncScheduler ─────────────┘
   commerce-batch 가 아닌 이유 — PG 클라이언트와 도메인 클래스가 필요한데 배치 앱은 commerce-api 를 의존하지 않는다.
 - 대상: `status IN (REQUESTED, PENDING) AND updated_at < now - 30s`, `id` 오름차순 최대 100 건.
   PG 처리 지연이 최대 5 s 이므로 정상이면 콜백이 먼저 처리했을 건만 남는다.
+  이 "최대 5 s" 는 PG 처리량(초당 약 2.7 건 — 11.2 장) 안의 부하에서만 성립한다. 넘으면 PG 큐가 쌓여 결과가 몇 분씩 늦어진다.
 - 건마다 `sync` 를 부르고, 한 건의 예외가 나머지를 막지 않게 건 단위로 잡아 로그를 남긴다.
 - `pg.sync.enabled` 로 켜고 끈다. 테스트 프로필은 끈다(10 장).
 - 여러 인스턴스가 같은 건을 처리해도 주문 전이는 조건부 UPDATE, 결제 전이는 `@Version` 으로 직렬화돼 늦은 쪽은 아무 일도 하지 않는다(3.1 · 5.2 장).
@@ -351,6 +386,12 @@ Feign: `spring.cloud.openfeign.client.config.pg-simulator`, Resilience4j: `resil
 
 효과: 요청 성공률 60% → 1 − 0.4³ ≈ **93.6%**.
 타임아웃을 재시도하지 않는 이유 — PG 에 이미 저장됐을 수 있어 재시도가 거래를 하나 더 만든다(이중 결제). 타임아웃은 동기화가 맡는다.
+
+**5xx 재시도는 "PG 의 5xx 는 거래를 남기지 않았다" 는 가정 위에 있다.** 위 이유를 그대로 적용하면 5xx 도 재시도할 수 없다 —
+4.2 장은 5xx 뒤에 PG 가 어디까지 처리했는지 모른다고 보고 `Unknown` 으로 분류한다. 두 판단은 비용이 달라서 공존한다.
+분류를 보수적으로 하는 것은 싸다(동기화가 1 분 안에 정리한다). 재시도는 성공률을 60% → 93.6% 로 올리는 대신 이 가정에 건다.
+pg-simulator 는 저장 전에 실패하므로 가정이 맞는다. 실제 PG 에서는 멱등 키(같은 키의 재요청은 같은 거래)가 있어야
+이 재시도가 안전하다 — 9.7 장. (2026-10-17 검토)
 연결 거부는 재시도해도 이중 결제 위험은 없지만 PG 가 죽었다는 신호다. 재시도로 시간을 쓰지 않고 바로 `NotSent` 로 돌려 사용자가 재결제하게 한다(4.2 장).
 Feign 자체 Retryer 는 기본값 `NEVER_RETRY` 그대로 둔다. 재시도를 두 겹으로 하지 않는다.
 조회(`pgQuery`)는 재시도하지 않는다 — 스케줄러가 다음 주기에 다시 묻는다.
@@ -477,7 +518,8 @@ implementation("org.springframework.boot:spring-boot-starter-aop") // Resilience
 testImplementation("org.springframework.cloud:spring-cloud-contract-wiremock")
 ```
 
-Resilience4j 는 Spring Cloud BOM 이 관리하지 않으면 버전을 `gradle.properties` 에 둔다 — 구현 때 확인한다.
+버전은 모두 Spring Cloud BOM(2024.0.1)이 관리한다. Resilience4j 는 BOM 의 `spring-cloud-circuitbreaker-dependencies` 가 들여오는
+`resilience4j-bom` 2.2.0 이라 `gradle.properties` 에 따로 두지 않는다. (2026-10-17 검토)
 
 ---
 
@@ -540,6 +582,7 @@ PAYMENT_PENDING · PAYMENT_FAILED 주문의 재고와 쿠폰은 돌아오지 않
 
 - **거래를 특정할 수 없음.** REQUESTED 결제의 PG 목록에 모르는 키가 둘 이상이다(고아 거래 + 이번 거래, 5.2 장).
   연결하지 않고 1 분 뒤 FAILED 로 닫는다. 로그에 키 목록을 남긴다.
+  (모르는 키가 하나여도 이번 요청이 아직 가는 중이면 같은 위험이 있다. 그래서 생성 후 6 s 동안은 연결하지 않는다 — 5.2 장.)
 - **금액 불일치.** PG 상세의 금액이 결제 금액과 다르다(5.2 장). 키는 기록해 둔다 — 뒤늦은 콜백이 이 결제 건을 찾아 아무것도 하지 않게.
 
 모르는 키가 하나인데 사실은 고아 거래이고 이번 요청은 PG 에 닿지 않았다면, 그 키를 이번 결제에 연결한다.
@@ -552,6 +595,20 @@ PAYMENT_PENDING · PAYMENT_FAILED 주문의 재고와 쿠폰은 돌아오지 않
   연결 거부는 `NotSent` 라 이 문제가 없다(4.2 장).
 - **끝내 PENDING 인 건.** PG 가 계속 PENDING 을 주면 `updated_at` 이 바뀌지 않아 매 주기 동기화 대상이 된다. 대상 조회가 `id` 오름차순 100 건이라
   이런 건이 100 개 쌓이면 새 결제의 주기 동기화가 밀린다(콜백 경로는 영향 없음). 관측되면 마지막 확인 시각을 따로 두는 방안을 검토한다.
+- **PENDING 인데 PG 상세 조회가 404 인 건.** `X-USER-ID` 불일치 같은 버그가 아니면 생기지 않지만, 생기면 위와 같이 매 주기 다시 뽑힌다.
+  "모르는 것을 실패로 확정하지 않는다" 를 따라 바꾸지 않는다.
+
+### 9.7 5xx 재시도와 이중 결제
+
+5xx 재시도는 "PG 의 5xx 는 거래를 남기지 않았다" 는 가정에 기댄다(6.2 장). 시뮬레이터에선 참이지만, 5xx 를 내고도 거래를 저장하는
+PG 라면 재시도마다 거래가 하나씩 늘어 이중 결제가 된다. 그때 생긴 여분의 거래는 어느 결제 건에도 연결되지 않으므로 콜백이 오면
+9.1 장의 ERROR 로그로 드러난다. 실제 PG 에 붙일 때는 멱등 키를 지원하는지 먼저 확인하고, 없으면 5xx 재시도를 끈다. (2026-10-17 검토)
+
+### 9.8 카드 번호 평문 저장
+
+`payments.card_no` 에 카드 번호 전체를 저장한다. PG 요청은 tx1 이 메모리에 들고 있는 값으로 보내고 동기화는 카드 번호를 쓰지 않으므로,
+기능상으로는 마스킹한 값만 저장해도 된다. 학습 범위라 평문 저장으로 두고 로그 · 예외 메시지에만 나가지 않게 한다(`CardNo.toString` 마스킹).
+운영에 내보내려면 마스킹 저장(또는 PG 토큰)으로 바꿔야 한다 — 9.2 장과 같은 "운영 전 필수" 항목이다. (2026-10-17 검토)
 
 ---
 
@@ -566,7 +623,7 @@ PAYMENT_PENDING · PAYMENT_FAILED 주문의 재고와 쿠폰은 돌아오지 않
 | 어댑터 | `PgPaymentGatewayConnectionTest` | 닫힌 포트로 연결 거부 → `NotSent`, 서킷 실패 1 건 (Feign 예외 모양 고정 — 6.4 장) | 없음(닫힌 포트) |
 | 단위 | `PgPaymentGatewayTranslationTest` | 6.4 장 판정 표 — 특히 앞선 시도 뒤 연결 거부 → `Unknown` (실제 HTTP 로 만들 수 없는 순서) | 가짜 `PgResilientClient` |
 | 통합 | `PaymentFacadeIntegrationTest` | 4.2 장 세 결과, 0 원 주문, 409, 404 | `@MockitoBean PaymentGateway` |
-| 통합 | `PaymentSyncIntegrationTest` | 5.2 장 표 모든 행(거래 특정 불가 · 금액 불일치 포함), 콜백의 대체 경로가 다른 키를 가진 결제를 건드리지 않음, **서로 다른 결과로 동시에 확정해도 결제와 주문이 어긋나지 않고 예외가 새지 않음** | `@MockitoBean PaymentGateway` |
+| 통합 | `PaymentSyncIntegrationTest` | 5.2 장 표 모든 행(생성 후 6 s 이내 · 거래 특정 불가의 1 분 전후 · 금액 불일치 · PENDING 의 상세 404 포함), 콜백의 대체 경로가 다른 키를 가진 결제를 건드리지 않음, **서로 다른 결과로 동시에 확정해도 결제와 주문이 어긋나지 않고 예외가 새지 않음** | `@MockitoBean PaymentGateway` |
 | E2E | `PaymentV1ApiE2ETest` | 요청 API, 콜백 API, **위조 콜백(SUCCESS)이 와도 PG 조회가 PENDING 이면 상태 불변** | `@MockitoBean PaymentGateway` |
 
 어댑터 테스트는 결과가 아니라 **호출 횟수와 시간**을 단언한다. yml 키를 하나 틀리면 기본값으로 돌아가면서도 아무 에러가 나지 않는다.
@@ -600,3 +657,14 @@ PAYMENT_PENDING · PAYMENT_FAILED 주문의 재고와 쿠폰은 돌아오지 않
 k6 로 결제 요청과 상품 조회를 섞어 보내고, `/actuator/prometheus` 의 `resilience4j_circuitbreaker_state` ·
 `resilience4j_circuitbreaker_calls_*` 지표와 응답 시간을 기록한다(`circuitbreakers` 엔드포인트는 열지 않는다 — 6 장).
 판정과 수치 보정은 실측 뒤 이 장에 적는다.
+
+**PG 의 처리 처리량을 먼저 맞춘다.** pg-simulator 는 결제 처리(1 ~ 5 s sleep)와 콜백 전송을 `@Async` 로 돌리는데,
+실행기가 Spring Boot 기본값(코어 스레드 8 · 큐 무제한)이다. 처리량이 초당 약 8 / 3 s ≈ **2.7 건**이라, 결제 요청을 그보다 빨리 보내면
+PG 큐가 끝없이 쌓여 콜백이 몇 분씩 늦어진다. 그러면 5.3 장의 "처리 지연 최대 5 s" 가 깨지고 9.6 장의 PENDING 적체가 측정 결과에 섞인다.
+가설 1(서킷)은 요청 경로만 보므로 영향이 없지만, 확정 지연을 함께 보려면 원본을 고치지 않고 2.2 장처럼 실행 인자로 풀을 키운다.
+
+```shell
+./gradlew :apps:pg-simulator:bootRun --args='--datasource.mysql-jpa.main.jdbc-url=jdbc:mysql://localhost:3306/paymentgateway --spring.task.execution.pool.core-size=64'
+```
+
+코어 64 면 초당 약 21 건이다. 부하의 결제 요청 rps 는 이 값 아래로 둔다. (2026-10-17 검토)
