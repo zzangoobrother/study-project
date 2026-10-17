@@ -30,4 +30,16 @@ class PaymentV1Controller(
             .let { PaymentV1Dto.PaymentResponse.from(it) }
             .let { ApiResponse.success(it) }
     }
+
+    /**
+     * 인증하지 않는다 — PG 는 로그인 헤더를 보내지 않는다. 그래서 본문을 믿지 않고 PG 에 다시 묻는다.
+     * 결제 건을 찾았는지와 무관하게 항상 200 이다. 무엇을 찾았는지 알려 줄 이유가 없다. (2026-10-13 결제 설계 5.1 장)
+     */
+    @PostMapping("/callback")
+    override fun callback(
+        @RequestBody request: PaymentV1Dto.CallbackRequest,
+    ): ApiResponse<Any> {
+        paymentFacade.handleCallback(transactionKey = request.transactionKey, pgOrderId = request.orderId)
+        return ApiResponse.success()
+    }
 }

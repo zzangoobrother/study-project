@@ -47,4 +47,13 @@ class PaymentV1Dto {
             )
         }
     }
+
+    /**
+     * PG 콜백 본문. 결제 건을 찾는 데 쓰는 두 필드만 받는다 — status 는 받아도 쓰지 않으므로 아예 두지 않는다.
+     * 모르는 필드는 Jackson 설정(FAIL_ON_UNKNOWN_PROPERTIES 꺼짐)으로 무시된다. (2026-10-13 결제 설계 5.1 장)
+     */
+    data class CallbackRequest(
+        val transactionKey: String,
+        val orderId: String,
+    )
 }

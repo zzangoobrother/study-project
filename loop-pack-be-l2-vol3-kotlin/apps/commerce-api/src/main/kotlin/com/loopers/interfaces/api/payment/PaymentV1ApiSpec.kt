@@ -19,4 +19,13 @@ interface PaymentV1ApiSpec {
         @Schema(name = "결제 요청", description = "주문 ID 와 카드 정보")
         request: PaymentV1Dto.PaymentRequest,
     ): ApiResponse<PaymentV1Dto.PaymentResponse>
+
+    @Operation(
+        summary = "PG 결제 결과 콜백",
+        description = "PG 가 결제 처리를 마치면 호출합니다. 본문의 결과를 그대로 반영하지 않고 PG 에 다시 조회해 확정합니다. 항상 200 입니다.",
+    )
+    fun callback(
+        @Schema(name = "콜백 본문", description = "PG 의 거래 정보")
+        request: PaymentV1Dto.CallbackRequest,
+    ): ApiResponse<Any>
 }

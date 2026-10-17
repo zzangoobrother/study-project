@@ -5,7 +5,10 @@ import com.loopers.domain.order.OrderModel
 import com.loopers.domain.order.OrderService
 import com.loopers.domain.order.Quantity
 import com.loopers.domain.payment.PaymentGateway
+import com.loopers.domain.payment.PgQueryResult
 import com.loopers.domain.payment.PgRequestResult
+import com.loopers.domain.payment.PgTransaction
+import com.loopers.domain.payment.PgTransactionStatus
 import com.loopers.domain.product.Price
 import com.loopers.domain.product.ProductName
 import com.loopers.domain.user.BirthDate
@@ -205,6 +208,64 @@ class PaymentV1ApiE2ETest @Autowired constructor(
 
             // assert
             assertThat(response.statusCode).isEqualTo(HttpStatus.CONFLICT)
+        }
+    }
+
+    private fun callback(orderId: Long, status: String) = testRestTemplate.exchange(
+        "$ENDPOINT/callback",
+        HttpMethod.POST,
+        HttpEntity(
+            """{"transactionKey":"$KEY","orderId":"${"%06d".format(orderId)}","cardType":"SAMSUNG",
+               "cardNo":"1234-5678-9814-1451","amount":5000,"status":"$status","reason":null}""",
+            headers(loginId = null),
+        ),
+        object : ParameterizedTypeReference<ApiResponse<Any>>() {},
+    )
+
+    @DisplayName("POST /api/v1/payments/callback")
+    @Nested
+    inner class Callback {
+        @DisplayName("PG 조회 결과가 성공이면, 200 을 반환하고 주문이 결제 완료가 된다.")
+        @Test
+        fun paysOrder_whenPgConfirmsSuccess() {
+            // arrange
+            val order = placeOrder(signUp())
+            whenever(paymentGateway.request(any())).thenReturn(PgRequestResult.Accepted(KEY))
+            pay(payBody(order.id))
+            whenever(paymentGateway.findTransaction(any(), any()))
+                .thenReturn(PgQueryResult.Found(PgTransaction(KEY, PgTransactionStatus.SUCCESS, "정상 승인되었습니다.", 5_000L)))
+
+            // act
+            val response = callback(order.id, status = "SUCCESS")
+
+            // assert
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.OK) },
+                { assertThat(getOrder(order.id).body?.data?.status).isEqualTo("PAID") },
+            )
+        }
+
+        /**
+         * 콜백은 인증이 없다. 본문의 status 를 믿으면 결제 없이 주문을 PAID 로 만들 수 있다. (2026-10-13 결제 설계 5.1 장)
+         */
+        @DisplayName("본문이 SUCCESS 여도 PG 조회 결과가 처리 중이면, 200 을 반환하고 주문 상태가 바뀌지 않는다.")
+        @Test
+        fun ignoresBodyStatus_whenForged() {
+            // arrange
+            val order = placeOrder(signUp())
+            whenever(paymentGateway.request(any())).thenReturn(PgRequestResult.Accepted(KEY))
+            pay(payBody(order.id))
+            whenever(paymentGateway.findTransaction(any(), any()))
+                .thenReturn(PgQueryResult.Found(PgTransaction(KEY, PgTransactionStatus.PENDING, null, 5_000L)))
+
+            // act
+            val response = callback(order.id, status = "SUCCESS")
+
+            // assert
+            assertAll(
+                { assertThat(response.statusCode).isEqualTo(HttpStatus.OK) },
+                { assertThat(getOrder(order.id).body?.data?.status).isEqualTo("PAYING") },
+            )
         }
     }
 }
