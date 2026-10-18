@@ -8,7 +8,7 @@
 | 모듈 | 상태 | 설명 |
 |------|------|------|
 | `sim` | 완료 | 결정적 네트워크 시뮬레이터 코어 (순수 Java, Spring/lombok 미사용) |
-| `paxos` | 예정 | Paxos, livelock 실험 |
+| `paxos` | 완료 | 단일 값 Paxos, 틀린 변형 반례, livelock 실험 |
 | `flp` | 예정 | 적대적 스케줄러 실험 |
 | `raft` | 예정 | 리더 선출, 로그 복제, 파티션 |
 | `byzantine` | 예정 | 비잔티움 장애 |
