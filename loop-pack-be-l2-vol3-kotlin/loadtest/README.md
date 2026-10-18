@@ -259,3 +259,51 @@ jar 를 바꾸면 컨테이너가 재기동되고 `ddl-auto: create` 로 스키�
 
 상세는 `loadtest/product-detail.js` 에 `-e WRITE_RATIO=0.05` 처럼 쓰기 비율을 준다.
 캐시를 비우지 않는다 — 버리는 실행 2 회가 캐시를 데운 상태가 측정 조건이다.
+
+## 결제 회복탄력성 측정 (2026-10-13 결제 설계 11 장)
+
+설계 문서: [`docs/superpowers/specs/2026-10-13-payment-design.md`](../docs/superpowers/specs/2026-10-13-payment-design.md) 11 장.
+계획: [`docs/superpowers/plans/2026-10-17-payment-resilience-measurement.md`](../docs/superpowers/plans/2026-10-17-payment-resilience-measurement.md).
+판정 수치와 기준은 설계 11.3 장 표가 기준이다. 이 절은 절차만 적는다.
+
+**환경은 기본 파일에 `docker/loadtest-payment.override.yml` 을 얹어 띄운다.** 기본 파일은 주문 · 캐시 측정의 재현 조건이라 고치지 않는다.
+
+- override: Toxiproxy 를 더하고, commerce-api 가 PG 를 프록시로 보게 하며, actuator(8081)와 Tomcat 스레드 지표를 연다.
+- pg-simulator 는 **호스트**에서 띄운다. PG 는 `callbackUrl` 이 `http://localhost:8080` 으로 시작해야 받는데, 호스트의 8080 이 commerce-api 컨테이너로 이어지기 때문이다.
+- Toxiproxy 는 commerce-api → PG 사이에서 지연(가설 3)과 장애(가설 2)를 원본 수정 없이 넣는다.
+
+기동(`docker/infra-compose.yml` 이 떠 있으면 먼저 내린다 — 포트 충돌):
+
+    COMPOSE="docker compose -f docker/loadtest-compose.yml -f docker/loadtest-payment.override.yml"
+    ./gradlew :apps:commerce-api:bootJar
+    H=$(git rev-parse --short=8 HEAD)
+    cp apps/commerce-api/build/libs/commerce-api-$H.jar apps/commerce-api/build/libs/commerce-api-payment-$H.jar
+    APP_JAR=commerce-api-payment-$H.jar $COMPOSE up -d
+    $COMPOSE exec -T mysql mysql -uroot -proot < docker/mysql/init/01-paymentgateway.sql
+    $COMPOSE exec -T mysql mysql -uapplication -papplication loopers < loadtest/prepare.sql
+    # PG 는 별도 터미널. 코어 256 이 아니면 결제 70 rps 에서 PG 큐가 쌓여 콜백이 몇 분씩 늦는다.
+    ./gradlew :apps:pg-simulator:bootRun --args='--datasource.mysql-jpa.main.jdbc-url=jdbc:mysql://localhost:3306/paymentgateway --spring.task.execution.pool.core-size=256'
+    loadtest/pg-proxy.sh create
+
+**프록시 조작** — `loadtest/pg-proxy.sh create | latency <ms> | clear | down | up`.
+`down` 은 리스너를 닫아 연결 거부를 만든다. PG 를 죽이면 프록시가 연결을 받은 뒤 끊어 `Unknown`(REQUESTED)이 되므로 PG 장애는 `down` 으로 만든다.
+Toxiproxy 는 재시작하면 프록시를 잊으므로 compose 를 올릴 때마다 `create` 한다.
+
+**측정 한 회의 순서:**
+
+1. `$COMPOSE restart commerce-api` 후 healthy 를 기다린다. 앞 측정의 실패가 서킷 윈도우에 남으면 서킷이 일찍 열린다.
+2. **재시작하면 `ddl-auto: create` 와 시더가 스키마와 재고를 다시 만든다 — `loadtest/prepare.sql` 을 다시 실행한다.**
+   빼먹으면 시더의 재고 0 상품(11 개마다 1 개)이 섞여 주문이 409 로 실패하고 `payment_error` 로 잡힌다.
+3. 샘플러를 띄운다: `loadtest/payment-metrics.sh loadtest/results/payment-<MODE>-<LABEL>.csv &`
+4. k6 를 돌린다: `MODE=<mode> LABEL=<label> [PAYMENT_TPS] [READ_TPS] [DURATION] [WARMUP] k6 run loadtest/payment.js`
+5. 샘플러를 `kill` 한다. `dropped_iterations` 가 0 이 아니면 그 측정은 판정하지 않는다.
+
+| MODE | 설계 | 기본값 | 비고 |
+|---|---|---|---|
+| `pg-direct` | P0 | 20 rps × 50 s | PG 를 직접 부른다. `pg_500` 비율이 37 ~ 43% 이어야 한다 |
+| `normal` | 가설 1 | 결제 10 rps × 10 m | 독성 없음. 서킷 CLOSED 는 샘플러 CSV 로 본다 |
+| `pg-down` | 가설 2 | 결제 10 rps, `opening` 15 s + `open` 60 s | 시작 직전 `pg-proxy.sh down`, 끝나면 `up` |
+| `mixed` | 가설 3 | 주문 상세 100 rps, 결제 `PAYMENT_TPS`=70, 워밍업 10 s + 120 s | `PAYMENT_TPS=0` 이 A, 70 이 B, 70 + `latency 400` 이 C |
+
+결과는 `loadtest/results/payment-<MODE>-<LABEL>.json`. 커밋하지 않고 수치는 설계 11.4 장에 옮긴다.
+pg-direct 는 PG 가 commerce-api 로 콜백하므로 "콜백과 이어지는 결제가 없습니다" ERROR 가 찍힌다 — 정상이다.
