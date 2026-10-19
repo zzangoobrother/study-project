@@ -291,12 +291,19 @@ Toxiproxy 는 재시작하면 프록시를 잊으므로 compose 를 올릴 때�
 
 **측정 한 회의 순서:**
 
-1. `$COMPOSE restart commerce-api` 후 healthy 를 기다린다. 앞 측정의 실패가 서킷 윈도우에 남으면 서킷이 일찍 열린다.
-2. **재시작하면 `ddl-auto: create` 와 시더가 스키마와 재고를 다시 만든다 — `loadtest/prepare.sql` 을 다시 실행한다.**
+1. 앞 측정이 끝나고 10 s 뒤(PG 의 비동기 처리 최대 5 s 가 끝나게) PG 거래를 비운다:
+   `$COMPOSE exec -T mysql mysql -uroot -proot -e 'TRUNCATE TABLE paymentgateway.payments'`
+   commerce-api 는 재시작마다 주문 ID 가 1 부터 다시 나오는데 호스트의 PG 는 앞 측정의 거래를 들고 있다. REQUESTED 결제 확정이
+   orderId 로 PG 목록을 보므로, 비우지 않으면 옛 거래가 모르는 키로 섞여 고아 거래 경로(설계 5.2 장)를 잘못 탄다.
+2. `$COMPOSE restart commerce-api` 후 healthy 를 기다린다. 앞 측정의 실패가 서킷 윈도우에 남으면 서킷이 일찍 열린다.
+3. **재시작하면 `ddl-auto: create` 와 시더가 스키마와 재고를 다시 만든다 — `loadtest/prepare.sql` 을 다시 실행한다.**
    빼먹으면 시더의 재고 0 상품(11 개마다 1 개)이 섞여 주문이 409 로 실패하고 `payment_error` 로 잡힌다.
-3. 샘플러를 띄운다: `loadtest/payment-metrics.sh loadtest/results/payment-<MODE>-<LABEL>.csv &`
-4. k6 를 돌린다: `MODE=<mode> LABEL=<label> [PAYMENT_TPS] [READ_TPS] [DURATION] [WARMUP] k6 run loadtest/payment.js`
-5. 샘플러를 `kill` 한다. `dropped_iterations` 가 0 이 아니면 그 측정은 판정하지 않는다.
+4. 샘플러를 띄운다: `loadtest/payment-metrics.sh loadtest/results/payment-<MODE>-<LABEL>.csv &`
+5. k6 직전 시각을 남긴다: `T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)` (pg-down 은 `pg-proxy.sh down` 뒤).
+   `restart` 는 컨테이너 로그를 비우지 않으므로 로그는 `$COMPOSE logs --since "$T0" commerce-api` 로 이번 측정분만 본다.
+   CSV 의 `epoch_ms` 를 경과 초로 바꿀 때도 이 시각이 기준이다.
+6. k6 를 돌린다: `MODE=<mode> LABEL=<label> [PAYMENT_TPS] [READ_TPS] [DURATION] [WARMUP] k6 run loadtest/payment.js`
+7. 샘플러를 `kill` 한다. `dropped_iterations` 가 0 이 아니면 그 측정은 판정하지 않고 1 부터 다시 한다.
 
 | MODE | 설계 | 기본값 | 비고 |
 |---|---|---|---|
