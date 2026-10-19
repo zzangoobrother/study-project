@@ -36,6 +36,11 @@ k6 스크립트 하나(`MODE` 로 넷)와 1 초 간격 Prometheus 샘플러가 �
 3. **PG 코어 스레드 인자가 빠져 기본 8 로 뜸** — 가설 3 의 70 rps 에서 PG 큐가 쌓여 콜백이 몇 분씩 늦는다. → Task 1 Step 7 (동시 50 건이 8 s 안에 모두 확정)
 4. **앞 측정의 실패가 서킷 윈도우에 남음** — 2026-10-17 수동 확인에서 서킷이 2 건째에 열렸다. → Task 3 의 측정마다 commerce-api 재시작
 5. **k6 가 도착률을 못 맞춤(`dropped_iterations` > 0)** — 서버 한계인지 VU 부족인지 갈리지 않는다. → Task 2 의 VU 크기, Task 3 의 측정마다 확인
+6. **`compose restart` 가 컨테이너 로그를 비우지 않음** — 가설 2 를 다시 재거나 앞 측정에서 서킷이 열렸으면, 로그 추출이 앞 실행의 줄을 센다.
+   → Task 3 의 측정마다 k6 직전 시각 `T0` 기록, Step 3 의 `logs --since "$T0"` (2026-10-19 계획 검토)
+7. **commerce-api 만 초기화되어 PG 의 옛 거래와 orderId 가 겹침** — 재시작하면 `ddl-auto: create` 로 주문 ID 가 1 부터 다시 나오는데
+   PG(호스트 `bootRun`)의 `paymentgateway.payments` 에는 앞 측정 · P0 의 거래가 남는다. REQUESTED 결제 확정이 orderId 로 PG 목록을 보므로
+   모르는 키가 섞여 고아 거래 경로(5.2 장)를 잘못 탄다. → Task 3 의 측정마다 PG 테이블 비우기 (2026-10-19 계획 검토)
 
 ---
 
@@ -276,8 +281,32 @@ EOF
 - Consumes: Task 1 · 2 전부
 - Produces: 측정별 결과 JSON · 샘플 CSV · commerce-api 로그 발췌. Task 4 가 이것만 보고 11.4 장을 쓴다.
 
-모든 측정의 공통 순서: `COMPOSE restart commerce-api` → healthy 대기 → `loadtest/payment-metrics.sh loadtest/results/payment-<MODE>-<LABEL>-metrics.csv &` → k6 → 샘플러 종료.
-측정마다 결과 JSON 의 `dropped_iterations` 를 확인하고 0 이 아니면 그 측정을 다시 한다. 재고는 측정 사이에 `loadtest/prepare.sql` 을 다시 넣는다.
+모든 측정의 공통 순서(README "측정 한 회의 순서" 와 같다):
+
+1. 앞 측정이 끝나고 10 s 기다린 뒤(PG 의 비동기 처리 최대 5 s 가 끝나게) PG 테이블을 비운다 — 검토 초점 7.
+   `COMPOSE exec -T mysql mysql -uroot -proot -e 'TRUNCATE TABLE paymentgateway.payments'`
+2. `COMPOSE restart commerce-api` → healthy 대기.
+3. **재시작 직후** `COMPOSE exec -T mysql mysql -uapplication -papplication loopers < loadtest/prepare.sql` — 재시작이 `ddl-auto: create` 와
+   시더로 재고를 되돌리므로 빼먹으면 재고 0 상품에서 409 가 나 `payment_error` 로 잡힌다.
+4. `loadtest/payment-metrics.sh loadtest/results/payment-<MODE>-<LABEL>.csv &`
+5. `T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)` — 로그 추출(`--since`)과 CSV 경과 초 계산의 기준이다. 검토 초점 6.
+6. k6 → 샘플러 `kill`.
+
+측정마다 결과 JSON 의 `dropped_iterations` 를 확인하고 0 이 아니면 그 측정을 다시 한다(1 부터).
+
+- [ ] **Step 0: 환경 재기동**
+
+Task 1 · 2 를 끝낸 뒤 환경을 내렸으므로 다시 올린다. jar 는 새로 빌드하지 않는다 — Task 1 에서 만든 `commerce-api-payment-36c64532.jar` 를 쓴다.
+그 뒤의 HEAD 커밋(Paxos 실험)은 `loop-pack-be-l2-vol3-kotlin/` 을 바꾸지 않았고, `git rev-parse HEAD` 로 이름을 만들면 없는 jar 를 가리킨다.
+
+```bash
+docker compose -f docker/infra-compose.yml down
+APP_JAR=commerce-api-payment-36c64532.jar docker compose -f docker/loadtest-compose.yml -f docker/loadtest-payment.override.yml up -d
+docker compose -f docker/loadtest-compose.yml -f docker/loadtest-payment.override.yml exec -T mysql mysql -uroot -proot < docker/mysql/init/01-paymentgateway.sql
+```
+
+이어서 Task 1 Step 4 의 PG 기동(별도 터미널, 코어 256)과 `loadtest/pg-proxy.sh create`. 확인은 Task 1 Step 5(프록시 통과 404) 하나만 다시 한다.
+Expected: `COMPOSE ps` 에서 commerce-api `(healthy)` · toxiproxy `running`, PG 로그에 `Started PaymentGatewayApplicationKt`.
 
 - [ ] **Step 1: P0 — PG 실패율**
 
@@ -294,18 +323,21 @@ Expected: CSV 전 행 `request_state=closed`, 마지막 행 `request_not_permitt
 
 ```bash
 loadtest/pg-proxy.sh down
+T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)   # 공통 순서 5 — 프록시를 끈 뒤, k6 직전
 MODE=pg-down LABEL=h2 k6 run loadtest/payment.js
 loadtest/pg-proxy.sh up
-docker compose -f docker/loadtest-compose.yml -f docker/loadtest-payment.override.yml logs --no-log-prefix commerce-api \
+docker compose -f docker/loadtest-compose.yml -f docker/loadtest-payment.override.yml logs --since "$T0" --no-log-prefix commerce-api \
   | grep -E "연결이 거부되어|서킷이 열려" > loadtest/results/payment-pg-down-h2-log.txt
 ```
 
+`--since` 를 빼면 `restart` 를 넘어 남아 있는 앞 실행의 로그까지 세어, 다시 잴 때 첫 실행의 줄 수로 판정하게 된다(검토 초점 6).
+
 Expected: 로그 파일에서 첫 "서킷이 열려" 줄 앞의 "연결이 거부되어" 줄이 10 개 이하, k6 `payment_requested` 0, `open` 시나리오 결제 p99 ≤ 50 ms(threshold 통과).
-기록: 서킷이 처음 OPEN 된 CSV 행의 시각(시작 대비 초).
+기록: 서킷이 처음 OPEN 된 CSV 행의 시각 — `T0` 를 epoch 밀리초로 바꿔(`date -j -u -f %Y-%m-%dT%H:%M:%SZ "$T0" +%s` × 1000) `epoch_ms` 에서 뺀 초.
 
 - [ ] **Step 4: 가설 3 — PG 지연과 무관 API**
 
-세 번 잰다(각각 재시작 · 재고 재주입 · 샘플러 포함).
+세 번 잰다(각각 공통 순서 1 ~ 6 — PG 비우기 · 재시작 · 재고 재주입 · 샘플러 · `T0` 포함).
 
 ```bash
 MODE=mixed LABEL=h3-a PAYMENT_TPS=0 k6 run loadtest/payment.js
@@ -335,7 +367,7 @@ Expected(성립 조건 먼저): h3-c 의 CSV 전 행 `request_state=closed`, `to
 - [ ] **Step 1: 11.4 장 작성**
 
 11.3 장 표와 같은 행(P0 · 가설 1 · 2 · 3)으로 결과 표를 만든다 — 열은 "잰 값" · "판정 기준" · "판정(참 / 거짓 / 성립 안 함)".
-아래에 측정 환경 한 줄(커밋 해시, VM CPU · 메모리, PG 코어 256, 측정 일자), 부가 기록(가설 1 의 `REQUESTED` 비율과 기대 6.4% 비교, 가설 3 의 A → B 차이),
+아래에 측정 환경 한 줄(커밋 해시 — 측정 jar 를 빌드한 `36c64532`, VM CPU · 메모리, PG 코어 256, 측정 일자), 부가 기록(가설 1 의 `REQUESTED` 비율과 기대 6.4% 비교, 가설 3 의 A → B 차이),
 그리고 해석을 측정마다 두세 문장으로 적는다. 2026-10-17 수동 확인의 78% 관찰은 P0 결과로 결론을 낸다.
 
 - [ ] **Step 2: 보정이 필요하면 멈춤**
