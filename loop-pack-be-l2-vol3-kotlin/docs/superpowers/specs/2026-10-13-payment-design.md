@@ -672,12 +672,21 @@ PG 라면 재시도마다 거래가 하나씩 늘어 이중 결제가 된다. �
 | 구성 | 위치 | 이유 |
 |---|---|---|
 | pg-simulator | **호스트**(`bootRun`) | PG 는 `callbackUrl` 이 `http://localhost:8080` 으로 시작해야 받는다. 호스트의 8080 은 commerce-api 컨테이너로 이어지므로 콜백이 도착한다. 컨테이너에 넣으면 localhost 가 PG 자신이 된다 |
-| Toxiproxy | 컨테이너(0.25 CPU, 앱 몫에서 뗌 → 앱 2.75) | commerce-api → PG 사이에 두어 지연(가설 3)과 장애(가설 2)를 원본 수정 없이 넣는다 |
-| commerce-api | 컨테이너 | `PG_BASE_URL` 로 Toxiproxy 를 보게 하고, actuator 8081 을 호스트에 열고, Tomcat 스레드 지표(`mbeanregistry`)를 켠다 |
+| Toxiproxy | **호스트**(`toxiproxy-server` 2.9.0, 리슨 `127.0.0.1:18082` → `localhost:8082`) | commerce-api → PG 사이에 두어 지연(가설 3)과 장애(가설 2)를 원본 수정 없이 넣는다. 컨테이너에 두지 않는 이유는 아래 |
+| commerce-api | 컨테이너(기본 파일의 3 CPU 그대로) | `PG_BASE_URL` 로 호스트의 Toxiproxy(`host.docker.internal:18082`)를 보게 하고, actuator 8081 을 호스트에 열고, Tomcat 스레드 지표(`mbeanregistry`)를 켠다 |
+
+**Toxiproxy 는 처음에 컨테이너(0.25 CPU, 앱 몫에서 뗌 → 앱 2.75)에 두었다가 호스트로 옮겼다.** 가설 1 첫 측정(2026-10-19)이 성립하지 않았다 —
+시작 22 s 만에 `pgRequest` 서킷이 열린 뒤 10 분 내내 OPEN · HALF_OPEN 을 오갔고, 결제 6,001 건 중 3,186 건이 `not_permitted` 로 `FAILED` 였다.
+조사해 보니 컨테이너 Toxiproxy 에서 호스트 PG 로 나가는 구간(Docker Desktop VM → 호스트)이 가끔 약 64 s 동안 멈췄다. 그 사이 읽기 타임아웃(`Unknown`)이
+몰려 서킷이 열린 것이다. 같은 부하에서 컨테이너 → 호스트 PG 직접 경로는 2,400 회 중 1 s 를 넘긴 호출이 0 회였으므로, PG 가 아니라 이 구간 탓으로 보았다.
+그래서 Toxiproxy 를 PG 와 같은 호스트에 두어 그 구간을 없앴다. commerce-api 가 호스트로 나가는 구간은 남지만, 이 구간은 직접 경로 측정에서 정상이었다.
+이 때문에 앱은 기본 파일의 3 CPU 로 돌아오고, 대신 Toxiproxy 는 호스트에서 k6 · pg-simulator 와 CPU 를 나눠 쓴다. (2026-10-20 가설 1 측정 불성립 조사)
 
 **PG 장애는 Toxiproxy 프록시를 끄는(`enabled: false`) 것으로 만든다 — 프록시 뒤의 PG 를 죽이는 것이 아니다.**
 프록시가 살아 있고 PG 만 죽으면 프록시가 연결을 받은 뒤 끊어 commerce-api 에는 연결 거부가 아니라 읽기 실패로 보인다(`Unknown`).
 실제 PG 프로세스가 죽은 상황은 연결 거부이므로, 리스너 자체를 닫는 쪽이 맞다. 측정 전에 닫힌 프록시가 연결 거부를 내는지 확인한다.
+Toxiproxy 를 호스트로 옮긴 뒤에는 이 확인이 더 중요하다. 컨테이너끼리일 때는 닫힌 리스너가 곧바로 RST 를 돌려주지만, 이제 연결은 Docker Desktop 의
+사용자 공간 네트워크를 거쳐 호스트 루프백에 닿는다. 이 경로가 연결을 먼저 받은 뒤 끊으면 `Unknown` 이 되어 가설 2 가 환경 탓에 거짓이 된다.
 
 **PG 의 처리 처리량을 먼저 맞춘다.** pg-simulator 는 결제 처리(1 ~ 5 s sleep)와 콜백 전송을 `@Async` 로 돌리는데,
 실행기가 Spring Boot 기본값(코어 스레드 8 · 큐 무제한)이다. 처리량이 초당 약 8 / 3 s ≈ **2.7 건**이라, 결제 요청을 그보다 빨리 보내면
