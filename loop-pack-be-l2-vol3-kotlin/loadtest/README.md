@@ -268,9 +268,10 @@ jar 를 바꾸면 컨테이너가 재기동되고 `ddl-auto: create` 로 스키�
 
 **환경은 기본 파일에 `docker/loadtest-payment.override.yml` 을 얹어 띄운다.** 기본 파일은 주문 · 캐시 측정의 재현 조건이라 고치지 않는다.
 
-- override: Toxiproxy 를 더하고, commerce-api 가 PG 를 프록시로 보게 하며, actuator(8081)와 Tomcat 스레드 지표를 연다.
+- override: commerce-api 가 PG 를 호스트의 Toxiproxy(`host.docker.internal:18082`)로 보게 하고, actuator(8081)와 Tomcat 스레드 지표를 연다.
 - pg-simulator 는 **호스트**에서 띄운다. PG 는 `callbackUrl` 이 `http://localhost:8080` 으로 시작해야 받는데, 호스트의 8080 이 commerce-api 컨테이너로 이어지기 때문이다.
-- Toxiproxy 는 commerce-api → PG 사이에서 지연(가설 3)과 장애(가설 2)를 원본 수정 없이 넣는다.
+- Toxiproxy 도 **호스트**에서 띄운다(2.9.0). commerce-api → PG 사이에서 지연(가설 3)과 장애(가설 2)를 원본 수정 없이 넣는다.
+  컨테이너에 두었을 때는 컨테이너 → 호스트 PG 구간이 가끔 약 64 s 멈춰 가설 1 의 서킷이 열렸다(설계 11.2 장, 2026-10-20 조사).
 
 기동(`docker/infra-compose.yml` 이 떠 있으면 먼저 내린다 — 포트 충돌):
 
@@ -278,16 +279,21 @@ jar 를 바꾸면 컨테이너가 재기동되고 `ddl-auto: create` 로 스키�
     ./gradlew :apps:commerce-api:bootJar
     H=$(git rev-parse --short=8 HEAD)
     cp apps/commerce-api/build/libs/commerce-api-$H.jar apps/commerce-api/build/libs/commerce-api-payment-$H.jar
-    APP_JAR=commerce-api-payment-$H.jar $COMPOSE up -d
+    # --remove-orphans: 예전 override 의 toxiproxy 컨테이너가 남아 8474 를 쥐면 호스트 Toxiproxy 가 뜨지 못한다
+    APP_JAR=commerce-api-payment-$H.jar $COMPOSE up -d --remove-orphans
     $COMPOSE exec -T mysql mysql -uroot -proot < docker/mysql/init/01-paymentgateway.sql
     $COMPOSE exec -T mysql mysql -uapplication -papplication loopers < loadtest/prepare.sql
     # PG 는 별도 터미널. 코어 256 이 아니면 결제 70 rps 에서 PG 큐가 쌓여 콜백이 몇 분씩 늦는다.
     ./gradlew :apps:pg-simulator:bootRun --args='--datasource.mysql-jpa.main.jdbc-url=jdbc:mysql://localhost:3306/paymentgateway --spring.task.execution.pool.core-size=256'
+    # Toxiproxy 도 별도 터미널(또는 백그라운드). 바이너리가 없으면 릴리스에서 받는다(Apple Silicon 기준):
+    #   curl -fL -o ~/.local/bin/toxiproxy-server https://github.com/Shopify/toxiproxy/releases/download/v2.9.0/toxiproxy-server-darwin-arm64
+    #   chmod +x ~/.local/bin/toxiproxy-server
+    ~/.local/bin/toxiproxy-server -host localhost -port 8474 > loadtest/results/payment-toxiproxy.log 2>&1
     loadtest/pg-proxy.sh create
 
 **프록시 조작** — `loadtest/pg-proxy.sh create | latency <ms> | clear | down | up`.
 `down` 은 리스너를 닫아 연결 거부를 만든다. PG 를 죽이면 프록시가 연결을 받은 뒤 끊어 `Unknown`(REQUESTED)이 되므로 PG 장애는 `down` 으로 만든다.
-Toxiproxy 는 재시작하면 프록시를 잊으므로 compose 를 올릴 때마다 `create` 한다.
+Toxiproxy 는 재시작하면 프록시를 잊으므로 `toxiproxy-server` 를 띄울 때마다 `create` 한다.
 
 **측정 한 회의 순서:**
 
