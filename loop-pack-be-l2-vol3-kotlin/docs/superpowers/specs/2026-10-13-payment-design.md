@@ -666,14 +666,16 @@ PG 라면 재시도마다 거래가 하나씩 늘어 이중 결제가 된다. �
 
 ### 11.2 환경
 
-기존 부하 하네스(`docker/loadtest-compose.yml` — MySQL 2 CPU · 앱 3 CPU, k6 는 호스트)를 그대로 쓰고, 결제용 차이는 override 파일
+기존 부하 하네스(`docker/loadtest-compose.yml` — MySQL 2 CPU · 앱 기본 3 CPU, k6 는 호스트)를 쓰고, 결제용 차이는 override 파일
 `docker/loadtest-payment.override.yml` 에만 둔다. 기본 파일은 주문 · 캐시 측정의 재현 조건이라 고치지 않는다.
 
 | 구성 | 위치 | 이유 |
 |---|---|---|
-| pg-simulator | **호스트**(`bootRun`) | PG 는 `callbackUrl` 이 `http://localhost:8080` 으로 시작해야 받는다. 호스트의 8080 은 commerce-api 컨테이너로 이어지므로 콜백이 도착한다. 컨테이너에 넣으면 localhost 가 PG 자신이 된다 |
-| Toxiproxy | **호스트**(`toxiproxy-server` 2.9.0, 리슨 `127.0.0.1:18082` → `localhost:8082`) | commerce-api → PG 사이에 두어 지연(가설 3)과 장애(가설 2)를 원본 수정 없이 넣는다. 컨테이너에 두지 않는 이유는 아래 |
-| commerce-api | 컨테이너(기본 파일의 3 CPU 그대로) | `PG_BASE_URL` 로 호스트의 Toxiproxy(`host.docker.internal:18082`)를 보게 하고, actuator 8081 을 호스트에 열고, Tomcat 스레드 지표(`mbeanregistry`)를 켠다 |
+| pg-simulator | **컨테이너**(0.5 CPU, `network_mode: "service:commerce-api"`) | PG 는 `callbackUrl` 이 `http://localhost:8080` 으로 시작해야 받는다. commerce-api 의 네트워크 네임스페이스를 공유하면 PG 안의 `localhost:8080` 이 곧 commerce-api 이므로 제약이 만족된다. 원래 PG 를 호스트에 둔 유일한 이유가 이것이었다 |
+| Toxiproxy | **컨테이너**(`ghcr.io/shopify/toxiproxy:2.9.0`, 0.25 CPU, 리슨 `0.0.0.0:18082` → 업스트림 `commerce-api:8082`) | commerce-api → PG 사이에 두어 지연(가설 3)과 장애(가설 2)를 원본 수정 없이 넣는다. 관리 API 8474 만 호스트에 연다. 모든 트래픽이 Docker 브리지 망 안이다(아래) |
+| commerce-api | 컨테이너(**2.25 CPU** — 기본 파일의 3 에서 PG · Toxiproxy 몫을 뗌) | `PG_BASE_URL` 로 `http://toxiproxy:18082` 를 보게 하고, actuator 8081 과 PG 8082(네임스페이스 소유자만 포트를 열 수 있다)를 호스트에 열고, Tomcat 스레드 지표(`mbeanregistry`)를 켠다 |
+
+CPU 배분(VM 5 CPU · 메모리 약 5.8 GiB): mysql 2 + commerce-api 2.25 + pg-simulator 0.5 + toxiproxy 0.25 = 5. pg-simulator 는 메모리 1 GiB · 힙 512 MiB 로 둔다.
 
 **Toxiproxy 는 처음에 컨테이너(0.25 CPU, 앱 몫에서 뗌 → 앱 2.75)에 두었다가 호스트로 옮겼다.** 가설 1 첫 측정(2026-10-19)이 성립하지 않았다 —
 시작 22 s 만에 `pgRequest` 서킷이 열린 뒤 10 분 내내 OPEN · HALF_OPEN 을 오갔고, 결제 6,001 건 중 3,186 건이 `not_permitted` 로 `FAILED` 였다.
@@ -682,20 +684,40 @@ PG 라면 재시도마다 거래가 하나씩 늘어 이중 결제가 된다. �
 그래서 Toxiproxy 를 PG 와 같은 호스트에 두어 그 구간을 없앴다. commerce-api 가 호스트로 나가는 구간은 남지만, 이 구간은 직접 경로 측정에서 정상이었다.
 이 때문에 앱은 기본 파일의 3 CPU 로 돌아오고, 대신 Toxiproxy 는 호스트에서 k6 · pg-simulator 와 CPU 를 나눠 쓴다. (2026-10-20 가설 1 측정 불성립 조사)
 
+**호스트 Toxiproxy 도 가설 3 에서 성립하지 않아, pg-simulator 와 Toxiproxy 를 모두 컨테이너로 옮겨 컨테이너 → 호스트 구간을 없앴다.**
+호스트 Toxiproxy 로 다시 잰 가설 1(10 rps)은 참이었다 — 561 행 전부 `closed`, `not_permitted` 0, `FAILED` 0. 다만 connect timeout(500 ms)이 결제 요청 38 회 ·
+PG 조회 33 회(10 분, 초당 약 0.12 회) 있었고, 가설 2 도 참이었다. 그러나 가설 3(2026-10-21)은 결제 70 rps 에서 connect timeout 이 몰려 성립하지 않았다.
+B 는 T0+54 s, C 는 T0+40 s 에 서킷이 열렸고(B 첫 열림 직전 0.9 s 동안 `Unknown` 20 건이 전부 `Connect timed out`), B 2 분 동안 connect timeout 이 627 회
+(초당 약 5.2 회)였다 — 부하 7 배에 약 44 배다. 서킷이 열린 결제가 31% 라 C 의 주문 상세 p99(A 8.6 / B 8.9 / C 4.6 ms)는 "공짜 참"이어서 판정에 쓸 수 없다.
+(C 의 Tomcat busy 최대 137 로 40 초과 조건은 충족, Hikari active 최대 B 20 · C 5, pending 0.)
+컨테이너 → 호스트 구간(Docker Desktop `host.docker.internal`)은 컨테이너 Toxiproxy 일 때는 가끔 멈추고 호스트 Toxiproxy 일 때는 부하에서 connect timeout 이 몰리므로,
+어느 쪽이든 이 구간을 통과하는 측정은 믿지 않기로 했다. 구간을 지우려면 PG 가 컨테이너여야 하고, PG 를 컨테이너에 두면 `callbackUrl` 제약이 문제가 되는데
+commerce-api 의 네임스페이스를 PG 가 공유하면 풀린다. 이제 모든 트래픽이 Docker 브리지 망 안이라 꺼진 프록시도 컨테이너끼리 진짜 RST(연결 거부)를 돌려준다.
+
+방향이 "PG 가 commerce-api 에 붙음"인 이유: Compose v2.20.2 에 `!reset` 이 없어 기본 파일 commerce-api 의 `ports` 를 지울 수 없고, `network_mode` 와 `ports` 는 함께 쓸 수 없어
+commerce-api 가 남의 네임스페이스에 붙을 수 없다. 대가는 두 가지다.
+- **재시작 순서:** 네임스페이스 소유자(commerce-api)를 재시작하면 붙은 PG 가 네트워크를 잃는다. 그 PG 의 MySQL 연결은 종료 신호 없이 MySQL 쪽에 남아
+  재시작마다 풀(30 개)만큼 새고, 네 번째쯤 `max_connections` 151 에 닿는다(2026-10-22 확인). 그래서 **PG 를 먼저 멈추고 commerce-api 를 재시작한 뒤 PG 를 띄운다.**
+  PG 헬스체크는 자기 루프백만 보므로 네트워크를 잃어도 `healthy` 로 남는다 — 순서로만 막는다.
+- **PG 데우기:** 재시작 직후 PG(0.5 CPU)는 JIT 가 덜 돌아 70 rps 에서 응답 p99 가 1.9 s 로 읽기 타임아웃(1 s)을 넘는다. 한 번 데우면 0.5 s 다(2026-10-21 확인).
+  그래서 측정마다 PG 를 직접 70 rps × 30 s 불러 데운 뒤, 그 거래를 TRUNCATE 로 지우고 잰다.
+- **CPU 재배분:** 앱이 3 → 2.25 CPU 가 되어 가설 1 · 2(앱 3 CPU, 호스트 PG)와 측정 조건이 다르다. 가설 3 은 A · B · C 를 같은 조건에서 비교하므로 판정에는 영향이 없다고 본다.
+  이미 끝난 P0 · 가설 1 · 2 는 다시 재지 않는다. 이 구간 문제를 안고도 판정에 영향 없이 결과가 났다 — 가설 1 의 connect timeout 38 건은 부가 기록에만 영향을 준다.
+(2026-10-21 가설 3 측정 불성립 조사)
+
 **PG 장애는 Toxiproxy 프록시를 끄는(`enabled: false`) 것으로 만든다 — 프록시 뒤의 PG 를 죽이는 것이 아니다.**
 프록시가 살아 있고 PG 만 죽으면 프록시가 연결을 받은 뒤 끊어 commerce-api 에는 연결 거부가 아니라 읽기 실패로 보인다(`Unknown`).
 실제 PG 프로세스가 죽은 상황은 연결 거부이므로, 리스너 자체를 닫는 쪽이 맞다. 측정 전에 닫힌 프록시가 연결 거부를 내는지 확인한다.
-Toxiproxy 를 호스트로 옮긴 뒤에는 이 확인이 더 중요하다. 컨테이너끼리일 때는 닫힌 리스너가 곧바로 RST 를 돌려주지만, 이제 연결은 Docker Desktop 의
-사용자 공간 네트워크를 거쳐 호스트 루프백에 닿는다. 이 경로가 연결을 먼저 받은 뒤 끊으면 `Unknown` 이 되어 가설 2 가 환경 탓에 거짓이 된다.
+Toxiproxy 를 호스트로 두었을 때는 이 확인이 더 중요했다 — 연결이 Docker Desktop 의 사용자 공간 네트워크를 거쳐 호스트 루프백에 닿아, 그 경로가 연결을 먼저 받은 뒤 끊으면
+`Unknown` 이 되어 가설 2 가 환경 탓에 거짓이 될 수 있었다. 이제 다시 컨테이너끼리라 닫힌 리스너가 곧바로 RST 를 돌려주지만, 새 토폴로지에서도 측정 전에 확인한다.
 
 **PG 의 처리 처리량을 먼저 맞춘다.** pg-simulator 는 결제 처리(1 ~ 5 s sleep)와 콜백 전송을 `@Async` 로 돌리는데,
 실행기가 Spring Boot 기본값(코어 스레드 8 · 큐 무제한)이다. 처리량이 초당 약 8 / 3 s ≈ **2.7 건**이라, 결제 요청을 그보다 빨리 보내면
 PG 큐가 끝없이 쌓여 콜백이 몇 분씩 늦어진다. 그러면 5.3 장의 "처리 지연 최대 5 s" 가 깨지고 9.6 장의 PENDING 적체가 측정 결과에 섞인다.
 원본을 고치지 않고 2.2 장처럼 실행 인자로 풀을 키운다. 가장 빠른 부하(가설 3 의 결제 70 rps)를 받도록 **코어 256(초당 약 85 건)** 으로 둔다.
-
-```shell
-./gradlew :apps:pg-simulator:bootRun --args='--datasource.mysql-jpa.main.jdbc-url=jdbc:mysql://localhost:3306/paymentgateway --spring.task.execution.pool.core-size=256'
-```
+pg-simulator 가 컨테이너가 된 뒤로는 override 의 `command` 에 `--spring.task.execution.pool.core-size=256` 이 들어 있어(`bootRun` 이 아니라 bootJar 를 `java -jar` 로 실행) 따로 줄 필요가 없다.
+같은 command 가 `jdbc-url`(`mysql:3306/paymentgateway`) · redis 호스트 · `show-sql=false` 도 덮어쓴다 — 공유 네임스페이스의 `localhost` 에는 MySQL · redis 가 없고,
+호스트 실행 때 PG 로그가 294 MB 까지 커졌기 때문이다.
 
 ### 11.3 방법과 판정 기준
 
