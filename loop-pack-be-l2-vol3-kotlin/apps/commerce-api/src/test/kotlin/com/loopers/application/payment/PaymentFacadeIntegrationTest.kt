@@ -119,6 +119,34 @@ class PaymentFacadeIntegrationTest @Autowired constructor(
             )
         }
 
+        /**
+         * 2026-10-22 측정이 드러낸 키 충돌(11.4 장). PG 가 이미 다른 결제에 연결된 키를 또 돌려줬다. 기록하면 커밋에서
+         * 유일 제약 위반이라 PG 가 접수한 요청이 500 이 된다. (설계 4.2 · 5.2 장)
+         */
+        @DisplayName("PG 가 접수했어도 그 키가 다른 결제에 연결돼 있으면, 500 이 아니라 실패 응답이고 주문은 결제 실패다.")
+        @Test
+        fun failsWithoutError_whenAcceptedKeyBelongsToOtherPayment() {
+            // arrange
+            val userId = signUp()
+            val first = placeOrder(userId)
+            val second = placeOrder(userId)
+            whenever(paymentGateway.request(any())).thenReturn(PgRequestResult.Accepted(KEY))
+            val firstInfo = paymentFacade.request(command(first.id))
+
+            // act
+            val info = paymentFacade.request(command(second.id))
+
+            // assert
+            val payment = paymentService.getPayment(info.paymentId)!!
+            assertAll(
+                { assertThat(info.status).isEqualTo("FAILED") },
+                { assertThat(payment.transactionKey).isNull() },
+                { assertThat(orderStatusOf(second.id)).isEqualTo(OrderStatus.PAYMENT_FAILED) },
+                { assertThat(paymentService.getPayment(firstInfo.paymentId)!!.transactionKey).isEqualTo(KEY) },
+                { assertThat(orderStatusOf(first.id)).isEqualTo(OrderStatus.PAYING) },
+            )
+        }
+
         @DisplayName("서킷이 열려 보내지 못하면, 결제는 실패 · 주문은 결제 실패이고 바로 다시 결제할 수 있다.")
         @Test
         fun failsImmediately_whenNotSent_andCanRetry() {

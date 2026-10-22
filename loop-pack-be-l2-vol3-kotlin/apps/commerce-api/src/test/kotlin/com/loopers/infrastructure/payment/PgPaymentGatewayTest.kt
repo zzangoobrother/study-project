@@ -264,8 +264,29 @@ class PgPaymentGatewayTest @Autowired constructor(
 
             // assert
             assertThat(result).isEqualTo(
-                PgQueryResult.Found(PgTransaction(KEY, PgTransactionStatus.SUCCESS, "정상 승인되었습니다.", 5_000L)),
+                PgQueryResult.Found(PgTransaction(KEY, PgTransactionStatus.SUCCESS, "정상 승인되었습니다.", 5_000L, orderId = 42L)),
             )
+        }
+
+        @DisplayName("상세 응답의 0 채운 주문 ID 는, 숫자로 되돌려 PgTransaction.orderId 에 담는다.")
+        @Test
+        fun translatesZeroPaddedOrderId() {
+            // arrange
+            stubFor(
+                get(urlPathMatching("$PAYMENTS/.+")).willReturn(
+                    okJson(
+                        """{"meta":{"result":"SUCCESS","errorCode":null,"message":null},
+                           "data":{"transactionKey":"$KEY","orderId":"003994","cardType":"SAMSUNG",
+                                   "cardNo":"1234-5678-9814-1451","amount":5000,"status":"PENDING","reason":null}}""",
+                    ),
+                ),
+            )
+
+            // act
+            val result = paymentGateway.findTransaction(userId = 7L, transactionKey = KEY)
+
+            // assert
+            assertThat((result as PgQueryResult.Found).value.orderId).isEqualTo(3994L)
         }
 
         @DisplayName("주문별 조회는 6 자리 주문 ID 로 묻고 거래 목록을 돌려준다.")

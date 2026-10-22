@@ -77,14 +77,25 @@ class PgPaymentGateway(
 
     override fun findTransaction(userId: Long, transactionKey: String): PgQueryResult<PgTransaction> = query {
         client.getTransaction(userId.toString(), transactionKey).data
-            ?.let { PgQueryResult.Found(PgTransaction(it.transactionKey, toStatus(it.status), it.reason, it.amount)) }
+            // 주문 ID 를 숫자로 못 되돌리면 null — 주문 확인을 건너뛴다. 해석 실패를 실패 확정의 근거로 삼지 않는다.
+            ?.let {
+                PgQueryResult.Found(
+                    PgTransaction(
+                        it.transactionKey,
+                        toStatus(it.status),
+                        it.reason,
+                        it.amount,
+                        orderId = it.orderId.toLongOrNull(),
+                    ),
+                )
+            }
             ?: PgQueryResult.NotFound
     }
 
     override fun findTransactionsByOrder(userId: Long, orderId: Long): PgQueryResult<List<PgTransaction>> = query {
         client.getTransactionsByOrder(userId.toString(), PgDto.toPgOrderId(orderId)).data
             ?.let { data ->
-                // 목록 응답에는 금액이 없다. 확정 전 금액 검증은 상세 조회로 한다. (설계 5.2 장)
+                // 목록 응답에는 금액 · 주문 ID 가 없다. 확정 전 금액 검증은 상세 조회로 한다. (설계 5.2 장)
                 PgQueryResult.Found(
                     data.transactions.map { PgTransaction(it.transactionKey, toStatus(it.status), it.reason, amount = null) },
                 )

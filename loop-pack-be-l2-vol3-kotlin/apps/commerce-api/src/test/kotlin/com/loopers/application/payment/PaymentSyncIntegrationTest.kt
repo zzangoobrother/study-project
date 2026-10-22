@@ -100,8 +100,13 @@ class PaymentSyncIntegrationTest @Autowired constructor(
         )
     }
 
-    private fun tx(key: String = KEY, status: PgTransactionStatus, amount: Long? = AMOUNT, reason: String? = null) =
-        PgTransaction(transactionKey = key, status = status, reason = reason, amount = amount)
+    private fun tx(
+        key: String = KEY,
+        status: PgTransactionStatus,
+        amount: Long? = AMOUNT,
+        reason: String? = null,
+        orderId: Long? = null,
+    ) = PgTransaction(transactionKey = key, status = status, reason = reason, amount = amount, orderId = orderId)
 
     private fun stubDetail(result: PgQueryResult<PgTransaction>) {
         whenever(paymentGateway.findTransaction(any(), any())).thenReturn(result)
@@ -227,6 +232,63 @@ class PaymentSyncIntegrationTest @Autowired constructor(
                 { assertThat(paymentOf(info).status).isEqualTo(PaymentStatus.FAILED) },
                 { assertThat(paymentOf(info).failureReason).isEqualTo("PG 결제 금액이 주문 금액과 다릅니다.") },
                 { assertThat(paymentOf(info).transactionKey).isEqualTo(KEY) },
+                { assertThat(orderStatusOf(order.id)).isEqualTo(OrderStatus.PAYMENT_FAILED) },
+            )
+        }
+
+        /**
+         * 2026-10-22 측정이 드러낸 키 충돌(11.4 장). PG 가 키를 중복 발급해 이 키의 상세가 다른 주문의 거래로 덮어써졌다.
+         * 그 결과로 확정하면 남의 거래로 이 결제가 확정된다. 그대로 두면 매 주기 다시 뽑히므로 닫는다. (설계 5.2 · 9.5 장)
+         */
+        @DisplayName("PG 상세의 주문이 결제 주문과 다르면, PG 결과와 무관하게 결제 실패 · 주문 결제 실패로 닫고 예외는 없다.")
+        @Test
+        fun closesAsFailed_whenOrderMismatches() {
+            // arrange
+            val order = placeOrder()
+            val info = pay(order.id, PgRequestResult.Accepted(KEY))
+            stubDetail(PgQueryResult.Found(tx(status = PgTransactionStatus.SUCCESS, orderId = order.id + 1)))
+
+            // act
+            paymentFacade.sync(info.paymentId)
+
+            // assert
+            assertAll(
+                { assertThat(paymentOf(info).status).isEqualTo(PaymentStatus.FAILED) },
+                { assertThat(paymentOf(info).failureReason).isEqualTo("PG 거래의 주문이 결제 주문과 다릅니다.") },
+                { assertThat(paymentOf(info).transactionKey).isEqualTo(KEY) },
+                { assertThat(orderStatusOf(order.id)).isEqualTo(OrderStatus.PAYMENT_FAILED) },
+            )
+        }
+
+        @DisplayName("PG 상세의 주문이 결제 주문과 같으면, 평소처럼 확정한다.")
+        @Test
+        fun confirms_whenOrderMatches() {
+            // arrange
+            val order = placeOrder()
+            val info = pay(order.id, PgRequestResult.Accepted(KEY))
+            stubDetail(PgQueryResult.Found(tx(status = PgTransactionStatus.SUCCESS, orderId = order.id)))
+
+            // act
+            paymentFacade.sync(info.paymentId)
+
+            // assert
+            assertThat(paymentOf(info).status).isEqualTo(PaymentStatus.SUCCESS)
+        }
+
+        @DisplayName("콜백이 다른 주문의 거래로 덮어써진 키로 오면, 대기 결제를 실패로 닫고 예외는 없다.")
+        @Test
+        fun closesAsFailed_whenCallbackKeyWasOverwrittenByOtherOrder() {
+            // arrange
+            val order = placeOrder()
+            val info = pay(order.id, PgRequestResult.Accepted(KEY))
+            stubDetail(PgQueryResult.Found(tx(status = PgTransactionStatus.SUCCESS, orderId = order.id + 1)))
+
+            // act
+            paymentFacade.handleCallback(KEY, order.id.toString().padStart(6, '0'))
+
+            // assert
+            assertAll(
+                { assertThat(paymentOf(info).status).isEqualTo(PaymentStatus.FAILED) },
                 { assertThat(orderStatusOf(order.id)).isEqualTo(OrderStatus.PAYMENT_FAILED) },
             )
         }
@@ -401,6 +463,41 @@ class PaymentSyncIntegrationTest @Autowired constructor(
                 { assertThat(paymentOf(info).transactionKey).isNull() },
                 { assertThat(orderStatusOf(order.id)).isEqualTo(OrderStatus.PAYING) },
                 { verify(paymentGateway, never()).findTransaction(any(), any()) },
+            )
+        }
+
+        /**
+         * 2026-10-22 측정이 드러낸 키 충돌(11.4 장). 연결하려는 키가 다른 주문의 결제 P1 에 이미 연결돼 있다.
+         * 그대로 연결하면 커밋에서 uk_payments_transaction_key 위반으로 매 주기 ERROR 가 된다. (설계 5.2 · 9.5 장)
+         */
+        @DisplayName("연결하려는 키가 다른 결제에 이미 연결돼 있으면, 키를 기록하지 않고 거래를 특정할 수 없다는 사유로 결제 실패다.")
+        @Test
+        fun closesAsFailed_whenKeyBelongsToOtherPayment() {
+            // arrange
+            val order = placeOrder()
+            val owner = pay(order.id, PgRequestResult.Accepted(KEY))
+            val otherOrder = orderService.place(
+                userId = userService.getUser(LoginId(LOGIN_ID))!!.id,
+                items = listOf(
+                    OrderItemModel.create(productId = 2L, productName = ProductName("슬리퍼"), unitPrice = Price(AMOUNT), quantity = Quantity(1)),
+                ),
+            )
+            val info = pay(otherOrder.id, PgRequestResult.Unknown)
+            stubByOrder(PgQueryResult.Found(listOf(tx(status = PgTransactionStatus.PENDING, amount = null))))
+            stubDetail(PgQueryResult.Found(tx(status = PgTransactionStatus.SUCCESS, orderId = otherOrder.id)))
+
+            // act
+            paymentFacade.sync(info.paymentId, now = afterInFlight())
+
+            // assert
+            assertAll(
+                { assertThat(paymentOf(info).status).isEqualTo(PaymentStatus.FAILED) },
+                { assertThat(paymentOf(info).failureReason).isEqualTo("PG 거래를 특정할 수 없습니다. 고객센터에 문의해주세요.") },
+                { assertThat(paymentOf(info).transactionKey).isNull() },
+                { assertThat(orderStatusOf(otherOrder.id)).isEqualTo(OrderStatus.PAYMENT_FAILED) },
+                { assertThat(paymentOf(owner).status).isEqualTo(PaymentStatus.PENDING) },
+                { assertThat(paymentOf(owner).transactionKey).isEqualTo(KEY) },
+                { assertThat(orderStatusOf(order.id)).isEqualTo(OrderStatus.PAYING) },
             )
         }
 

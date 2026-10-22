@@ -18,6 +18,7 @@ import com.loopers.domain.user.UserService
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.stereotype.Component
 import org.springframework.transaction.support.TransactionTemplate
@@ -52,6 +53,7 @@ class PaymentFacade(
         private const val REASON_PG_FAILED = "결제에 실패했습니다."
         private const val REASON_AMBIGUOUS = "PG 거래를 특정할 수 없습니다. 고객센터에 문의해주세요."
         private const val REASON_AMOUNT_MISMATCH = "PG 결제 금액이 주문 금액과 다릅니다."
+        private const val REASON_ORDER_MISMATCH = "PG 거래의 주문이 결제 주문과 다릅니다."
 
         /** PG 처리 지연이 최대 5 초다. 정상이면 콜백이 먼저 처리했을 건만 남도록 넉넉히 둔다. (설계 5.3 장) */
         private val SYNC_DELAY: Duration = Duration.ofSeconds(30)
@@ -95,6 +97,13 @@ class PaymentFacade(
             transactionTemplate.execute { applyRequestResult(payment.id, result) }!!
         } catch (e: OptimisticLockingFailureException) {
             PaymentInfo.of(paymentService.getPayment(payment.id)!!)
+        } catch (e: DataIntegrityViolationException) {
+            // applyRequestResult 가 키 소유를 확인했는데도 유일 제약에 걸렸다면, 확인과 커밋 사이에 다른 요청이 같은 키를 먼저 커밋한 것이다.
+            // PG 는 이미 접수했으므로 500 으로 돌려주지 않고 현재 상태(REQUESTED)를 돌려준다. 다음 동기화가 키 소유 확인으로 닫는다.
+            // 여기서만 잡는다 — 다른 경로에서 일반적으로 삼키면 무관한 무결성 버그를 가린다.
+            // (설계 5.2 장, 2026-10-22 측정이 드러낸 키 충돌, 11.4 장)
+            log.error("[paymentId = {}] 결제 요청 결과의 거래 키가 다른 결제와 겹쳐 기록하지 못했습니다. 동기화가 닫습니다.", payment.id, e)
+            PaymentInfo.of(paymentService.getPayment(payment.id)!!)
         }
     }
 
@@ -133,11 +142,18 @@ class PaymentFacade(
         return payment
     }
 
-    /** tx2. PG 호출 결과를 반영한다. 즉시 실패로 확정하는 것은 NotSent 뿐이다. (설계 4.2 장) */
+    /**
+     * tx2. PG 호출 결과를 반영한다. 즉시 실패로 확정하는 것은 NotSent 와, 키가 다른 결제의 것인 Accepted 뿐이다. (설계 4.2 장)
+     * 키 소유 확인이 markPending 보다 앞이다 — 커밋에서 유일 제약에 걸리면 PG 가 접수한 요청이 500 이 된다.
+     */
     private fun applyRequestResult(paymentId: Long, result: PgRequestResult): PaymentInfo {
         val payment = paymentService.getPayment(paymentId)!!
         when (result) {
-            is PgRequestResult.Accepted -> payment.markPending(result.transactionKey)
+            is PgRequestResult.Accepted -> {
+                if (!closeIfKeyOwnedByOther(payment, result.transactionKey)) {
+                    payment.markPending(result.transactionKey)
+                }
+            }
             PgRequestResult.NotSent -> {
                 payment.fail(REASON_NOT_SENT)
                 orderService.failPayment(payment.orderId)
@@ -282,6 +298,26 @@ class PaymentFacade(
         val payment = paymentService.getPayment(paymentId)!!
         if (payment.status.isFinal) return
 
+        // 키를 연결하기 전(요청됨)에만 소유를 확인한다. 이미 키가 있는 결제(대기)는 그 키가 이 결제의 것이다.
+        if (payment.transactionKey == null && closeIfKeyOwnedByOther(payment, transaction.transactionKey)) return
+
+        // PG 상세의 주문이 이 결제의 주문과 다르면 PG 가 키를 중복 발급해 다른 주문의 거래가 이 키로 덮어써진 것이다.
+        // 그 결과로 확정하면 남의 거래로 이 결제를 확정한다. 금액 불일치와 같은 이유로 반영하지 않고 닫는다.
+        // 키는 기록하지 않는다 — 요청됨이면 연결하려던 키가 이 결제의 것이라는 근거가 없고, 대기면 이미 기록돼 있다.
+        // (설계 5.2 · 9.5 장, 2026-10-22 측정이 드러낸 키 충돌, 11.4 장)
+        if (transaction.orderId != null && transaction.orderId != payment.orderId) {
+            log.error(
+                "[paymentId = {}, transactionKey = {}] PG 거래의 주문({})이 결제 주문({})과 다릅니다. 실패로 닫습니다.",
+                paymentId,
+                transaction.transactionKey,
+                transaction.orderId,
+                payment.orderId,
+            )
+            payment.fail(REASON_ORDER_MISMATCH)
+            orderService.failPayment(payment.orderId)
+            return
+        }
+
         payment.markPending(transaction.transactionKey)
         if (transaction.amount != payment.amount.value) {
             // 위조나 버그의 신호라 PG 의 결과를 반영하지 않는다. 그대로 두면 상태가 영영 안 바뀌어 매 주기 동기화 대상으로 남고
@@ -309,6 +345,28 @@ class PaymentFacade(
                 orderService.failPayment(payment.orderId)
             }
         }
+    }
+
+    /**
+     * 연결하려는 키가 이미 다른 결제의 것이면 키를 기록하지 않고 이 결제를 실패로 닫는다. 닫았으면 true.
+     * 유일성은 전역인데 PG 가 준 키를 이 결제의 것이라 가정하면 커밋에서 uk_payments_transaction_key 를 위반해,
+     * 스케줄러는 매 주기 ERROR 로 영원히 미확정이 되고 요청은 500 이 된다. 주문이 풀려 재결제할 수 있다.
+     * PG 에서 돈이 나갔을 수 있어 후속은 수동이다. (설계 5.2 · 9.1 · 9.5 장, 2026-10-22 측정이 드러낸 키 충돌, 11.4 장)
+     *
+     * 두 트랜잭션이 동시에 같은 키를 확인하면 둘 다 통과하고 한쪽 커밋이 유일 제약에 걸릴 수 있다. 결제 요청은 request() 가,
+     * 동기화는 syncPending 의 건 단위 로그가 받고, 다음 주기의 이 확인이 닫는다.
+     */
+    private fun closeIfKeyOwnedByOther(payment: PaymentModel, transactionKey: String): Boolean {
+        val owner = paymentService.findByTransactionKey(transactionKey)?.takeIf { it.id != payment.id } ?: return false
+        log.error(
+            "[paymentId = {}, ownerPaymentId = {}, transactionKey = {}] 거래 키가 다른 결제에 연결돼 있어 연결하지 않고 실패로 닫습니다.",
+            payment.id,
+            owner.id,
+            transactionKey,
+        )
+        payment.fail(REASON_AMBIGUOUS)
+        orderService.failPayment(payment.orderId)
+        return true
     }
 
     private fun getUserOrThrow(loginId: LoginId): UserModel =
