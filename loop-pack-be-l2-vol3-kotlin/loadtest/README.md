@@ -268,40 +268,55 @@ jar 를 바꾸면 컨테이너가 재기동되고 `ddl-auto: create` 로 스키�
 
 **환경은 기본 파일에 `docker/loadtest-payment.override.yml` 을 얹어 띄운다.** 기본 파일은 주문 · 캐시 측정의 재현 조건이라 고치지 않는다.
 
-- override: commerce-api 가 PG 를 호스트의 Toxiproxy(`host.docker.internal:18082`)로 보게 하고, actuator(8081)와 Tomcat 스레드 지표를 연다.
-- pg-simulator 는 **호스트**에서 띄운다. PG 는 `callbackUrl` 이 `http://localhost:8080` 으로 시작해야 받는데, 호스트의 8080 이 commerce-api 컨테이너로 이어지기 때문이다.
-- Toxiproxy 도 **호스트**에서 띄운다(2.9.0). commerce-api → PG 사이에서 지연(가설 3)과 장애(가설 2)를 원본 수정 없이 넣는다.
-  컨테이너에 두었을 때는 컨테이너 → 호스트 PG 구간이 가끔 약 64 s 멈춰 가설 1 의 서킷이 열렸다(설계 11.2 장, 2026-10-20 조사).
+- override: commerce-api 가 PG 를 Toxiproxy 컨테이너(`toxiproxy:18082`)로 보게 하고, actuator(8081)와 Tomcat 스레드 지표를 연다.
+- pg-simulator 는 **컨테이너**이며 commerce-api 의 네트워크 네임스페이스를 공유한다(`network_mode: "service:commerce-api"`).
+  PG 는 `callbackUrl` 이 `http://localhost:8080` 으로 시작해야 받는데, 네임스페이스를 공유하면 PG 안의 `localhost:8080` 이 곧 commerce-api 이기 때문이다.
+- Toxiproxy 도 **컨테이너**(2.9.0)다. 프록시는 리슨 `0.0.0.0:18082` → 업스트림 `commerce-api:8082`(PG 가 같은 네임스페이스에서 듣는 포트). 관리 API 8474 만 호스트에 열린다.
+  모든 트래픽이 Docker 브리지 망 안이라 컨테이너 → 호스트 구간이 없다. 그 구간은 컨테이너 Toxiproxy 일 때 가끔 약 64 s 멈췄고(가설 1 불성립),
+  호스트 Toxiproxy 일 때는 결제 70 rps 에서 connect timeout 이 몰렸다(가설 3 불성립). (설계 11.2 장)
+- CPU: mysql 2 + commerce-api 2.25 + pg-simulator 0.5 + toxiproxy 0.25 = VM 5 CPU. 가설 1 · 2(앱 3 CPU, 호스트 PG)와 조건이 다르지만 가설 3 은 B · C 를 같은 조건에서 비교한다.
+- **네임스페이스 소유자인 commerce-api 를 재시작하면 붙어 있던 pg-simulator 가 네트워크를 잃는다. commerce-api 를 재시작한 뒤에는 반드시 pg-simulator 도 재시작한다.**
 
 기동(`docker/infra-compose.yml` 이 떠 있으면 먼저 내린다 — 포트 충돌):
 
     COMPOSE="docker compose -f docker/loadtest-compose.yml -f docker/loadtest-payment.override.yml"
-    ./gradlew :apps:commerce-api:bootJar
+    ./gradlew :apps:commerce-api:bootJar :apps:pg-simulator:bootJar
     H=$(git rev-parse --short=8 HEAD)
+    # 측정 jar 는 다음 빌드가 덮어쓰지 않게 따로 복사해 둔다
     cp apps/commerce-api/build/libs/commerce-api-$H.jar apps/commerce-api/build/libs/commerce-api-payment-$H.jar
-    # --remove-orphans: 예전 override 의 toxiproxy 컨테이너가 남아 8474 를 쥐면 호스트 Toxiproxy 가 뜨지 못한다
-    APP_JAR=commerce-api-payment-$H.jar $COMPOSE up -d --remove-orphans
+    cp apps/pg-simulator/build/libs/pg-simulator-$H.jar apps/pg-simulator/build/libs/pg-simulator-payment-$H.jar
+    export APP_JAR=commerce-api-payment-$H.jar PG_JAR=pg-simulator-payment-$H.jar
+    # --remove-orphans: 예전 override 에서 남은 컨테이너를 지운다
+    $COMPOSE up -d --remove-orphans
+    # PG 는 paymentgateway 스키마가 없으면 기동에 실패한다(compose 가 init 스크립트를 마운트하지 않으므로 직접 만든다).
+    # 스키마 SQL 을 실행한 뒤 PG 를 재시작해 새 스키마로 붙인다(PG 가 먼저 떠서 실패했을 수 있다).
     $COMPOSE exec -T mysql mysql -uroot -proot < docker/mysql/init/01-paymentgateway.sql
+    $COMPOSE restart pg-simulator
     $COMPOSE exec -T mysql mysql -uapplication -papplication loopers < loadtest/prepare.sql
-    # PG 는 별도 터미널. 코어 256 이 아니면 결제 70 rps 에서 PG 큐가 쌓여 콜백이 몇 분씩 늦는다.
-    ./gradlew :apps:pg-simulator:bootRun --args='--datasource.mysql-jpa.main.jdbc-url=jdbc:mysql://localhost:3306/paymentgateway --spring.task.execution.pool.core-size=256'
-    # Toxiproxy 도 별도 터미널(또는 백그라운드). 바이너리가 없으면 릴리스에서 받는다(Apple Silicon 기준):
-    #   curl -fL -o ~/.local/bin/toxiproxy-server https://github.com/Shopify/toxiproxy/releases/download/v2.9.0/toxiproxy-server-darwin-arm64
-    #   chmod +x ~/.local/bin/toxiproxy-server
-    ~/.local/bin/toxiproxy-server -host localhost -port 8474 > loadtest/results/payment-toxiproxy.log 2>&1
     loadtest/pg-proxy.sh create
+
+PG 는 `ddl-auto: create` 로 `paymentgateway` 테이블을 스스로 만든다.
+PG 코어 스레드 256 은 컨테이너 command 에 들어 있다(256 이 아니면 결제 70 rps 에서 PG 큐가 쌓여 콜백이 몇 분씩 늦는다).
 
 **프록시 조작** — `loadtest/pg-proxy.sh create | latency <ms> | clear | down | up`.
 `down` 은 리스너를 닫아 연결 거부를 만든다. PG 를 죽이면 프록시가 연결을 받은 뒤 끊어 `Unknown`(REQUESTED)이 되므로 PG 장애는 `down` 으로 만든다.
-Toxiproxy 는 재시작하면 프록시를 잊으므로 `toxiproxy-server` 를 띄울 때마다 `create` 한다.
+Toxiproxy 는 재시작하면 프록시를 잊으므로 toxiproxy 컨테이너가 다시 만들어질 때마다 `create` 한다.
 
 **측정 한 회의 순서:**
 
-1. 앞 측정이 끝나고 10 s 뒤(PG 의 비동기 처리 최대 5 s 가 끝나게) PG 거래를 비운다:
-   `$COMPOSE exec -T mysql mysql -uroot -proot -e 'TRUNCATE TABLE paymentgateway.payments'`
-   commerce-api 는 재시작마다 주문 ID 가 1 부터 다시 나오는데 호스트의 PG 는 앞 측정의 거래를 들고 있다. REQUESTED 결제 확정이
-   orderId 로 PG 목록을 보므로, 비우지 않으면 옛 거래가 모르는 키로 섞여 고아 거래 경로(설계 5.2 장)를 잘못 탄다.
-2. `$COMPOSE restart commerce-api` 후 healthy 를 기다린다. 앞 측정의 실패가 서킷 윈도우에 남으면 서킷이 일찍 열린다.
+1. 앞 측정이 끝나고 10 s 뒤(PG 의 비동기 처리 최대 5 s 가 끝나게) **`$COMPOSE stop pg-simulator` → `$COMPOSE restart commerce-api` → healthy 대기
+   → `$COMPOSE start pg-simulator`**. commerce-api 는 앞 측정의 실패가 서킷 윈도우에 남으면 서킷이 일찍 열리므로 재시작한다.
+2. pg-simulator 가 healthy 가 될 때까지 기다린다(`$COMPOSE ps`). **순서를 바꾸지 않는다.**
+   commerce-api 가 네임스페이스 소유자라, PG 가 살아 있는 채로 commerce-api 를 재시작하면 PG 가 네트워크를 잃는다. 이때 PG 의 MySQL 연결은
+   종료 신호 없이 사라진 네임스페이스에 묶여 MySQL 쪽에 `wait_timeout`(8 시간) 동안 남는다 — PG 풀(30 개)이 재시작마다 새어
+   네 번째쯤 `max_connections`(151)에 닿고, 그 뒤 PG 와 `prepare.sql` 이 `Too many connections` 로 실패한다(2026-10-22 확인).
+   PG 를 먼저 멈추면 네트워크가 살아 있을 때 연결을 닫는다. PG 헬스체크는 자기 루프백(8083)만 보므로 네트워크를 잃어도 `healthy` 로 남는다 —
+   잘못된 순서는 헬스체크로 잡히지 않는다. 새었다면 `information_schema.processlist` 에서 `db='paymentgateway'` 연결을 `KILL` 한다.
+   **이어서 PG 를 데운다:** `MODE=pg-direct LABEL=pgwarm PAYMENT_TPS=70 DURATION=30s k6 run loadtest/payment.js` → 10 s 대기 →
+   `$COMPOSE exec -T mysql mysql -uroot -proot -e 'TRUNCATE TABLE paymentgateway.payments'`.
+   재시작 직후 PG(0.5 CPU)는 JIT 가 덜 돌아 70 rps 에서 p99 1.9 s 로 읽기 타임아웃(1 s)을 넘긴다. 한 번 데우면 p99 0.5 s 다(2026-10-21 확인).
+   TRUNCATE 는 데우기가 남긴 거래를 지운다. commerce-api 는 재시작마다 주문 ID 가 1 부터 다시 나오고, REQUESTED 결제 확정이
+   orderId 로 PG 목록을 보므로 옛 거래가 남으면 모르는 키로 섞여 고아 거래 경로(설계 5.2 장)를 잘못 탄다.
 3. **재시작하면 `ddl-auto: create` 와 시더가 스키마와 재고를 다시 만든다 — `loadtest/prepare.sql` 을 다시 실행한다.**
    빼먹으면 시더의 재고 0 상품(11 개마다 1 개)이 섞여 주문이 409 로 실패하고 `payment_error` 로 잡힌다.
 4. 샘플러를 띄운다: `loadtest/payment-metrics.sh loadtest/results/payment-<MODE>-<LABEL>.csv &`
@@ -313,7 +328,7 @@ Toxiproxy 는 재시작하면 프록시를 잊으므로 `toxiproxy-server` 를 �
 
 | MODE | 설계 | 기본값 | 비고 |
 |---|---|---|---|
-| `pg-direct` | P0 | 20 rps × 50 s | PG 를 직접 부른다. `pg_500` 비율이 37 ~ 43% 이어야 한다 |
+| `pg-direct` | P0 | 20 rps × 50 s | PG 를 직접 부른다(PG 는 컨테이너지만 commerce-api 네임스페이스라 호스트 `localhost:8082` 로 열린다). `pg_500` 비율이 37 ~ 43% 이어야 한다 |
 | `normal` | 가설 1 | 결제 10 rps × 10 m | 독성 없음. 서킷 CLOSED 는 샘플러 CSV 로 본다 |
 | `pg-down` | 가설 2 | 결제 10 rps, `opening` 15 s + `open` 60 s | 시작 직전 `pg-proxy.sh down`, 끝나면 `up` |
 | `mixed` | 가설 3 | 주문 상세 100 rps, 결제 `PAYMENT_TPS`=70, 워밍업 10 s + 120 s | `PAYMENT_TPS=0` 이 A, 70 이 B, 70 + `latency 400` 이 C |
