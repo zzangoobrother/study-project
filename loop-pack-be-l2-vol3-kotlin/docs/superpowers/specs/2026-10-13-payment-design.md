@@ -778,7 +778,8 @@ k6 스크립트 `loadtest/payment.js` 하나가 `MODE` 로 넷을 고른다. 결
 
 측정 환경: commerce-api jar `36c64532`(측정 jar 를 빌드한 커밋), Docker Desktop VM 5 CPU · 5.8 GiB, Compose v2.20.2, PG 실행기 코어 256,
 측정일 2026-10-19(P0) · 2026-10-21(가설 1 · 2) · 2026-10-22(가설 3). 구성은 측정마다 다르다(11.2 장):
-P0 · 가설 1 · 2 는 호스트 PG(`bootRun`) · 호스트 Toxiproxy · 앱 3 CPU,
+P0 는 호스트 PG(`bootRun`) 를 직접 불렀다 — 잴 때(2026-10-19)는 컨테이너 Toxiproxy · 앱 2.75 CPU 였지만, `pg-direct` 는 Toxiproxy 와 commerce-api 를
+거치지 않으므로 그 구성은 결과에 영향이 없다. 가설 1 · 2 는 호스트 PG(`bootRun`) · 호스트 Toxiproxy · 앱 3 CPU,
 가설 3 은 컨테이너 PG(jar `e928e87d`, commerce-api 네임스페이스 공유, 0.5 CPU) · 컨테이너 Toxiproxy(0.25) · 앱 2.25 CPU 다.
 모든 측정에서 k6 `dropped_iterations` 0.
 

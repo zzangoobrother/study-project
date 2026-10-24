@@ -275,7 +275,7 @@ jar 를 바꾸면 컨테이너가 재기동되고 `ddl-auto: create` 로 스키�
   모든 트래픽이 Docker 브리지 망 안이라 컨테이너 → 호스트 구간이 없다. 그 구간은 컨테이너 Toxiproxy 일 때 가끔 약 64 s 멈췄고(가설 1 불성립),
   호스트 Toxiproxy 일 때는 결제 70 rps 에서 connect timeout 이 몰렸다(가설 3 불성립). (설계 11.2 장)
 - CPU: mysql 2 + commerce-api 2.25 + pg-simulator 0.5 + toxiproxy 0.25 = VM 5 CPU. 가설 1 · 2(앱 3 CPU, 호스트 PG)와 조건이 다르지만 가설 3 은 B · C 를 같은 조건에서 비교한다.
-- **네임스페이스 소유자인 commerce-api 를 재시작하면 붙어 있던 pg-simulator 가 네트워크를 잃는다. commerce-api 를 재시작한 뒤에는 반드시 pg-simulator 도 재시작한다.**
+- **네임스페이스 소유자인 commerce-api 를 재시작하면 붙어 있던 pg-simulator 가 네트워크를 잃는다. commerce-api 를 재시작할 때는 pg-simulator 를 먼저 멈추고, commerce-api 가 healthy 가 된 뒤 띄운다(아래 "측정 한 회의 순서" 1 · 2).**
 
 기동(`docker/infra-compose.yml` 이 떠 있으면 먼저 내린다 — 포트 충돌):
 
@@ -304,6 +304,9 @@ Toxiproxy 는 재시작하면 프록시를 잊으므로 toxiproxy 컨테이너�
 
 **측정 한 회의 순서:**
 
+0. **프록시를 기본 상태로 되돌린다:** `loadtest/pg-proxy.sh clear; loadtest/pg-proxy.sh up` → `curl -s localhost:8474/proxies/pg` 가
+   `"enabled":true` 이고 `"toxics":[]` 인지 본다. 중단된 앞 실행이 지연 독성이나 꺼진 프록시를 남길 수 있다 — 2026-10-22 가설 3 의 B 가
+   남은 지연 400 ms 독성 위에서 재져 사실상 C 조건이 되었다(`payment-mixed-h3lat-b.*`). 재시작은 Toxiproxy 상태를 지우지 않는다.
 1. 앞 측정이 끝나고 10 s 뒤(PG 의 비동기 처리 최대 5 s 가 끝나게) **`$COMPOSE stop pg-simulator` → `$COMPOSE restart commerce-api` → healthy 대기
    → `$COMPOSE start pg-simulator`**. commerce-api 는 앞 측정의 실패가 서킷 윈도우에 남으면 서킷이 일찍 열리므로 재시작한다.
 2. pg-simulator 가 healthy 가 될 때까지 기다린다(`$COMPOSE ps`). **순서를 바꾸지 않는다.**
@@ -312,7 +315,8 @@ Toxiproxy 는 재시작하면 프록시를 잊으므로 toxiproxy 컨테이너�
    네 번째쯤 `max_connections`(151)에 닿고, 그 뒤 PG 와 `prepare.sql` 이 `Too many connections` 로 실패한다(2026-10-22 확인).
    PG 를 먼저 멈추면 네트워크가 살아 있을 때 연결을 닫는다. PG 헬스체크는 자기 루프백(8083)만 보므로 네트워크를 잃어도 `healthy` 로 남는다 —
    잘못된 순서는 헬스체크로 잡히지 않는다. 새었다면 `information_schema.processlist` 에서 `db='paymentgateway'` 연결을 `KILL` 한다.
-   **이어서 PG 를 데운다:** `MODE=pg-direct LABEL=pgwarm PAYMENT_TPS=70 DURATION=30s k6 run loadtest/payment.js` → 10 s 대기 →
+   **이어서 PG 를 데운다:** `MODE=pg-direct LABEL=pgwarm-<측정 LABEL>-<회차> PAYMENT_TPS=70 DURATION=30s k6 run loadtest/payment.js` → 10 s 대기 →
+   (LABEL 에 측정 이름과 회차를 넣는다 — 같은 LABEL 이면 결과 JSON 을 덮어써 "p99 가 1,000 ms 를 넘으면 한 번 더 데운다" 를 확인할 수 없다. 예: `pgwarm-h3-a-1`)
    `$COMPOSE exec -T mysql mysql -uroot -proot -e 'TRUNCATE TABLE paymentgateway.payments'`.
    재시작 직후 PG(0.5 CPU)는 JIT 가 덜 돌아 70 rps 에서 p99 1.9 s 로 읽기 타임아웃(1 s)을 넘긴다. 한 번 데우면 p99 0.5 s 다(2026-10-21 확인).
    TRUNCATE 는 데우기가 남긴 거래를 지운다. commerce-api 는 재시작마다 주문 ID 가 1 부터 다시 나오고, REQUESTED 결제 확정이
