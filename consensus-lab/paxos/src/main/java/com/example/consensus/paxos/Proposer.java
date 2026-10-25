@@ -79,14 +79,21 @@ public class Proposer {
         phase = Phase.PREPARING;
         promises.clear();
         sendPrepare(ctx, current);
-        // 타이머 자체를 흔든다. 두 proposer가 같은 박자로 재시작하면 서로의 라운드를 매번 같은 순서로 무효화하는
-        // 대칭이 깨지지 않는다. 지연에 무작위를 섞어야 한쪽이 먼저 Accept까지 끝낼 틈이 생긴다.
-        // jitter가 0이면 난수를 뽑지 않아 기존 실행(난수 스트림)이 바뀌지 않는다.
+        scheduleRetry(ctx, current);
+    }
+
+    /**
+     * 라운드 시작 후 일정 시간 안에 결정되지 않으면 다시 시작하도록 재시도 타이머를 건다. 하위 클래스가 바꿀 수 있도록 분리한 지점이다.
+     * 타이머 자체를 흔든다. 두 proposer가 같은 박자로 재시작하면 서로의 라운드를 매번 같은 순서로 무효화하는
+     * 대칭이 깨지지 않는다. 지연에 무작위를 섞어야 한쪽이 먼저 Accept까지 끝낼 틈이 생긴다.
+     * jitter가 0이면 난수를 뽑지 않아 기존 실행(난수 스트림)이 바뀌지 않는다.
+     */
+    protected void scheduleRetry(Context ctx, Ballot ballot) {
         long timeout = config.retryTimeout();
         if (config.retryJitter() > 0) {
             timeout += ctx.random().nextLong(config.retryJitter() + 1);
         }
-        ctx.setTimer(timeout, new RetryTimer(current));
+        ctx.setTimer(timeout, new RetryTimer(ballot));
     }
 
     protected void sendPrepare(Context ctx, Ballot ballot) {

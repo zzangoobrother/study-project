@@ -1,0 +1,18 @@
+// main 클래스가 없는 순수 Java 라이브러리 모듈이므로 실행 가능한 jar는 만들지 않는다.
+bootJar {
+    enabled = false
+}
+
+jar {
+    enabled = true
+}
+
+dependencies {
+    implementation project(':consensus-lab:sim')
+    // Paxos 클러스터를 실험 대상으로 쓴다(PaxosNode, PaxosConfig, PaxosInvariants는 public).
+    implementation project(':consensus-lab:paxos')
+
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.assertj:assertj-core'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
