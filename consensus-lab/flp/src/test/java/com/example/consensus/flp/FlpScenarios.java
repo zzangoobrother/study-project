@@ -25,6 +25,7 @@ final class FlpScenarios {
 
     /** 적대자 기본 파라미터. 테스트 시간과 정확도의 타협이다(측정값은 보고서 참조). */
     static final int PROBES = 20;
+    static final int DEEP_PROBES = 500;
     static final int PROBE_MAX_STEPS = 300;
     static final int DEADLINE = 40;
     static final int INSERT_BUDGET = 10;
@@ -44,6 +45,20 @@ final class FlpScenarios {
     static PaxosConfig duel(long retryJitter) {
         return PaxosConfig.of(proposals(N1, "A", N2, "B"))
                 .withRetryTimeout(12).withStartOffset(N2, 3).withBackoff(0, 0).withRetryJitter(retryJitter);
+    }
+
+    static final long CRASH_TIME = 7; // A의 Prepare(5)는 acceptor에 닿았고 Promise(10)는 아직 A에 닿기 전: 첫 라운드 도중
+    static final long TAKEOVER = 30;  // 예비 B가 나서는 시각(A의 정상 결정 시각 약 20보다 늦다)
+
+    /** A(주)와 B(예비) 구성. timer가 true면 B가 TAKEOVER에 스스로 나선다. */
+    static PaxosConfig withBackup(boolean timer) {
+        PaxosConfig base = PaxosConfig.of(proposals(N1, "A", N2, "B")).withRetryTimeout(12).withBackoff(0, 0).withRetryJitter(3);
+        return timer ? base.withStartOffset(N2, TAKEOVER) : base;
+    }
+
+    /** B에게 나설 타이머가 없으면 B를 PassiveProposer로 만든다. */
+    static Set<NodeId> passiveB(boolean timer) {
+        return timer ? Set.of() : Set.of(N2);
     }
 
     /**
@@ -78,6 +93,21 @@ final class FlpScenarios {
         return source.newBuilder().stopWhen(v -> !v.decisions().isEmpty()).maxSteps(maxSteps).build().run();
     }
 
+    /** 시각을 무시하고 "먼저 생긴 이벤트부터" 꺼내는 FIFO 실행. 판정(프로브)이 전혀 없는 기준선이다. */
+    static SimulationResult runFifo(SimulationSource source, long maxSteps) {
+        return source.newBuilder()
+                .scheduler((pending, view) -> {
+                    var best = pending.get(0);
+                    for (var e : pending) {
+                        if (e.seq() < best.seq()) {
+                            best = e;
+                        }
+                    }
+                    return best;
+                })
+                .stopWhen(v -> !v.decisions().isEmpty()).maxSteps(maxSteps).build().run();
+    }
+
     /** 적대자 실행 결과와 통계. */
     record AdversaryRun(SimulationResult result, AdversarialScheduler adversary) {
         boolean decided() {
@@ -95,7 +125,12 @@ final class FlpScenarios {
 
     /** 프로브 시드를 시드마다 바꿔 준다. 적대자는 시각을 보지 않으므로, 시드 차이는 프로브 표집에서만 생긴다. */
     static AdversaryRun runAdversary(SimulationSource source, long maxSteps, long probeSeed, int deadline, int insertBudget) {
-        BivalenceProbe probe = new BivalenceProbe(source, PROBES, PROBE_MAX_STEPS, probeSeed);
+        return runAdversary(source, maxSteps, probeSeed, deadline, insertBudget, DEEP_PROBES);
+    }
+
+    /** deepProbes를 PROBES와 같게 주면 적응형 프로브가 사실상 꺼진 "약한 판정기" 적대자가 된다(비교 실험용). */
+    static AdversaryRun runAdversary(SimulationSource source, long maxSteps, long probeSeed, int deadline, int insertBudget, int deepProbes) {
+        BivalenceProbe probe = new BivalenceProbe(source, PROBES, deepProbes, PROBE_MAX_STEPS, probeSeed);
         AdversarialScheduler adversary = new AdversarialScheduler(probe, deadline, insertBudget, MAX_CANDIDATES);
         SimulationResult result = source.newBuilder()
                 .scheduler(adversary)

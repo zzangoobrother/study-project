@@ -27,7 +27,9 @@ public final class BivalenceProbe {
     private final int probes;
     private final int probeMaxSteps;
     private final long probeSeed;
+    private final int deepProbes;
     private final Map<List<Long>, ProbeResult> cache = new HashMap<>();
+    private final Map<List<Long>, ProbeResult> deepCache = new HashMap<>();
     private long runCount = 0;
 
     /**
@@ -36,7 +38,16 @@ public final class BivalenceProbe {
      * @param probeSeed     프로브용 스케줄러 난수의 기준 시드(시뮬레이션 시드와는 별개)
      */
     public BivalenceProbe(SimulationSource source, int probes, int probeMaxSteps, long probeSeed) {
+        this(source, probes, probes * 5, probeMaxSteps, probeSeed);
+    }
+
+    /**
+     * @param deepProbes {@link #probeDeep}가 쓰는 프로브 수 상한. 보통 probes보다 훨씬 크다.
+     *                   한쪽 값으로 가는 무작위 실행이 드물면(수 %) 적은 프로브는 그 값을 놓치기 때문이다.
+     */
+    public BivalenceProbe(SimulationSource source, int probes, int deepProbes, int probeMaxSteps, long probeSeed) {
         this.source = source;
+        this.deepProbes = deepProbes;
         this.probes = probes;
         this.probeMaxSteps = probeMaxSteps;
         this.probeSeed = probeSeed;
@@ -48,6 +59,18 @@ public final class BivalenceProbe {
     }
 
     public ProbeResult probe(List<Long> prefix) {
+        return run(prefix, probes, cache);
+    }
+
+    /**
+     * 같은 판정을 더 많은 프로브로 한다. 앞의 probes번은 {@link #probe}와 같은 무작위 스케줄을 쓰므로 그 결과를 포함한다.
+     * 값이 하나로만 보이는 상태가 정말 그런지(UNIVALENT) 위기 때만 다시 확인하는 데 쓴다. 비용이 크다.
+     */
+    public ProbeResult probeDeep(List<Long> prefix) {
+        return run(prefix, deepProbes, deepCache);
+    }
+
+    private ProbeResult run(List<Long> prefix, int probes, Map<List<Long>, ProbeResult> cache) {
         List<Long> key = List.copyOf(prefix);
         ProbeResult cached = cache.get(key);
         if (cached != null) {

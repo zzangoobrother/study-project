@@ -18,6 +18,9 @@ import java.util.TreeMap;
  * <ol>
  *   <li>마감을 넘긴 이벤트가 없으면: 후보를 오래된 순으로 보며, 꺼낸 뒤에도 BIVALENT인 첫 후보를 고른다.
  *       (지금 상태가 이미 BIVALENT가 아니면 비용을 아끼려고 가장 오래된 후보 하나만 확인한다.)</li>
+ *   <li>후보가 모두 탈락하면 위기다. BIVALENT 경로에서 왔다면 판정 오차일 가능성이 높으므로, 프로브를 크게 늘린 판정
+ *       ({@link BivalenceProbe#probeDeep})으로 pending 전체를 다시 훑는다(적응형 프로브). 값싼 판정은 한쪽 값으로 가는
+ *       무작위 실행이 드문 상태에서 갈림길을 자주 놓친다.</li>
  *   <li>마감(deadline)을 넘긴 이벤트 e가 있으면 e를 먼저 처리해야 한다. 증명 보조정리 2처럼 한다.
  *       <ul>
  *         <li>e를 바로 꺼내도 BIVALENT면 그대로 e를 꺼낸다.</li>
@@ -53,7 +56,11 @@ public final class AdversarialScheduler implements Scheduler {
 
     private long maxWait = 0;
     private long failures = 0;
+    private final List<Integer> failureSteps = new ArrayList<>();
     private long inserts = 0;
+    private long escalations = 0;
+    /** 직전 단계에서 BIVALENT를 유지했는가(처음에는 true로 시작). */
+    private boolean onBivalentPath = true;
     private long maxObservedAge = 0;
 
     /**
@@ -86,17 +93,24 @@ public final class AdversarialScheduler implements Scheduler {
         } else {
             // 이미 BIVALENT가 아닌 상태(적대자가 졌거나 처음부터 한 값뿐)에서는 후보를 다 뒤져 봐야 비용만 든다.
             // 가장 오래된 것 하나만 확인해, 판정 오차로 잠시 놓쳤던 갈림길로 돌아갈 길만 열어 둔다.
-            int limit = probe.probe(chosen).isBivalent() ? maxCandidates : 1;
-            for (Event c : byAge.subList(0, Math.min(limit, byAge.size()))) {
-                if (staysBivalent(c)) {
-                    pick = c;
-                    break;
+            int limit = onBivalentPath ? maxCandidates : 1;
+            List<Event> candidates = byAge.subList(0, Math.min(limit, byAge.size()));
+            pick = firstBivalent(candidates, false);
+            if (pick == null && onBivalentPath) {
+                // 위기: 값싼 판정으로는 갈림길이 하나도 안 보인다. 하지만 BIVALENT였던 상태에서 온 길이므로 판정 오차일 가능성이 높다.
+                // 프로브를 늘리고(적응형 프로브) 후보 제한(K)도 풀어 pending 전체를 다시 본다.
+                // 이미 갈림길을 잃은 경로에서는 이 비싼 확인을 하지 않는다.
+                pick = firstBivalent(byAge, true);
+                if (pick != null) {
+                    escalations++;
                 }
             }
         }
+        onBivalentPath = pick != null;
         if (pick == null) {
             pick = oldest;
             failures++;
+            failureSteps.add(chosen.size());
         }
 
         maxWait = Math.max(maxWait, age(pick, step));
@@ -125,8 +139,22 @@ public final class AdversarialScheduler implements Scheduler {
         return null;
     }
 
+    private Event firstBivalent(List<Event> candidates, boolean deep) {
+        for (Event c : candidates) {
+            if (staysBivalent(c, deep)) {
+                return c;
+            }
+        }
+        return null;
+    }
+
     private boolean staysBivalent(Event e) {
-        return probe.probe(prefixWith(e.seq())).isBivalent();
+        return staysBivalent(e, false) || staysBivalent(e, true);
+    }
+
+    private boolean staysBivalent(Event e, boolean deep) {
+        List<Long> next = prefixWith(e.seq());
+        return (deep ? probe.probeDeep(next) : probe.probe(next)).isBivalent();
     }
 
     private List<Long> prefixWith(long seq) {
@@ -157,6 +185,16 @@ public final class AdversarialScheduler implements Scheduler {
     /** 매 단계 시작 시점에 관찰한 "가장 오래 기다린 pending 이벤트"의 대기 step 최댓값(꺼내지 못한 채 남은 이벤트까지 포함). */
     public long maxObservedAge() {
         return maxObservedAge;
+    }
+
+    /** 적대자가 BIVALENT를 유지하지 못한 단계의 번호(0부터, 그 단계 직전까지 꺼낸 이벤트 수). */
+    public List<Integer> failureSteps() {
+        return List.copyOf(failureSteps);
+    }
+
+    /** 값싼 판정으로는 후보가 모두 탈락해, 프로브를 늘려 다시 확인한 끝에 갈림길을 찾은 횟수. */
+    public long escalations() {
+        return escalations;
     }
 
     /** 마감을 넘긴 이벤트 앞에 다른 이벤트를 끼워 넣어 BIVALENT를 유지한 횟수(보조정리 2의 적용 횟수). */
