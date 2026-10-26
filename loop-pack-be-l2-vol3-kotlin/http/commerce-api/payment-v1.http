@@ -25,6 +25,8 @@ Content-Type: application/json
 
 { "orderId": {{orderId}}, "cardType": "SAMSUNG", "cardNo": "1234-5678-9814-1451" }
 
+> {% client.global.set("paymentId", response.body.data.paymentId); %}
+
 ### 같은 주문 다시 결제 (409 Conflict - 결제 중)
 POST {{commerce-api}}/api/v1/payments
 X-Loopers-LoginId: seeduser01
@@ -35,3 +37,18 @@ Content-Type: application/json
 ### 결과 확인 - 5 초 뒤 실행. status 가 PAID 또는 PAYMENT_FAILED (콜백) / REQUESTED 였다면 최대 1 분 30 초 뒤 (스케줄러)
 GET {{commerce-api}}/api/v1/orders/{{orderId}}
 X-Loopers-LoginId: seeduser01
+
+### 어드민 - 인증 헤더 없음 - 수동 동기화 (401 Unauthorized)
+POST {{commerce-api}}/api-admin/v1/payments/1/sync
+
+### 어드민 - 결제 수동 동기화 (200 - 응답의 status 로 확정 여부 확인)
+// 위 "결제 요청" 응답의 paymentId 를 넣는다. 요청된 지 6 초 안의 REQUESTED 는 아직 바뀌지 않을 수 있고,
+// PG 조회가 실패해도 오류 없이 현재 상태를 돌려준다. 이미 SUCCESS · FAILED 면 그대로 돌려준다.
+POST {{commerce-api}}/api-admin/v1/payments/{{paymentId}}/sync
+X-Loopers-LdapId: {{admin-ldap-id}}
+X-Loopers-LdapPw: {{admin-ldap-pw}}
+
+### 어드민 - 존재하지 않는 결제 수동 동기화 (404 Not Found)
+POST {{commerce-api}}/api-admin/v1/payments/999999/sync
+X-Loopers-LdapId: {{admin-ldap-id}}
+X-Loopers-LdapPw: {{admin-ldap-pw}}
