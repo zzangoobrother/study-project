@@ -24,6 +24,8 @@ import com.loopers.domain.user.RawPassword
 import com.loopers.domain.user.UserCommand
 import com.loopers.domain.user.UserName
 import com.loopers.domain.user.UserService
+import com.loopers.support.error.CoreException
+import com.loopers.support.error.ErrorType
 import com.loopers.utils.DatabaseCleanUp
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
@@ -31,9 +33,11 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
+import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.never
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
@@ -673,6 +677,102 @@ class PaymentSyncIntegrationTest @Autowired constructor(
 
             // assert
             verify(paymentGateway, never()).findTransaction(any(), any())
+        }
+    }
+
+    /**
+     * 운영자가 스케줄러를 기다리지 않고 특정 결제를 PG 에 다시 묻는다. 확정 경로는 sync 하나다 — 이 메서드는 존재 확인과 반환만 더한다.
+     * (2026-10-26 결제 설계 5.5 장)
+     */
+    @DisplayName("결제를 수동으로 동기화할 때, ")
+    @Nested
+    inner class ManualSync {
+        @DisplayName("존재하지 않는 결제면, NOT_FOUND 예외가 발생한다.")
+        @Test
+        fun throwsNotFound_whenPaymentDoesNotExist() {
+            // act
+            val exception = assertThrows<CoreException> { paymentFacade.syncManually(999L) }
+
+            // assert
+            assertAll(
+                { assertThat(exception.errorType).isEqualTo(ErrorType.NOT_FOUND) },
+                { verify(paymentGateway, never()).findTransaction(any(), any()) },
+            )
+        }
+
+        @DisplayName("PG 가 성공이면, 결제를 SUCCESS 로 확정하고 주문을 결제 완료로 만든다.")
+        @Test
+        fun confirmsSuccess_whenPgSucceeded() {
+            // arrange
+            val order = placeOrder()
+            val info = pay(order.id, PgRequestResult.Accepted(KEY))
+            stubDetail(PgQueryResult.Found(tx(status = PgTransactionStatus.SUCCESS)))
+
+            // act
+            val result = paymentFacade.syncManually(info.paymentId)
+
+            // assert
+            assertAll(
+                { assertThat(result.status).isEqualTo(PaymentStatus.SUCCESS.name) },
+                { assertThat(paymentOf(info).status).isEqualTo(PaymentStatus.SUCCESS) },
+                { assertThat(orderStatusOf(order.id)).isEqualTo(OrderStatus.PAID) },
+            )
+        }
+
+        @DisplayName("PG 조회가 Unavailable 이면, 예외 없이 상태 변화 없이 현재 상태를 반환한다.")
+        @Test
+        fun returnsCurrentStatus_whenPgUnavailable() {
+            // arrange
+            val order = placeOrder()
+            val info = pay(order.id, PgRequestResult.Accepted(KEY))
+            stubDetail(PgQueryResult.Unavailable)
+
+            // act
+            val result = paymentFacade.syncManually(info.paymentId)
+
+            // assert
+            assertAll(
+                { assertThat(result.status).isEqualTo(PaymentStatus.PENDING.name) },
+                { assertThat(paymentOf(info).status).isEqualTo(PaymentStatus.PENDING) },
+                { assertThat(orderStatusOf(order.id)).isEqualTo(OrderStatus.PAYING) },
+            )
+        }
+
+        @DisplayName("이미 최종 상태면, PG 를 부르지 않고 그 상태를 그대로 반환한다.")
+        @Test
+        fun returnsFinalStatus_withoutCallingPg_whenAlreadyFinal() {
+            // arrange
+            val order = placeOrder()
+            val info = pay(order.id, PgRequestResult.Accepted(KEY))
+            stubDetail(PgQueryResult.Found(tx(status = PgTransactionStatus.SUCCESS)))
+            paymentFacade.sync(info.paymentId)
+
+            // act
+            val result = paymentFacade.syncManually(info.paymentId)
+
+            // assert
+            assertAll(
+                { assertThat(result.status).isEqualTo(PaymentStatus.SUCCESS.name) },
+                { verify(paymentGateway, times(1)).findTransaction(any(), any()) },
+            )
+        }
+
+        @DisplayName("요청된 지 6 초가 안 지난 결제면, sync 의 안전장치가 그대로 적용돼 PG 를 조회하지 않는다.")
+        @Test
+        fun keepsInFlightGuard_whenRequestedRecently() {
+            // arrange
+            val order = placeOrder()
+            val info = pay(order.id, PgRequestResult.Unknown)
+            stubByOrder(PgQueryResult.Found(listOf(tx(status = PgTransactionStatus.SUCCESS, amount = null))))
+
+            // act
+            val result = paymentFacade.syncManually(info.paymentId)
+
+            // assert
+            assertAll(
+                { assertThat(result.status).isEqualTo(PaymentStatus.REQUESTED.name) },
+                { verify(paymentGateway, never()).findTransactionsByOrder(any(), any()) },
+            )
         }
     }
 }

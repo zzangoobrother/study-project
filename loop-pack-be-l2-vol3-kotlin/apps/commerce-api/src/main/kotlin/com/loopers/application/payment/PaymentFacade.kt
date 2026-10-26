@@ -226,6 +226,25 @@ class PaymentFacade(
         inTransaction(payment.id) { confirm(payment.id, detail.value) }
     }
 
+    /**
+     * 운영자가 스케줄러를 기다리지 않고 특정 결제를 PG 에 다시 묻는다. 콜백이 오지 않았거나 급히 확정해야 할 때 쓴다.
+     *
+     * 확정은 sync 를 그대로 부른다 — 6 s 유예 · 1 분 포기 · 금액/주문 불일치 · 키 소유 확인을 우회하거나 복제하지 않는다.
+     * 그래서 요청된 지 얼마 안 된 건은 운영자가 눌러도 아직 아무것도 안 바뀐다. 응답의 status 로 판단한다.
+     * 이미 최종 상태면 sync 가 아무것도 하지 않으므로 그 상태를 그대로 돌려준다. 최종 상태는 재오픈하지 않는다.
+     * (고아 거래는 설계 9.1 장대로 사람이 처리한다. 2026-10-26 결제 설계 5.5 장)
+     *
+     * sync 는 없는 결제에 조용히 return 하므로 존재 확인은 여기서 한다. PG 조회 실패(Unavailable)도 예외가 아니라
+     * 현재 상태(REQUESTED · PENDING)로 응답한다 — "모른다" 를 오류로 만들지 않는다.
+     */
+    fun syncManually(paymentId: Long, now: ZonedDateTime = ZonedDateTime.now()): PaymentInfo {
+        if (paymentService.getPayment(paymentId) == null) {
+            throw CoreException(ErrorType.NOT_FOUND, "[paymentId = $paymentId] 존재하지 않는 결제입니다.")
+        }
+        sync(paymentId, now)
+        return PaymentInfo.of(paymentService.getPayment(paymentId)!!)
+    }
+
     /** 요청됨 결제의 PG 거래를 찾은 결과. Ambiguous 는 "모르는 키가 둘 이상" 이다. (설계 5.2 장) */
     private sealed interface Unlinked {
         data class Found(val transactionKey: String) : Unlinked
