@@ -41,9 +41,23 @@ spring.cloud.openfeign.client.config:
     connect-timeout: 500   # 같은 망이면 수 ms. 연결이 안 되면 PG 가 죽은 것이다
     read-timeout: 1000     # PG 최대 지연 500 ms 의 2 배. 길수록 PG 가 느려질 때 스레드를 오래 쥔다
 
-# 서킷이 재시도 바깥이다 — CircuitBreaker( Retry( 호출 ) ). 애노테이션 기본 순서의 반대라 aspect-order 로 뒤집는다(값이 작을수록 바깥).
-# 키를 틀리면 기본 순서로 돌아가면서도 에러가 없다. PgPaymentGatewayTest 의 "서킷 실패 1 건" 단언이 잡는다. (설계 6.4 장)
+# Bulkhead( CircuitBreaker( Retry( 호출 ) ) ) — 애노테이션 기본 순서(Retry 바깥, Bulkhead 안쪽)의 반대라 뒤집는다(값이 작을수록 바깥).
+# 서킷 · 재시도는 아래 aspect-order 로, Bulkhead 는 yml 키가 없어 PgBulkheadOrderConfig 가 0 으로 만든다.
+# Bulkhead 가 가장 바깥이라 거절은 첫 시도 전에만 일어난다(NotSent 가 맞다). 서킷이 재시도 바깥인 것도 같은 논리다.
+# 순서가 틀려도 에러가 없다. PgPaymentGatewayTest 의 "서킷 실패 1 건" 단언, PgBulkheadConfigTest 의 빈 순서 단언,
+# PgPaymentGatewayBulkheadTest.rejectionIsNotRecordedByCircuit 의 서킷 버퍼 2 단언이 잡는다. (2026-10-29 PG 격리 설계 2 장)
 resilience4j:
+  bulkhead:
+    instances:
+      pgRequest:
+        # 평소 동시 PG 호출 약 32(70 rps x 0.45 s)의 1.5 배. Tomcat 200 중 150 은 PG 와 무관한 API 몫으로 남는다. (설계 3 장)
+        max-concurrent-calls: 50
+        # 기다리면 그동안 Tomcat 스레드를 쥔다. 기다리는 것 자체가 막으려는 일이라 넘치면 바로 거절한다.
+        max-wait-duration: 0
+      pgQuery:
+        # 조회는 재시도가 없고 빠르다. 콜백 · 수동 동기화 약 7 에 여유를 둔 값이다.
+        max-concurrent-calls: 20
+        max-wait-duration: 0
   retry:
     retry-aspect-order: 2
     instances:

@@ -8,6 +8,7 @@ import com.loopers.domain.payment.PgTransaction
 import com.loopers.domain.payment.PgTransactionStatus
 import feign.FeignException
 import feign.RetryableException
+import io.github.resilience4j.bulkhead.BulkheadFullException
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
@@ -17,7 +18,8 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * PaymentGateway 구현. Feign · Resilience4j 예외를 결과 타입으로 번역하는 유일한 자리다. (2026-10-13 결제 설계 4.2 · 6.4 장)
  *
- * 즉시 실패(NotSent)로 번역하는 것은 보내지 않은 것이 확실한 두 경우 — 서킷이 막았을 때와 첫 시도의 연결이 거부됐을 때 — 뿐이다.
+ * 즉시 실패(NotSent)로 번역하는 것은 보내지 않은 것이 확실한 세 경우 — 서킷이 막았을 때, Bulkhead 상한에 걸렸을 때,
+ * 첫 시도의 연결이 거부됐을 때 — 뿐이다.
  * 5xx 도 Unknown 이다 — 실제 PG 는 어디까지 처리했는지 장담할 수 없다. 시뮬레이터의 구현 세부에 기대지 않는다.
  *
  * 그런데도 5xx 를 재시도하는 것은 모순이 아니라 비용이 다른 두 판단이다. 분류를 보수적으로 하는 것은 싸고(동기화가 정리한다),
@@ -54,6 +56,10 @@ class PgPaymentGateway(
         } catch (e: CallNotPermittedException) {
             // 서킷이 재시도 바깥이라 이 예외는 첫 시도 전에만 난다. 한 번도 보내지 않았다. (설계 6.4 장)
             log.warn("[orderId = {}] 서킷이 열려 PG 를 호출하지 않았습니다.", request.orderId)
+            PgRequestResult.NotSent
+        } catch (e: BulkheadFullException) {
+            // Bulkhead 도 재시도 바깥이라 첫 시도 전에만 난다. 한 번도 보내지 않았다. (2026-10-29 PG 격리 설계 2 · 4 장)
+            log.warn("[orderId = {}] PG 동시 호출이 상한에 걸려 결제 요청을 보내지 않았습니다.", request.orderId)
             PgRequestResult.NotSent
         } catch (e: RetryableException) {
             // 연결 거부는 TCP 연결도 맺지 못한 것이라 요청이 나가지 않았다. 단 앞선 시도가 5xx 로 PG 에 닿았다면 그 결과를 모른다.

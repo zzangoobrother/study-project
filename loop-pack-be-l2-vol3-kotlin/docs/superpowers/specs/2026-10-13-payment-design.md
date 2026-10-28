@@ -55,7 +55,7 @@ PG(`pg-simulator`)의 성질:
 | 결제 취소 · 환불 | PG 에 취소 API 가 없다. |
 | 결제 조회 API | 사용자는 주문 조회로 결과를 본다(5.4 장). 운영자의 수동 동기화는 어드민 API 로 추가했다(5.5 장, 2026-10-26). |
 | 분산 락(ShedLock 등) | 여러 인스턴스가 같은 건을 동기화해도 주문은 조건부 UPDATE, 결제는 `@Version` 으로 직렬화돼 결과가 같다(3.1 · 5.3 장). |
-| Bulkhead · RateLimiter | 타임아웃 · 재시도 상한으로 요청당 최대 점유 시간이 5.1 s 로 묶인다(6.1 장). 스레드 고갈이 측정에서 관측되면 그때 다룬다. |
+| RateLimiter | 타임아웃 · 재시도 상한으로 요청당 최대 점유 시간이 5.1 s 로 묶인다(6.1 장). 호출 빈도 제한이 필요해지면 그때 다룬다. Bulkhead 는 제외에서 빠졌다 — 가설 3 에서 스레드 증가가 관측돼 2026-10-29 도입했다(6.5 장). |
 | 어드민 주문 응답의 상태 노출 | 과제 범위 밖이다. |
 | 콜백 서명 검증 | PG 가 서명을 주지 않는다. 대신 콜백 본문을 믿지 않는다(5.1 장). |
 
@@ -243,11 +243,11 @@ tx1 을 먼저 커밋하는 것이 복구의 전제다. tx2 가 실패하거나 
 | 결과 | 원인 | 결제 | 주문 | 응답 `status` |
 |---|---|---|---|---|
 | `Accepted(transactionKey)` | PG 접수 | PENDING + 키 기록. 단 그 키가 다른 결제에 이미 연결돼 있으면 키를 기록하지 않고 FAILED(5.2 장) | PAYING 유지. 키 충돌이면 PAYMENT_FAILED | `PENDING`. 키 충돌이면 `FAILED` |
-| `NotSent` | 요청이 **나가지 않은 것이 확실함** — 서킷 OPEN 으로 호출하지 않음, 또는 첫 시도가 연결 거부(`ConnectException`) | FAILED | PAYMENT_FAILED | `FAILED` |
+| `NotSent` | 요청이 **나가지 않은 것이 확실함** — 서킷 OPEN 으로 호출하지 않음, Bulkhead 상한에 걸려 호출하지 않음(6.5 장), 또는 첫 시도가 연결 거부(`ConnectException`) | FAILED | PAYMENT_FAILED | `FAILED` |
 | `Unknown` | 읽기 타임아웃 · 재시도 후에도 5xx · 앞선 시도가 PG 에 닿은 뒤의 연결 거부 · 연결 타임아웃 · 그 밖의 예외 | REQUESTED 유지 | PAYING 유지 | `REQUESTED` |
 
 - **즉시 실패로 확정하는 것은 `NotSent` 뿐이다.** 서킷은 재시도를 시작하기 **전에** 막고(서킷이 재시도 바깥 — 6.4 장),
-  연결 거부는 TCP 연결조차 맺지 못해 HTTP 요청이 한 바이트도 나가지 않았다. 사용자는 곧바로 다시 결제할 수 있다.
+  연결 거부는 TCP 연결조차 맺지 못해 HTTP 요청이 한 바이트도 나가지 않았다. Bulkhead 거절도 가장 바깥이라 첫 시도 전에만 나므로 PG 에 닿은 요청이 없다(6.5 장). 사용자는 곧바로 다시 결제할 수 있다.
 - **연결 거부는 첫 시도일 때만 `NotSent` 다.** 1 번째 시도가 5xx 로 PG 에 닿은 뒤 2 번째 시도가 연결 거부면, 앞선 시도가
   PG 에 무엇을 남겼는지 모른다. 연결 실패는 재시도 대상이 아니라(6.2 장) 거기서 끝나므로, 어댑터는 **실제로 나간 시도 횟수가 1** 일 때만
   `NotSent` 로 본다(6.4 장).
@@ -476,7 +476,7 @@ PG 를 아끼는 일(재시도가 부하를 세 배로 키우는 것)은 서킷�
 
 ### 6.4 감싸는 순서와 구성
 
-`CircuitBreaker( Retry( 호출 ) )` — **서킷이 바깥이다**(6.3 장). Resilience4j 애노테이션의 기본 순서는 반대(`Retry` 바깥)라 설정으로 뒤집는다.
+`Bulkhead( CircuitBreaker( Retry( 호출 ) ) )` — **서킷이 재시도 바깥이고, Bulkhead 가 가장 바깥이다**(6.3 · 6.5 장). Resilience4j 애노테이션의 기본 순서는 반대(`Retry` 바깥)라 설정으로 뒤집는다.
 
 ```yaml
 resilience4j:
@@ -486,7 +486,7 @@ resilience4j:
     retry-aspect-order: 2
 ```
 
-키를 틀리면 기본 순서로 돌아가면서도 아무 에러가 나지 않는다. 어댑터 테스트가 "5xx 세 번인 요청 하나 → 서킷 실패 1 건" 으로 순서를 단언한다(10 장).
+Bulkhead 는 yml 키가 없어(6.5 장) 별도 설정 클래스가 순서를 0 으로 만든다. 키를 틀리면 기본 순서로 돌아가면서도 아무 에러가 나지 않는다. 어댑터 테스트가 "5xx 세 번인 요청 하나 → 서킷 실패 1 건" 으로 순서를 단언한다(10 장).
 
 서킷이 바깥이므로 서킷은 재시도를 시작하기 **전에만** 막는다. `CallNotPermittedException` 이 나왔다면 한 번도 보내지 않은 것이 확실하다.
 처음 설계의 "재시도 도중 서킷 OPEN"(앞선 시도는 PG 에 닿았는데 마지막 시도가 막혀 `NotSent` 로 오판할 위험)은 생기지 않는다.
@@ -495,7 +495,7 @@ resilience4j:
 
 ```
 PgPaymentGateway (domain PaymentGateway 구현) — 예외를 결과 타입으로 번역
-   └─▶ PgResilientClient — @Retry · @CircuitBreaker 만 붙인다. 예외를 그대로 던진다
+   └─▶ PgResilientClient — @Bulkhead · @CircuitBreaker · @Retry 만 붙인다. 예외를 그대로 던진다
           └─▶ PgClient (@FeignClient) — HTTP 선언
 ```
 
@@ -508,6 +508,7 @@ PgPaymentGateway (domain PaymentGateway 구현) — 예외를 결과 타입으�
 | 게이트웨이가 받은 예외 | 시도 횟수 | 결과 |
 |---|---|---|
 | `CallNotPermittedException` | 항상 0 (서킷이 바깥) | `NotSent` |
+| `BulkheadFullException` | 항상 0 (Bulkhead 가 가장 바깥) | `NotSent` |
 | `RetryableException`, cause 가 `ConnectException` | 1 | `NotSent` |
 | 같음 | 2 이상 (앞선 시도가 5xx 로 PG 에 닿음) | `Unknown` |
 | `FeignClientException` (4xx) | — | `Unknown` + ERROR 로그 |
@@ -515,6 +516,11 @@ PgPaymentGateway (domain PaymentGateway 구현) — 예외를 결과 타입으�
 
 연결 거부가 cause 로 `ConnectException` 을 담아 오는 것은 Feign 기본 HTTP 클라이언트의 동작이다. 클라이언트를 바꾸면 예외 모양이 달라질 수 있어,
 실제로 닫힌 포트에 연결하는 테스트로 고정한다(10 장).
+
+### 6.5 Bulkhead
+
+PG 를 부르는 동시 호출 수에 상한을 두고(결제 요청 50 · 조회 20, 대기 0) 넘치면 바로 거절한다. 거절된 결제 요청은 보내지 않은 것이 확실해 `NotSent` 다.
+상한의 근거 · 순서 · 관측은 [2026-10-29 PG 격리 설계](2026-10-29-pg-bulkhead-design.md)를 본다.
 
 ---
 
