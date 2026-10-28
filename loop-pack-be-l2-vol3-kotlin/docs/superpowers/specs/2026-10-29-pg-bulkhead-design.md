@@ -44,10 +44,13 @@ Bulkhead( CircuitBreaker( Retry( 호출 ) ) )
 - 거절은 서킷 안으로 들어가지 않으므로 서킷의 실패율에 세지지 않는다(반목표 3).
 - 허가(permit)는 재시도를 다 마칠 때까지 유지된다. 상한이 "PG 일로 묶일 수 있는 스레드 수" 와 그대로 같아진다.
 
-Resilience4j 애노테이션의 기본 순서에서 Bulkhead 는 가장 안쪽이다. 지금 `circuit-breaker-aspect-order: 1` · `retry-aspect-order: 2`(값이 작을수록 바깥)에
-`bulkhead-aspect-order: 0` 을 더한다. 키를 틀리면 기본 순서로 돌아가 Bulkhead 가 재시도 안쪽에 들어가면서도 에러가 없다 — 테스트로 순서를 단언한다(6 장).
+Resilience4j 애노테이션의 기본 순서에서 Bulkhead 는 가장 안쪽이다. 서킷 · 재시도는 `circuit-breaker-aspect-order: 1` · `retry-aspect-order: 2`(값이 작을수록 바깥)로 순서를 정하지만,
+**Bulkhead 에는 이 키가 없다.** (2026-10-29 구현 중 확인) resilience4j-spring6 2.2.0 의 `BulkheadConfigurationProperties.getBulkheadAspectOrder()` 는 `Int.MAX_VALUE - 1` 로 고정이고 setter 가 없어,
+`resilience4j.bulkhead.bulkhead-aspect-order` 를 쓰면 바인딩 오류로 컨텍스트가 뜨지 않는다. 그래서 `PgBulkheadOrderConfig` 가 자동 구성의 `BulkheadAspect` 를 같은 구성으로 직접 만들되
+`getOrder()` 를 0 으로 재정의한다(자동 구성은 이 빈이 있으면 물러난다). 라이브러리를 올려 이 재정의가 먹지 않게 되면 에러 없이 기본 순서로 돌아가 Bulkhead 가 재시도 안쪽에 들어간다 —
+`rejectsOnlyBeforeFirstAttempt`(통과한 요청 2 개가 각 3 회, PG 요청 정확히 6)가 순서를 단언한다(6 장).
 
-조회(`pgQuery`)는 재시도가 없으므로 `Bulkhead( CircuitBreaker( 호출 ) )` 이다. 같은 aspect-order 설정이 적용된다.
+조회(`pgQuery`)는 재시도가 없으므로 `Bulkhead( CircuitBreaker( 호출 ) )` 이다. 같은 `BulkheadAspect` 순서가 적용된다.
 
 ## 3. 수치
 
