@@ -20,6 +20,7 @@ import com.loopers.domain.payment.PgRequestResult
 import com.loopers.domain.product.Price
 import io.github.resilience4j.bulkhead.BulkheadRegistry
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry
+import io.micrometer.core.instrument.MeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -34,7 +35,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
- * Bulkhead 의 거절 · 순서 · 허가 반환을 증명하는 테스트다. (2026-10-29 PG 격리 설계 2 · 4 · 6 장)
+ * Bulkhead 의 거절 · 순서 · 허가 반환을 증명하는 테스트다. (2026-10-29 PG 격리 설계 2 · 4 · 5 · 6 장)
  *
  * 상한을 2 로 덮어쓴다 — 운영 값 50 을 채우는 테스트는 무겁다. 운영 값(50 · 20 · 대기 0)은 덮어쓰기 없는
  * 컨텍스트를 쓰는 PgBulkheadConfigTest 가 지킨다. 재시도 대기는 10 ms 로 줄이며, 겹침이 흔들리지 않게
@@ -53,6 +54,7 @@ class PgPaymentGatewayBulkheadTest @Autowired constructor(
     private val paymentGateway: PaymentGateway,
     private val circuitBreakerRegistry: CircuitBreakerRegistry,
     private val bulkheadRegistry: BulkheadRegistry,
+    private val meterRegistry: MeterRegistry,
 ) {
     companion object {
         private const val PAYMENTS = "/api/v1/payments"
@@ -111,6 +113,10 @@ class PgPaymentGatewayBulkheadTest @Autowired constructor(
         }
     }
 
+    /** 카운터를 만들어 주지 않고 찾기만 한다 — 구현이 미리 등록하지 않았다면 여기서 실패해야 한다. */
+    private fun rejected(name: String): Double =
+        checkNotNull(meterRegistry.find("pg.bulkhead.rejected").tag("name", name).counter()) { "카운터 없음: $name" }.count()
+
     private fun <T> List<T>.countOf(predicate: (T) -> Boolean) = count(predicate)
 
     @DisplayName("결제 요청이 상한을 넘으면, ")
@@ -130,6 +136,34 @@ class PgPaymentGatewayBulkheadTest @Autowired constructor(
                 { assertThat(results.countOf { it == PgRequestResult.NotSent }).isEqualTo(1) },
                 { assertThat(results.countOf { it is PgRequestResult.Accepted }).isEqualTo(2) },
                 { verify(2, postRequestedFor(urlPathEqualTo(PAYMENTS))) },
+            )
+        }
+
+        /** 거절 수 지표는 라이브러리가 주지 않아 직접 붙인다. 컨텍스트가 캐시로 공유되므로 증가분으로 단언한다. (2026-10-29 PG 격리 설계 5 장) */
+        @DisplayName("거절 한 건마다 pg.bulkhead.rejected{name=pgRequest} 가 정확히 1 늘고, pgQuery 는 그대로다.")
+        @Test
+        fun countsRejection() {
+            // arrange
+            val requestBefore = rejected("pgRequest")
+            val queryBefore = rejected("pgQuery")
+            stubRequest(accepted().withFixedDelay(DELAY_MS))
+
+            // act
+            concurrently(3) { request() }
+
+            // assert
+            assertAll(
+                { assertThat(rejected("pgRequest") - requestBefore).isEqualTo(1.0) },
+                { assertThat(rejected("pgQuery") - queryBefore).isEqualTo(0.0) },
+            )
+        }
+
+        @DisplayName("거절이 한 번도 없어도 두 카운터가 미리 등록되어 있다.")
+        @Test
+        fun exposesCounterBeforeAnyRejection() {
+            assertAll(
+                { assertThat(meterRegistry.find("pg.bulkhead.rejected").tag("name", "pgRequest").counter()).isNotNull() },
+                { assertThat(meterRegistry.find("pg.bulkhead.rejected").tag("name", "pgQuery").counter()).isNotNull() },
             )
         }
 
