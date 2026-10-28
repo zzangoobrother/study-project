@@ -59,7 +59,7 @@ interface UserCouponJpaRepository : JpaRepository<UserCouponModel, Long> {
      *
      * 만료 조건이 없는 것은 의도적이다. 만료 여부는 usedAt 이 아니라 expiresAt 으로 판정되므로,
      * 만료 뒤에 되돌린 쿠폰은 AVAILABLE 이 아니라 EXPIRED 로 보인다. 되돌림이 만료를 되살리지 않는다.
-     * 삭제 조건도 없다. 삭제된 쿠폰 정책의 발급분도 사용 상태는 원래대로 돌려놓는다. (설계 문서 4.4 장)
+     * 삭제 조건도 없다. 삭제된 쿠폰 정책의 발급분도 사용 상태는 원래대로 돌려놓는다. (2026-10-28 주문 만료 설계 4.4 장)
      *
      * usedAt IS NOT NULL 이 멱등성의 근거다. 이미 되돌린 쿠폰에 다시 실행해도 0 행이다.
      * 발급 ID 로 지목하므로 다른 쿠폰에는 닿지 않는다.

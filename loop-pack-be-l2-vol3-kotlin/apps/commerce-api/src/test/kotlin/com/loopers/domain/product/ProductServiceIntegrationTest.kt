@@ -875,7 +875,7 @@ class ProductServiceIntegrationTest @Autowired constructor(
             )
         }
 
-        /** 주문이 살아 있는 동안 상품이 삭제될 수 있다. 되돌리지 않으면 그 재고는 영영 사라진다. (설계 4.3 장) */
+        /** 주문이 살아 있는 동안 상품이 삭제될 수 있다. 되돌리지 않으면 그 재고는 영영 사라진다. (2026-10-28 주문 만료 설계 4.3 장) */
         @DisplayName("삭제된 상품이어도, 재고가 늘고 true 를 반환한다.")
         @Test
         fun increasesStockOfSoftDeletedProduct() {
