@@ -55,6 +55,31 @@ interface UserCouponJpaRepository : JpaRepository<UserCouponModel, Long> {
     ): Int
 
     /**
+     * 취소된 주문의 쿠폰을 되돌린다. 사용 상태(usedAt)만 비운다.
+     *
+     * 만료 조건이 없는 것은 의도적이다. 만료 여부는 usedAt 이 아니라 expiresAt 으로 판정되므로,
+     * 만료 뒤에 되돌린 쿠폰은 AVAILABLE 이 아니라 EXPIRED 로 보인다. 되돌림이 만료를 되살리지 않는다.
+     * 삭제 조건도 없다. 삭제된 쿠폰 정책의 발급분도 사용 상태는 원래대로 돌려놓는다. (설계 문서 4.4 장)
+     *
+     * usedAt IS NOT NULL 이 멱등성의 근거다. 이미 되돌린 쿠폰에 다시 실행해도 0 행이다.
+     * 발급 ID 로 지목하므로 다른 쿠폰에는 닿지 않는다.
+     * updatedAt 을 SET 절에 직접 쓰는 이유는 use 와 같다. JPQL 벌크 연산은 PreUpdate 콜백을 타지 않는다.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        UPDATE UserCouponModel c
+           SET c.usedAt = NULL, c.updatedAt = :now
+         WHERE c.id = :userCouponId
+           AND c.usedAt IS NOT NULL
+        """,
+    )
+    fun restore(
+        @Param("userCouponId") userCouponId: Long,
+        @Param("now") now: ZonedDateTime,
+    ): Int
+
+    /**
      * 최근 발급 순이다. id DESC 보조 정렬은 같은 시각의 행이 여럿일 때
      * 페이지 경계에서 중복과 누락을 막는다.
      */

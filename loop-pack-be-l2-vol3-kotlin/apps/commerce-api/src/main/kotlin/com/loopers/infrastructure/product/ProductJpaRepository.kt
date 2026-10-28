@@ -55,4 +55,23 @@ interface ProductJpaRepository : JpaRepository<ProductModel, Long> {
         """,
     )
     fun decreaseStock(@Param("productId") productId: Long, @Param("quantity") quantity: Int): Int
+
+    /**
+     * 취소된 주문의 재고를 되돌린다. 삭제된 상품도 대상이다.
+     *
+     * deleted_at 조건이 없는 것은 의도적이다. 주문이 살아 있는 동안 상품이 삭제될 수 있는데,
+     * 그 상품을 건너뛰면 차감해 간 재고가 영영 돌아오지 않는다. (설계 문서 4.3 장)
+     * 상한 조건도 두지 않는다. 되돌리는 수량은 차감했던 수량이므로 초과할 수 없다.
+     *
+     * decreaseStock 과 마찬가지로 updated_at 을 건드리지 않는다. 재고가 돌아온 것은 상품을 편집한 것이 아니다.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        UPDATE ProductModel p
+           SET p.stock.value = p.stock.value + :quantity
+         WHERE p.id = :productId
+        """,
+    )
+    fun increaseStock(@Param("productId") productId: Long, @Param("quantity") quantity: Int): Int
 }

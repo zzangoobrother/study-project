@@ -331,4 +331,94 @@ class CouponServiceIntegrationTest @Autowired constructor(
             )
         }
     }
+
+    @DisplayName("쿠폰을 되돌릴 때, ")
+    @Nested
+    inner class Restore {
+        private fun usedAtOf(userCouponId: Long): ZonedDateTime? =
+            userCouponJpaRepository.findById(userCouponId).get().usedAt
+
+        @DisplayName("사용한 쿠폰이면, usedAt 이 비워지고 true 를 반환한다.")
+        @Test
+        fun clearsUsedAt_whenUsed() {
+            // arrange
+            val policy = savedCoupon()
+            val issued = couponService.issue(userId = 1L, couponId = policy.id)
+            couponService.use(couponId = policy.id, userId = 1L)
+
+            // act
+            val restored = couponService.restore(issued.id)
+
+            // assert
+            val reloaded = userCouponJpaRepository.findById(issued.id).get()
+            assertAll(
+                { assertThat(restored).isTrue() },
+                { assertThat(reloaded.usedAt).isNull() },
+                { assertThat(reloaded.statusAt(ZonedDateTime.now())).isEqualTo(CouponStatus.AVAILABLE) },
+            )
+        }
+
+        @DisplayName("쓰지 않은 쿠폰이면, false 를 반환한다.")
+        @Test
+        fun returnsFalse_whenNotUsed() {
+            // arrange
+            val policy = savedCoupon()
+            val issued = couponService.issue(userId = 1L, couponId = policy.id)
+
+            // act
+            val restored = couponService.restore(issued.id)
+
+            // assert
+            assertThat(restored).isFalse()
+        }
+
+        /**
+         * 만료된 쿠폰은 use 가 막아 "만료 뒤 사용" 상태를 만들 수 없다. 그래서 만료 전에 쓰고, 시각 인자로 만료 뒤를 본다.
+         * 되돌린다고 만료가 풀리는 것은 아니다 — 복구는 usedAt 만 비운다.
+         */
+        @DisplayName("만료 시각과 무관하게 되돌리지만, 만료된 쿠폰은 만료 상태로 남는다.")
+        @Test
+        fun restoresRegardlessOfExpiry_butStaysExpired() {
+            // arrange
+            val expiresAt = ZonedDateTime.now().plusHours(1)
+            val policy = savedCoupon(expiresAt = expiresAt)
+            val issued = couponService.issue(userId = 1L, couponId = policy.id)
+            couponService.use(couponId = policy.id, userId = 1L)
+
+            // act
+            val restored = couponService.restore(issued.id)
+
+            // assert
+            val reloaded = userCouponJpaRepository.findById(issued.id).get()
+            assertAll(
+                { assertThat(restored).isTrue() },
+                { assertThat(reloaded.usedAt).isNull() },
+                { assertThat(reloaded.statusAt(reloaded.expiresAt.plusSeconds(1))).isEqualTo(CouponStatus.EXPIRED) },
+            )
+        }
+
+        @DisplayName("지목한 쿠폰만 되돌리고, 다른 쿠폰의 사용 상태는 그대로다.")
+        @Test
+        fun doesNotTouchOtherCoupons() {
+            // arrange
+            val policyA = savedCoupon()
+            val policyB = savedCoupon()
+            val target = couponService.issue(userId = 1L, couponId = policyA.id)
+            val sameUserOther = couponService.issue(userId = 1L, couponId = policyB.id)
+            val otherUserSamePolicy = couponService.issue(userId = 2L, couponId = policyA.id)
+            couponService.use(couponId = policyA.id, userId = 1L)
+            couponService.use(couponId = policyB.id, userId = 1L)
+            couponService.use(couponId = policyA.id, userId = 2L)
+
+            // act
+            couponService.restore(target.id)
+
+            // assert
+            assertAll(
+                { assertThat(usedAtOf(target.id)).isNull() },
+                { assertThat(usedAtOf(sameUserOther.id)).isNotNull() },
+                { assertThat(usedAtOf(otherUserSamePolicy.id)).isNotNull() },
+            )
+        }
+    }
 }

@@ -56,6 +56,14 @@ interface ProductRepository {
      */
     fun decreaseStock(productId: Long, quantity: Int): Int
 
+    /**
+     * 재고를 요청 수량만큼 늘린다. 반환값은 영향 행 수다.
+     *
+     * 삭제된 상품도 대상이다. 주문 취소가 차감했던 재고를 돌려주는 경로이므로, 상품이 그사이 삭제됐어도 되돌려야 한다.
+     * 0 이 반환되면 상품 행 자체가 없다는 뜻이다. (설계 문서 4.3 장)
+     */
+    fun increaseStock(productId: Long, quantity: Int): Int
+
     /** 소프트 삭제된 상품은 제외된다. 좋아요 목록처럼 ID 집합으로 조회하는 경로가 쓴다. */
     fun findAllByIds(ids: List<Long>): List<ProductModel>
 }
