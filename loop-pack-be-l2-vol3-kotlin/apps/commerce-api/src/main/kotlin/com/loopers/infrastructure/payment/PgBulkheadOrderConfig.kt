@@ -17,7 +17,8 @@ import org.springframework.context.annotation.Configuration
  * BulkheadConfigurationProperties.getBulkheadAspectOrder 가 Int.MAX_VALUE - 1(가장 안쪽)로 고정이고 setter 가 없어,
  * resilience4j.bulkhead.bulkhead-aspect-order 를 쓰면 바인딩 실패로 컨텍스트가 뜨지 않는다. 그래서 자동 구성의
  * BulkheadAspect 를 같은 구성으로 직접 만들되 순서만 0 으로 한다(자동 구성은 이 빈이 있으면 물러난다).
- * 라이브러리를 올릴 때 이 순서가 유지되는지는 PgPaymentGatewayBulkheadTest 의 "통과한 요청 3 회씩 시도" 단언이 잡는다.
+ * 라이브러리를 올릴 때 이 순서가 유지되는지는 PgBulkheadConfigTest 의 빈 순서 단언(Bulkhead < 서킷 < 재시도)과
+ * PgPaymentGatewayBulkheadTest.rejectionIsNotRecordedByCircuit 의 서킷 버퍼 2 단언이 잡는다.
  */
 @Configuration
 class PgBulkheadOrderConfig {

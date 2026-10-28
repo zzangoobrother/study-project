@@ -1,6 +1,9 @@
 package com.loopers.infrastructure.payment
 
 import io.github.resilience4j.bulkhead.BulkheadRegistry
+import io.github.resilience4j.spring6.bulkhead.configure.BulkheadAspect
+import io.github.resilience4j.spring6.circuitbreaker.configure.CircuitBreakerAspect
+import io.github.resilience4j.spring6.retry.configure.RetryAspect
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -17,6 +20,9 @@ import java.time.Duration
 @SpringBootTest
 class PgBulkheadConfigTest @Autowired constructor(
     private val bulkheadRegistry: BulkheadRegistry,
+    private val bulkheadAspect: BulkheadAspect,
+    private val circuitBreakerAspect: CircuitBreakerAspect,
+    private val retryAspect: RetryAspect,
 ) {
     @DisplayName("운영 설정은, ")
     @Nested
@@ -34,6 +40,25 @@ class PgBulkheadConfigTest @Autowired constructor(
                 { assertThat(request.maxWaitDuration).isEqualTo(Duration.ZERO) },
                 { assertThat(query.maxConcurrentCalls).isEqualTo(20) },
                 { assertThat(query.maxWaitDuration).isEqualTo(Duration.ZERO) },
+            )
+        }
+    }
+
+    /**
+     * 순서가 틀려도 에러가 없어 값을 직접 단언한다. 값이 작을수록 바깥이다 — Bulkhead( CircuitBreaker( Retry( 호출 ) ) ).
+     * (2026-10-29 PG 격리 설계 2 장)
+     */
+    @DisplayName("감싸는 순서는, ")
+    @Nested
+    inner class Order {
+        @DisplayName("Bulkhead 가 서킷보다, 서킷이 재시도보다 바깥이다.")
+        @Test
+        fun wrapsBulkheadOutermost() {
+            // assert
+            assertAll(
+                { assertThat(bulkheadAspect.order).isEqualTo(0) },
+                { assertThat(circuitBreakerAspect.order).isEqualTo(1) },
+                { assertThat(retryAspect.order).isEqualTo(2) },
             )
         }
     }

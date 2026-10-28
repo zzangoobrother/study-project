@@ -134,8 +134,9 @@ class PgPaymentGatewayBulkheadTest @Autowired constructor(
         }
 
         /**
-         * 검토 초점 1. Bulkhead 가 재시도 안쪽이면 통과한 요청이 재시도 도중 거절될 수 있어 PG 에 닿은 요청을 NotSent 로 판정한다.
-         * 바깥이면 거절은 첫 시도 전에만 일어나, 통과한 2 개가 3 회씩 모두 시도한다. (설계 2 장)
+         * 검토 초점 1. 거절된 요청은 PG 에 0 회, 통과한 요청은 재시도를 끝까지 한다(2 개 x 3 회 = 6). 이 테스트는 순서를 증명하지 않는다 —
+         * 순서가 뒤집혀도 이 시나리오는 같은 값이 나온다. 순서는 PgBulkheadConfigTest 의 빈 순서 단언과
+         * rejectionIsNotRecordedByCircuit 의 서킷 버퍼 2 가 지킨다. (설계 2 장)
          */
         @DisplayName("거절은 첫 시도 전에만 일어난다 — 통과한 요청은 3 회씩 시도하고 Unknown 이다.")
         @Test

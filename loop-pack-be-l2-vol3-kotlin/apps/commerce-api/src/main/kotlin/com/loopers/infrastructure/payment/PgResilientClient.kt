@@ -12,7 +12,8 @@ import java.util.concurrent.atomic.AtomicInteger
  * PgPaymentGateway 와 나눈 이유 — 애노테이션은 AOP 프록시로 동작해 같은 클래스 안의 호출에는 걸리지 않는다.
  * fallbackMethod 를 쓰지 않는 이유 — 재시도와 서킷 양쪽의 fallback 이 얽히면 어디서 무엇이 처리됐는지 읽히지 않는다.
  *
- * 감싸는 순서는 Bulkhead( CircuitBreaker( Retry( 호출 ) ) ) 다 — 애노테이션 기본값의 반대라 application.yml 의 aspect-order 로 뒤집었다.
+ * 감싸는 순서는 Bulkhead( CircuitBreaker( Retry( 호출 ) ) ) 다 — 애노테이션 기본값의 반대라 뒤집었다.
+ * 서킷 · 재시도는 application.yml 의 aspect-order 로, Bulkhead 는 yml 키가 없어 PgBulkheadOrderConfig 가 정한다.
  * 서킷은 재시도를 다 마친 결과를 한 건으로 센다. 재시도 하나하나를 세면 평소 시도 실패율 40% 때문에 정상인 PG 에서도
  * 서킷이 열린다. (설계 6.3 · 6.4 장)
  * Bulkhead 가 가장 바깥이라 거절은 첫 시도 전에만 일어나고(보낸 적 없음 → NotSent), 서킷의 실패율에도 세지지 않는다.
