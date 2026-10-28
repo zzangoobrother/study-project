@@ -27,6 +27,12 @@ interface UserCouponRepository {
      */
     fun use(couponId: Long, userId: Long, now: ZonedDateTime): Int
 
+    /**
+     * 사용한 쿠폰을 되돌린다. 쓰지 않은 쿠폰이면 아무것도 바꾸지 않는다. 반환값은 영향 행 수다.
+     * 발급 ID 로 지목한다. 만료와 삭제는 보지 않는다 — usedAt 만 비우며, 만료된 쿠폰은 되돌려도 만료로 보인다.
+     */
+    fun restore(userCouponId: Long, now: ZonedDateTime): Int
+
     /** 최근 발급 순으로 페이징 조회한다. 상태와 무관하게 전부 반환한다. */
     fun findAllByUserId(userId: Long, pageQuery: PageQuery): PageResult<UserCouponModel>
 

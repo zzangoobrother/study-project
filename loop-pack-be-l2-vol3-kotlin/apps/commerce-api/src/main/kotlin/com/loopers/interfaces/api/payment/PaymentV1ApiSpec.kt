@@ -11,7 +11,7 @@ interface PaymentV1ApiSpec {
         summary = "결제 요청",
         description = "주문에 대해 카드 결제를 요청합니다. 결제는 비동기로 처리됩니다. " +
             "응답 status 가 PENDING · REQUESTED 면 결과가 아직 없으며 주문 조회의 status 로 확인합니다. " +
-            "FAILED 면 다른 카드로 다시 요청할 수 있습니다. 이미 결제 중이거나 완료된 주문이면 409 입니다.",
+            "FAILED 면 다른 카드로 다시 요청할 수 있습니다. 결제 중 · 완료 · 취소 등 결제할 수 없는 상태의 주문이면 409 입니다.",
     )
     fun request(
         @Schema(name = "로그인 ID", description = "요청 주체를 식별하는 X-Loopers-LoginId 헤더 값")

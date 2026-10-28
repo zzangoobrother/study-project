@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit
 @SpringBootTest
 class OrderServiceIntegrationTest @Autowired constructor(
     private val orderService: OrderService,
+    private val orderRepository: OrderRepository,
     private val databaseCleanUp: DatabaseCleanUp,
 ) {
     @AfterEach
@@ -386,6 +387,197 @@ class OrderServiceIntegrationTest @Autowired constructor(
             assertAll(
                 { assertThat(results.count { it }).isEqualTo(1) },
                 { assertThat(statusOf(order.id)).isEqualTo(OrderStatus.PAYING) },
+            )
+        }
+    }
+
+    @DisplayName("주문을 만료 대상으로 고를 때, ")
+    @Nested
+    inner class FindExpirationTargets {
+        /** 기준 시각은 저장 후 다시 읽은 값이다. 메모리 값은 나노초 정밀도라 DB(마이크로초) 값과 어긋날 수 있다. */
+        private fun storedCreatedAt(orderId: Long) = orderService.getOrder(orderId)!!.createdAt
+
+        @DisplayName("결제 대기 · 결제 실패 주문만 id 오름차순으로 고른다.")
+        @Test
+        fun returnsOnlyPendingAndFailed_createdAtOrBeforeCutoff() {
+            // arrange
+            val pending = place(items = arrayOf(item()))
+            val failed = place(items = arrayOf(item())).also {
+                orderService.startPayment(it.id)
+                orderService.failPayment(it.id)
+            }
+            place(items = arrayOf(item())).also { orderService.startPayment(it.id) }
+            place(items = arrayOf(item())).also {
+                orderService.startPayment(it.id)
+                orderService.completePayment(it.id)
+            }
+            val last = place(items = arrayOf(item())).also { orderService.cancel(it.id) }
+
+            // act
+            val result = orderService.findExpirationTargets(createdBefore = storedCreatedAt(last.id), limit = 100)
+
+            // assert
+            assertThat(result).containsExactly(pending.id, failed.id)
+        }
+
+        @DisplayName("기준 시각과 같은 시각에 만들어진 주문은 포함한다.")
+        @Test
+        fun includesOrderCreatedExactlyAtCutoff() {
+            // arrange
+            val order = place(items = arrayOf(item()))
+
+            // act
+            val result = orderService.findExpirationTargets(createdBefore = storedCreatedAt(order.id), limit = 100)
+
+            // assert
+            assertThat(result).containsExactly(order.id)
+        }
+
+        @DisplayName("기준 시각보다 나중에 만들어진 주문은 제외한다.")
+        @Test
+        fun excludesOrderCreatedOneSecondAfterCutoff() {
+            // arrange
+            val order = place(items = arrayOf(item()))
+
+            // act
+            val result = orderService.findExpirationTargets(createdBefore = storedCreatedAt(order.id).minusSeconds(1), limit = 100)
+
+            // assert
+            assertThat(result).isEmpty()
+        }
+
+        @DisplayName("소프트 삭제된 주문은 제외한다.")
+        @Test
+        fun excludesSoftDeletedOrder() {
+            // arrange
+            val order = place(items = arrayOf(item()))
+            val cutoff = storedCreatedAt(order.id)
+            order.delete()
+            orderRepository.save(order)
+
+            // act
+            val result = orderService.findExpirationTargets(createdBefore = cutoff, limit = 100)
+
+            // assert
+            assertThat(result).isEmpty()
+        }
+
+        @DisplayName("limit 만큼만, 앞쪽 id 부터 고른다.")
+        @Test
+        fun respectsLimit() {
+            // arrange
+            val orders = (1..3).map { place(items = arrayOf(item())) }
+
+            // act
+            val result = orderService.findExpirationTargets(createdBefore = storedCreatedAt(orders.last().id), limit = 2)
+
+            // assert
+            assertThat(result).containsExactly(orders[0].id, orders[1].id)
+        }
+    }
+
+    @DisplayName("주문을 취소할 때, ")
+    @Nested
+    inner class Cancel {
+        private fun statusOf(orderId: Long) = orderService.getOrder(orderId)!!.status
+
+        @DisplayName("결제 대기 주문은 취소된다.")
+        @Test
+        fun cancels_whenPaymentPending() {
+            // arrange
+            val order = place(items = arrayOf(item()))
+
+            // act
+            val result = orderService.cancel(order.id)
+
+            // assert
+            assertAll(
+                { assertThat(result).isTrue() },
+                { assertThat(statusOf(order.id)).isEqualTo(OrderStatus.CANCELED) },
+            )
+        }
+
+        @DisplayName("결제 실패 주문은 취소된다.")
+        @Test
+        fun cancels_whenPaymentFailed() {
+            // arrange
+            val order = place(items = arrayOf(item()))
+            orderService.startPayment(order.id)
+            orderService.failPayment(order.id)
+
+            // act
+            val result = orderService.cancel(order.id)
+
+            // assert
+            assertAll(
+                { assertThat(result).isTrue() },
+                { assertThat(statusOf(order.id)).isEqualTo(OrderStatus.CANCELED) },
+            )
+        }
+
+        @DisplayName("결제 중이면 취소하지 못한다.")
+        @Test
+        fun cannotCancel_whenPaying() {
+            // arrange
+            val order = place(items = arrayOf(item()))
+            orderService.startPayment(order.id)
+
+            // act
+            val result = orderService.cancel(order.id)
+
+            // assert
+            assertAll(
+                { assertThat(result).isFalse() },
+                { assertThat(statusOf(order.id)).isEqualTo(OrderStatus.PAYING) },
+            )
+        }
+
+        @DisplayName("결제 완료 주문은 취소하지 못한다.")
+        @Test
+        fun cannotCancel_whenPaid() {
+            // arrange
+            val order = place(items = arrayOf(item()))
+            orderService.startPayment(order.id)
+            orderService.completePayment(order.id)
+
+            // act
+            val result = orderService.cancel(order.id)
+
+            // assert
+            assertAll(
+                { assertThat(result).isFalse() },
+                { assertThat(statusOf(order.id)).isEqualTo(OrderStatus.PAID) },
+            )
+        }
+
+        @DisplayName("이미 취소된 주문을 다시 취소하면 false 다.")
+        @Test
+        fun cannotCancelTwice() {
+            // arrange
+            val order = place(items = arrayOf(item()))
+            orderService.cancel(order.id)
+
+            // act
+            val result = orderService.cancel(order.id)
+
+            // assert
+            assertThat(result).isFalse()
+        }
+
+        @DisplayName("취소된 주문은 결제를 시작하지 못한다.")
+        @Test
+        fun cannotStartPayment_whenCanceled() {
+            // arrange
+            val order = place(items = arrayOf(item()))
+            orderService.cancel(order.id)
+
+            // act
+            val result = orderService.startPayment(order.id)
+
+            // assert
+            assertAll(
+                { assertThat(result).isFalse() },
+                { assertThat(statusOf(order.id)).isEqualTo(OrderStatus.CANCELED) },
             )
         }
     }

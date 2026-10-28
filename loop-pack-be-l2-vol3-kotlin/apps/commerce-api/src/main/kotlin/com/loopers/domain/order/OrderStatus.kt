@@ -9,10 +9,14 @@ package com.loopers.domain.order
  * 조건부 UPDATE 로 가를 방법이 없다. (2026-10-13 결제 설계 3.3 장)
  *
  * PAYMENT_FAILED 에서 다시 PAYING 으로 갈 수 있다 — PG 의 실패 사유가 "다른 카드를 선택해주세요" 다. (설계 3.2 장)
+ *
+ * CANCELED 는 최종 상태다. 결제 시작 전(PAYMENT_PENDING · PAYMENT_FAILED)에 만료되거나 취소된 주문이며,
+ * 여기서 다른 상태로 가는 전이는 없다. 재고 · 쿠폰은 취소와 함께 되돌린다.
  */
 enum class OrderStatus {
     PAYMENT_PENDING,
     PAYING,
     PAID,
     PAYMENT_FAILED,
+    CANCELED,
 }

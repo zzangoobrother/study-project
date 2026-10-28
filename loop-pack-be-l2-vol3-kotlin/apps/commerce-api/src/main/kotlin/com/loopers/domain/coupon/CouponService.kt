@@ -64,6 +64,16 @@ class CouponService(
         return userCouponRepository.use(couponId = couponId, userId = userId, now = ZonedDateTime.now()) == 1
     }
 
+    /**
+     * 취소된 주문의 쿠폰을 되돌린다. usedAt 만 비우며 만료는 살리지 않는다.
+     *
+     * false 는 쓰지 않았거나 없는 쿠폰이다. 이미 되돌린 뒤의 재시도도 여기에 해당하므로 멱등하다.
+     */
+    @Transactional
+    fun restore(userCouponId: Long): Boolean {
+        return userCouponRepository.restore(userCouponId = userCouponId, now = ZonedDateTime.now()) == 1
+    }
+
     @Transactional(readOnly = true)
     fun getUserCoupons(userId: Long, pageQuery: PageQuery): PageResult<UserCouponModel> {
         return userCouponRepository.findAllByUserId(userId = userId, pageQuery = pageQuery)

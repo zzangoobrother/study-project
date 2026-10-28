@@ -855,4 +855,66 @@ class ProductServiceIntegrationTest @Autowired constructor(
             assertThat(productRepository.findById(product.id)!!.updatedAt).isEqualTo(before)
         }
     }
+
+    @DisplayName("재고를 되돌릴 때, ")
+    @Nested
+    inner class IncreaseStock {
+        @DisplayName("요청 수량만큼 늘고 true 를 반환한다.")
+        @Test
+        fun increasesStockByQuantity() {
+            // arrange
+            val product = saveProduct(stock = 10)
+
+            // act
+            val increased = productService.increaseStock(product.id, 3)
+
+            // assert
+            assertAll(
+                { assertThat(increased).isTrue() },
+                { assertThat(productRepository.findById(product.id)!!.stock.value).isEqualTo(13L) },
+            )
+        }
+
+        /** 주문이 살아 있는 동안 상품이 삭제될 수 있다. 되돌리지 않으면 그 재고는 영영 사라진다. (2026-10-28 주문 만료 설계 4.3 장) */
+        @DisplayName("삭제된 상품이어도, 재고가 늘고 true 를 반환한다.")
+        @Test
+        fun increasesStockOfSoftDeletedProduct() {
+            // arrange
+            val product = saveProduct(stock = 10)
+            productService.delete(product.id)
+
+            // act
+            val increased = productService.increaseStock(product.id, 3)
+
+            // assert
+            assertAll(
+                { assertThat(increased).isTrue() },
+                { assertThat(productRepository.findByIdIncludingDeleted(product.id)!!.stock.value).isEqualTo(13L) },
+            )
+        }
+
+        @DisplayName("updated_at 을 건드리지 않는다.")
+        @Test
+        fun doesNotTouchUpdatedAt() {
+            // arrange
+            val product = saveProduct(stock = 10)
+            val before = productRepository.findById(product.id)!!.updatedAt
+
+            // act
+            productService.increaseStock(product.id, 3)
+
+            // assert
+            assertThat(productRepository.findById(product.id)!!.updatedAt).isEqualTo(before)
+        }
+
+        @DisplayName("존재하지 않는 상품이면, false 를 반환한다.")
+        @Test
+        fun returnsFalse_whenProductDoesNotExist() {
+            // act
+            val increased = productService.increaseStock(99999L, 1)
+
+            // assert
+            assertThat(increased).isFalse()
+        }
+    }
 }

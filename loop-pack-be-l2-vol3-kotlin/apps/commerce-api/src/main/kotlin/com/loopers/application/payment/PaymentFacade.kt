@@ -121,7 +121,7 @@ class PaymentFacade(
         val amount = order.paidAmount
 
         if (!orderService.startPayment(order.id)) {
-            throw CoreException(ErrorType.CONFLICT, "[orderId = ${order.id}] 이미 결제 중이거나 결제가 완료된 주문입니다.")
+            throw CoreException(ErrorType.CONFLICT, "[orderId = ${order.id}] 결제할 수 없는 상태의 주문입니다.")
         }
 
         val payment = paymentService.create(

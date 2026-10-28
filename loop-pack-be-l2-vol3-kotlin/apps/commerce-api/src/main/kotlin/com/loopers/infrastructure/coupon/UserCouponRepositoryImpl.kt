@@ -31,6 +31,10 @@ class UserCouponRepositoryImpl(
         return userCouponJpaRepository.use(couponId = couponId, userId = userId, now = now)
     }
 
+    override fun restore(userCouponId: Long, now: ZonedDateTime): Int {
+        return userCouponJpaRepository.restore(userCouponId = userCouponId, now = now)
+    }
+
     /** Pageable 은 이 클래스 안에서만 쓰이고, 도메인 계약은 PageQuery / PageResult 로 유지된다. */
     override fun findAllByUserId(userId: Long, pageQuery: PageQuery): PageResult<UserCouponModel> {
         val content = userCouponJpaRepository.findAllByUserId(

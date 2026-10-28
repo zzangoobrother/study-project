@@ -51,6 +51,10 @@ class ProductRepositoryImpl(
         return productJpaRepository.decreaseStock(productId = productId, quantity = quantity)
     }
 
+    override fun increaseStock(productId: Long, quantity: Int): Int {
+        return productJpaRepository.increaseStock(productId = productId, quantity = quantity)
+    }
+
     override fun findAllByIds(ids: List<Long>): List<ProductModel> {
         // IN () 은 문법 오류이고 조회할 대상도 없으므로 쿼리 자체를 보내지 않는다. BrandRepositoryImpl 과 같은 처리다.
         if (ids.isEmpty()) return emptyList()
