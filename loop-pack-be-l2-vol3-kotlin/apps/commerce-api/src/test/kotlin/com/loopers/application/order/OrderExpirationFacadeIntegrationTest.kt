@@ -46,8 +46,11 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.bean.override.mockito.MockitoBean
+import java.sql.Timestamp
 import java.time.Duration
+import java.time.Instant
 import java.time.ZonedDateTime
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -67,6 +70,7 @@ class OrderExpirationFacadeIntegrationTest @Autowired constructor(
     private val couponJpaRepository: CouponJpaRepository,
     private val userCouponJpaRepository: UserCouponJpaRepository,
     private val databaseCleanUp: DatabaseCleanUp,
+    private val jdbcTemplate: JdbcTemplate,
 ) {
     @MockitoBean
     lateinit var paymentGateway: PaymentGateway
@@ -307,9 +311,15 @@ class OrderExpirationFacadeIntegrationTest @Autowired constructor(
         fun restoresCoupon_whenCouponHasSinceExpired() {
             // arrange
             setUp()
-            val couponId = issueCoupon(expiresAt = ZonedDateTime.now().plusHours(1))
+            val couponId = issueCoupon()
             val orderId = place(productA.id to 2, couponId = couponId)
-            val expiresAt = userCouponOf(orderId).expiresAt
+            // 만료된 쿠폰은 use 가 막아 "만료 뒤 사용" 을 만들 수 없다. 쓴 뒤에 발급분의 만료일을 과거로 옮긴다.
+            // restore 는 인자의 now 가 아니라 실제 시계를 쓰므로, 실제로 지금 만료된 쿠폰이어야 이 경로가 검증된다.
+            jdbcTemplate.update(
+                "UPDATE user_coupons SET expires_at = ? WHERE id = ?",
+                Timestamp.from(Instant.now().minus(Duration.ofDays(1))),
+                orderService.getOrder(orderId)!!.usedCouponId,
+            )
 
             // act
             orderExpirationFacade.expireOverdue(createdAtOf(orderId).plus(THIRTY_MINUTES))
@@ -319,7 +329,7 @@ class OrderExpirationFacadeIntegrationTest @Autowired constructor(
             assertAll(
                 { assertThat(statusOf(orderId)).isEqualTo(OrderStatus.CANCELED) },
                 { assertThat(coupon.usedAt).isNull() },
-                { assertThat(coupon.statusAt(expiresAt.plusSeconds(1))).isEqualTo(CouponStatus.EXPIRED) },
+                { assertThat(coupon.statusAt(ZonedDateTime.now())).isEqualTo(CouponStatus.EXPIRED) },
             )
         }
 
