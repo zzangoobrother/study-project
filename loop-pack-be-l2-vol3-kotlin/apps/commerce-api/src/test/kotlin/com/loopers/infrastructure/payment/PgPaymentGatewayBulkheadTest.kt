@@ -139,34 +139,6 @@ class PgPaymentGatewayBulkheadTest @Autowired constructor(
             )
         }
 
-        /** 거절 수 지표는 라이브러리가 주지 않아 직접 붙인다. 컨텍스트가 캐시로 공유되므로 증가분으로 단언한다. (2026-10-29 PG 격리 설계 5 장) */
-        @DisplayName("거절 한 건마다 pg.bulkhead.rejected{name=pgRequest} 가 정확히 1 늘고, pgQuery 는 그대로다.")
-        @Test
-        fun countsRejection() {
-            // arrange
-            val requestBefore = rejected("pgRequest")
-            val queryBefore = rejected("pgQuery")
-            stubRequest(accepted().withFixedDelay(DELAY_MS))
-
-            // act
-            concurrently(3) { request() }
-
-            // assert
-            assertAll(
-                { assertThat(rejected("pgRequest") - requestBefore).isEqualTo(1.0) },
-                { assertThat(rejected("pgQuery") - queryBefore).isEqualTo(0.0) },
-            )
-        }
-
-        @DisplayName("거절이 한 번도 없어도 두 카운터가 미리 등록되어 있다.")
-        @Test
-        fun exposesCounterBeforeAnyRejection() {
-            assertAll(
-                { assertThat(meterRegistry.find("pg.bulkhead.rejected").tag("name", "pgRequest").counter()).isNotNull() },
-                { assertThat(meterRegistry.find("pg.bulkhead.rejected").tag("name", "pgQuery").counter()).isNotNull() },
-            )
-        }
-
         /**
          * 검토 초점 1. 거절된 요청은 PG 에 0 회, 통과한 요청은 재시도를 끝까지 한다(2 개 x 3 회 = 6). 이 테스트는 순서를 증명하지 않는다 —
          * 순서가 뒤집혀도 이 시나리오는 같은 값이 나온다. 순서는 PgBulkheadConfigTest 의 빈 순서 단언과
@@ -234,6 +206,38 @@ class PgPaymentGatewayBulkheadTest @Autowired constructor(
                 { assertThat(results.countOf { it is PgRequestResult.Accepted }).isEqualTo(2) },
                 { assertThat(results.countOf { it == PgRequestResult.NotSent }).isEqualTo(0) },
                 { assertThat(bulkheadRegistry.bulkhead("pgRequest").metrics.availableConcurrentCalls).isEqualTo(2) },
+            )
+        }
+    }
+
+    @DisplayName("거절 지표는, ")
+    @Nested
+    inner class RejectionMetric {
+        @DisplayName("거절이 한 번도 없어도 두 카운터가 미리 등록되어 있다.")
+        @Test
+        fun exposesCounterBeforeAnyRejection() {
+            assertAll(
+                { assertThat(meterRegistry.find("pg.bulkhead.rejected").tag("name", "pgRequest").counter()).isNotNull() },
+                { assertThat(meterRegistry.find("pg.bulkhead.rejected").tag("name", "pgQuery").counter()).isNotNull() },
+            )
+        }
+
+        /** 거절 수 지표는 라이브러리가 주지 않아 직접 붙인다. 컨텍스트가 캐시로 공유되므로 증가분으로 단언한다. (2026-10-29 PG 격리 설계 5 장) */
+        @DisplayName("거절 한 건마다 pg.bulkhead.rejected{name=pgRequest} 가 정확히 1 늘고, pgQuery 는 그대로다.")
+        @Test
+        fun countsRejection() {
+            // arrange
+            val requestBefore = rejected("pgRequest")
+            val queryBefore = rejected("pgQuery")
+            stubRequest(accepted().withFixedDelay(DELAY_MS))
+
+            // act
+            concurrently(3) { request() }
+
+            // assert
+            assertAll(
+                { assertThat(rejected("pgRequest") - requestBefore).isEqualTo(1.0) },
+                { assertThat(rejected("pgQuery") - queryBefore).isEqualTo(0.0) },
             )
         }
     }

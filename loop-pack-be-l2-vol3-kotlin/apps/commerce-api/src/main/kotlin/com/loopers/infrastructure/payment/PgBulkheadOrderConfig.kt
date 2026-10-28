@@ -19,6 +19,8 @@ import org.springframework.context.annotation.Configuration
  * BulkheadAspect 를 같은 구성으로 직접 만들되 순서만 0 으로 한다(자동 구성은 이 빈이 있으면 물러난다).
  * 라이브러리를 올릴 때 이 순서가 유지되는지는 PgBulkheadConfigTest 의 빈 순서 단언(Bulkhead < 서킷 < 재시도)과
  * PgPaymentGatewayBulkheadTest.rejectionIsNotRecordedByCircuit 의 서킷 버퍼 2 단언이 잡는다.
+ * 이 빈은 앱 전체의 @Bulkhead 에 적용된다. 이후 어디에 붙는 @Bulkhead 든 순서 0(@Transactional 등보다 바깥)이 된다.
+ * resilience4j 를 올릴 때 BulkheadConfigurationProperties 에 setter 가 생겼으면 yml 키 resilience4j.bulkhead.bulkhead-aspect-order 로 돌아가고 이 클래스를 지운다.
  */
 @Configuration
 class PgBulkheadOrderConfig {

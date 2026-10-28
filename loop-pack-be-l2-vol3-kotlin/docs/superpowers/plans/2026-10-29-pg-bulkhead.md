@@ -23,7 +23,7 @@
 - **커밋 메시지 형식은 `<타입> : <내용>`** — 콜론 앞 공백. 끝에 빈 줄 하나 뒤 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. amend 금지.
 - **`modules/` · `supports/` 는 고치지 않는다.**
 - **수치는 설계 3 장 그대로다.** `pgRequest` `max-concurrent-calls: 50` · `pgQuery` `max-concurrent-calls: 20` · 둘 다 `max-wait-duration: 0`, Semaphore 방식.
-- **감싸는 순서는 `Bulkhead( CircuitBreaker( Retry( 호출 ) ) )` — Bulkhead 가 가장 바깥이다.** `resilience4j.bulkhead.bulkhead-aspect-order: 0`(기존 circuit 1 · retry 2, 값이 작을수록 바깥). (설계 2 장)
+- **감싸는 순서는 `Bulkhead( CircuitBreaker( Retry( 호출 ) ) )` — Bulkhead 가 가장 바깥이다.** `resilience4j.bulkhead.bulkhead-aspect-order: 0` (구현 중 판정으로 `PgBulkheadOrderConfig` 로 대체 — resilience4j 2.2.0 에 이 키가 없다, 설계 2 장). 기존 circuit 1 · retry 2, 값이 작을수록 바깥. (설계 2 장)
 - **거절 번역:** 결제 요청 → `PgRequestResult.NotSent` + WARN `[orderId = {}] PG 동시 호출이 상한에 걸려 결제 요청을 보내지 않았습니다.` / 조회 → `PgQueryResult.Unavailable`. 번역은 `PgPaymentGateway` 에서만 한다. (설계 4 장)
 - **`PaymentFacade` · 컨트롤러는 고치지 않는다.**
 - **거절 카운터:** Micrometer 이름 `pg.bulkhead.rejected`, 태그 `name` = `pgRequest` | `pgQuery` (Prometheus `pg_bulkhead_rejected_total`). (설계 5 장)
@@ -35,7 +35,7 @@
 
 ## 검토 초점
 
-1. **재시도 도중의 거절** — 앞선 시도가 PG 에 닿은 뒤 거절되면 `NotSent` 오판 · 이중 결제다. 순서가 틀리면 에러 없이 생긴다. → Task 1 `rejectsOnlyBeforeFirstAttempt`
+1. **재시도 도중의 거절** — 앞선 시도가 PG 에 닿은 뒤 거절되면 `NotSent` 오판 · 이중 결제다. 순서가 틀리면 에러 없이 생긴다. → Task 1 `PgBulkheadConfigTest.wrapsBulkheadOutermost`(aspect 빈 순서 단언) + `rejectionIsNotRecordedByCircuit`(서킷 버퍼 2). (정정: 처음에는 `rejectsOnlyBeforeFirstAttempt` 를 지목했으나 그 시나리오는 순서가 뒤집혀도 같은 값이 나와 순서를 증명하지 못한다)
 2. **허가 누수** — 읽기 타임아웃 · 4xx · 5xx 소진 등 예외로 끝난 호출이 허가를 돌려주지 않으면 상한이 점점 줄어 결국 모든 결제가 거절된다. → Task 1 `releasesPermit_afterFailures`
 3. **거절이 서킷 실패로 세짐** — PG 는 정상인데 서킷이 열린다. → Task 1 `rejectionIsNotRecordedByCircuit`
 4. **운영 값이 테스트용 덮어쓰기에 가려짐** — 상한 2 로 검증하는 동안 yml 의 50 · 20 · 0 이 틀려도 모른다. → Task 1 `PgBulkheadConfigTest`
@@ -46,7 +46,7 @@
 ### Task 1: Bulkhead 적용 — 순서 · 번역 · 운영 값
 
 **Files:**
-- Modify: `apps/commerce-api/src/main/resources/application.yml` — `resilience4j.bulkhead` 블록(aspect-order 0, 두 인스턴스). 기존 circuit/retry 위 주석의 "감싸는 순서" 설명을 Bulkhead 포함으로 고친다
+- Modify: `apps/commerce-api/src/main/resources/application.yml` — `resilience4j.bulkhead` 블록(aspect-order 0 (구현 중 판정으로 `PgBulkheadOrderConfig` 로 대체 — resilience4j 2.2.0 에 이 키가 없다, 설계 2 장), 두 인스턴스). 기존 circuit/retry 위 주석의 "감싸는 순서" 설명을 Bulkhead 포함으로 고친다
 - Modify: `apps/commerce-api/src/main/kotlin/com/loopers/infrastructure/payment/PgResilientClient.kt` — `requestPayment` 에 `@Bulkhead(name = "pgRequest")`, 조회 두 메서드에 `@Bulkhead(name = "pgQuery")`. KDoc 의 순서 설명 갱신
 - Modify: `apps/commerce-api/src/main/kotlin/com/loopers/infrastructure/payment/PgPaymentGateway.kt` — `request` 에 `BulkheadFullException` catch(→ `NotSent`, `CallNotPermittedException` catch 옆). 조회는 기존 catch 가 받는다 — 구현자 판단으로 명시 catch 를 더해도 된다
 - Modify: `docs/superpowers/specs/2026-10-13-payment-design.md` — 4.2 장 `NotSent` 원인에 Bulkhead 상한, 6.4 장 순서 그림, 6.5 장 신설(이 설계 링크) (설계 7 장)
