@@ -243,7 +243,7 @@ tx1 을 먼저 커밋하는 것이 복구의 전제다. tx2 가 실패하거나 
 | 결과 | 원인 | 결제 | 주문 | 응답 `status` |
 |---|---|---|---|---|
 | `Accepted(transactionKey)` | PG 접수 | PENDING + 키 기록. 단 그 키가 다른 결제에 이미 연결돼 있으면 키를 기록하지 않고 FAILED(5.2 장) | PAYING 유지. 키 충돌이면 PAYMENT_FAILED | `PENDING`. 키 충돌이면 `FAILED` |
-| `NotSent` | 요청이 **나가지 않은 것이 확실함** — 서킷 OPEN 으로 호출하지 않음, 또는 첫 시도가 연결 거부(`ConnectException`) | FAILED | PAYMENT_FAILED | `FAILED` |
+| `NotSent` | 요청이 **나가지 않은 것이 확실함** — 서킷 OPEN 으로 호출하지 않음, Bulkhead 상한에 걸려 호출하지 않음(6.5 장), 또는 첫 시도가 연결 거부(`ConnectException`) | FAILED | PAYMENT_FAILED | `FAILED` |
 | `Unknown` | 읽기 타임아웃 · 재시도 후에도 5xx · 앞선 시도가 PG 에 닿은 뒤의 연결 거부 · 연결 타임아웃 · 그 밖의 예외 | REQUESTED 유지 | PAYING 유지 | `REQUESTED` |
 
 - **즉시 실패로 확정하는 것은 `NotSent` 뿐이다.** 서킷은 재시도를 시작하기 **전에** 막고(서킷이 재시도 바깥 — 6.4 장),
@@ -476,7 +476,7 @@ PG 를 아끼는 일(재시도가 부하를 세 배로 키우는 것)은 서킷�
 
 ### 6.4 감싸는 순서와 구성
 
-`CircuitBreaker( Retry( 호출 ) )` — **서킷이 바깥이다**(6.3 장). Resilience4j 애노테이션의 기본 순서는 반대(`Retry` 바깥)라 설정으로 뒤집는다.
+`Bulkhead( CircuitBreaker( Retry( 호출 ) ) )` — **서킷이 재시도 바깥이고, Bulkhead 가 가장 바깥이다**(6.3 · 6.5 장). Resilience4j 애노테이션의 기본 순서는 반대(`Retry` 바깥)라 설정으로 뒤집는다.
 
 ```yaml
 resilience4j:
@@ -486,7 +486,7 @@ resilience4j:
     retry-aspect-order: 2
 ```
 
-키를 틀리면 기본 순서로 돌아가면서도 아무 에러가 나지 않는다. 어댑터 테스트가 "5xx 세 번인 요청 하나 → 서킷 실패 1 건" 으로 순서를 단언한다(10 장).
+Bulkhead 는 yml 키가 없어(6.5 장) 별도 설정 클래스가 순서를 0 으로 만든다. 키를 틀리면 기본 순서로 돌아가면서도 아무 에러가 나지 않는다. 어댑터 테스트가 "5xx 세 번인 요청 하나 → 서킷 실패 1 건" 으로 순서를 단언한다(10 장).
 
 서킷이 바깥이므로 서킷은 재시도를 시작하기 **전에만** 막는다. `CallNotPermittedException` 이 나왔다면 한 번도 보내지 않은 것이 확실하다.
 처음 설계의 "재시도 도중 서킷 OPEN"(앞선 시도는 PG 에 닿았는데 마지막 시도가 막혀 `NotSent` 로 오판할 위험)은 생기지 않는다.
@@ -495,7 +495,7 @@ resilience4j:
 
 ```
 PgPaymentGateway (domain PaymentGateway 구현) — 예외를 결과 타입으로 번역
-   └─▶ PgResilientClient — @Retry · @CircuitBreaker 만 붙인다. 예외를 그대로 던진다
+   └─▶ PgResilientClient — @Bulkhead · @CircuitBreaker · @Retry 만 붙인다. 예외를 그대로 던진다
           └─▶ PgClient (@FeignClient) — HTTP 선언
 ```
 
@@ -508,6 +508,7 @@ PgPaymentGateway (domain PaymentGateway 구현) — 예외를 결과 타입으�
 | 게이트웨이가 받은 예외 | 시도 횟수 | 결과 |
 |---|---|---|
 | `CallNotPermittedException` | 항상 0 (서킷이 바깥) | `NotSent` |
+| `BulkheadFullException` | 항상 0 (Bulkhead 가 가장 바깥) | `NotSent` |
 | `RetryableException`, cause 가 `ConnectException` | 1 | `NotSent` |
 | 같음 | 2 이상 (앞선 시도가 5xx 로 PG 에 닿음) | `Unknown` |
 | `FeignClientException` (4xx) | — | `Unknown` + ERROR 로그 |
@@ -515,6 +516,11 @@ PgPaymentGateway (domain PaymentGateway 구현) — 예외를 결과 타입으�
 
 연결 거부가 cause 로 `ConnectException` 을 담아 오는 것은 Feign 기본 HTTP 클라이언트의 동작이다. 클라이언트를 바꾸면 예외 모양이 달라질 수 있어,
 실제로 닫힌 포트에 연결하는 테스트로 고정한다(10 장).
+
+### 6.5 Bulkhead
+
+PG 를 부르는 동시 호출 수에 상한을 두고(결제 요청 50 · 조회 20, 대기 0) 넘치면 바로 거절한다. 거절된 결제 요청은 보내지 않은 것이 확실해 `NotSent` 다.
+상한의 근거 · 순서 · 관측은 [2026-10-29 PG 격리 설계](2026-10-29-pg-bulkhead-design.md)를 본다.
 
 ---
 
