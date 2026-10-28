@@ -7,6 +7,7 @@ import com.loopers.domain.brand.BrandName
 import com.loopers.domain.brand.BrandRepository
 import com.loopers.domain.coupon.CouponModel
 import com.loopers.domain.coupon.CouponName
+import com.loopers.domain.coupon.CouponStatus
 import com.loopers.domain.coupon.DiscountType
 import com.loopers.domain.order.OrderCommand
 import com.loopers.domain.order.OrderService
@@ -21,6 +22,7 @@ import com.loopers.domain.product.Price
 import com.loopers.domain.product.ProductModel
 import com.loopers.domain.product.ProductName
 import com.loopers.domain.product.ProductRepository
+import com.loopers.domain.product.ProductService
 import com.loopers.domain.product.Stock
 import com.loopers.domain.user.BirthDate
 import com.loopers.domain.user.Email
@@ -60,6 +62,7 @@ class OrderExpirationFacadeIntegrationTest @Autowired constructor(
     private val userService: UserService,
     private val brandRepository: BrandRepository,
     private val productRepository: ProductRepository,
+    private val productService: ProductService,
     private val couponFacade: CouponFacade,
     private val couponJpaRepository: CouponJpaRepository,
     private val userCouponJpaRepository: UserCouponJpaRepository,
@@ -112,18 +115,26 @@ class OrderExpirationFacadeIntegrationTest @Autowired constructor(
             ),
         ).id
 
-    private fun issueCoupon(value: Long = 5_000): Long {
-        val policy = couponJpaRepository.save(
+    /**
+     * 정책을 하나 더 먼저 만들어 정책 ID 와 발급(user_coupons) ID 를 어긋나게 한다.
+     * truncate 뒤에는 둘 다 1 이라, 복구가 정책 ID 로 UPDATE 하는 회귀를 테스트가 알아채지 못한다.
+     */
+    private fun issueCoupon(value: Long = 5_000, expiresAt: ZonedDateTime = ZonedDateTime.now().plusDays(30)): Long {
+        saveCouponPolicy(value = 1_000, expiresAt = expiresAt)
+        val policy = saveCouponPolicy(value = value, expiresAt = expiresAt)
+        couponFacade.issue(loginId, policy.id)
+        return policy.id
+    }
+
+    private fun saveCouponPolicy(value: Long, expiresAt: ZonedDateTime): CouponModel =
+        couponJpaRepository.save(
             CouponModel.create(
                 name = CouponName("테스트 쿠폰"),
                 discountType = DiscountType.FIXED,
                 discountValue = value,
-                expiresAt = ZonedDateTime.now().plusDays(30),
+                expiresAt = expiresAt,
             ),
         )
-        couponFacade.issue(loginId, policy.id)
-        return policy.id
-    }
 
     private fun payCommand(orderId: Long) = PaymentCommand.Request(
         loginId = loginId,
@@ -139,8 +150,10 @@ class OrderExpirationFacadeIntegrationTest @Autowired constructor(
 
     private fun stockOf(productId: Long): Long = productRepository.findById(productId)!!.stock.value
 
-    private fun couponUsedAtOf(orderId: Long): ZonedDateTime? =
-        userCouponJpaRepository.findById(orderService.getOrder(orderId)!!.usedCouponId!!).get().usedAt
+    private fun userCouponOf(orderId: Long) =
+        userCouponJpaRepository.findById(orderService.getOrder(orderId)!!.usedCouponId!!).get()
+
+    private fun couponUsedAtOf(orderId: Long): ZonedDateTime? = userCouponOf(orderId).usedAt
 
     @DisplayName("만료 시각이 지난 주문을 처리할 때, ")
     @Nested
@@ -154,6 +167,7 @@ class OrderExpirationFacadeIntegrationTest @Autowired constructor(
             val orderId = place(productA.id to 2, productB.id to 3, couponId = couponId)
             val stockAfterOrder = listOf(stockOf(productA.id), stockOf(productB.id))
             val usedBefore = couponUsedAtOf(orderId)
+            val usedCouponId = orderService.getOrder(orderId)!!.usedCouponId
 
             // act
             val count = orderExpirationFacade.expireOverdue(createdAtOf(orderId).plus(THIRTY_MINUTES))
@@ -162,6 +176,7 @@ class OrderExpirationFacadeIntegrationTest @Autowired constructor(
             assertAll(
                 { assertThat(stockAfterOrder).containsExactly(8L, 7L) },
                 { assertThat(usedBefore).isNotNull() },
+                { assertThat(usedCouponId).isNotEqualTo(couponId) },
                 { assertThat(count).isEqualTo(1) },
                 { assertThat(statusOf(orderId)).isEqualTo(OrderStatus.CANCELED) },
                 { assertThat(stockOf(productA.id)).isEqualTo(10L) },
@@ -265,6 +280,46 @@ class OrderExpirationFacadeIntegrationTest @Autowired constructor(
                 { assertThat(statusOf(paidId)).isEqualTo(OrderStatus.PAID) },
                 { assertThat(stockOf(productA.id)).isEqualTo(8L) },
                 { assertThat(stockOf(productB.id)).isEqualTo(9L) },
+            )
+        }
+
+        @DisplayName("소프트 삭제된 상품이 섞인 주문도 취소하고 삭제된 상품의 재고까지 되돌린다.")
+        @Test
+        fun restoresStock_whenOrderContainsSoftDeletedProduct() {
+            // arrange
+            setUp()
+            val orderId = place(productA.id to 2, productB.id to 3)
+            productService.delete(productA.id)
+
+            // act
+            orderExpirationFacade.expireOverdue(createdAtOf(orderId).plus(THIRTY_MINUTES))
+
+            // assert
+            assertAll(
+                { assertThat(statusOf(orderId)).isEqualTo(OrderStatus.CANCELED) },
+                { assertThat(productService.getProductIncludingDeleted(productA.id)!!.stock.value).isEqualTo(10L) },
+                { assertThat(stockOf(productB.id)).isEqualTo(10L) },
+            )
+        }
+
+        @DisplayName("사용 시점엔 유효했던 쿠폰이 지금 만료됐어도 사용 이력을 되돌린다.")
+        @Test
+        fun restoresCoupon_whenCouponHasSinceExpired() {
+            // arrange
+            setUp()
+            val couponId = issueCoupon(expiresAt = ZonedDateTime.now().plusHours(1))
+            val orderId = place(productA.id to 2, couponId = couponId)
+            val expiresAt = userCouponOf(orderId).expiresAt
+
+            // act
+            orderExpirationFacade.expireOverdue(createdAtOf(orderId).plus(THIRTY_MINUTES))
+
+            // assert
+            val coupon = userCouponOf(orderId)
+            assertAll(
+                { assertThat(statusOf(orderId)).isEqualTo(OrderStatus.CANCELED) },
+                { assertThat(coupon.usedAt).isNull() },
+                { assertThat(coupon.statusAt(expiresAt.plusSeconds(1))).isEqualTo(CouponStatus.EXPIRED) },
             )
         }
 
