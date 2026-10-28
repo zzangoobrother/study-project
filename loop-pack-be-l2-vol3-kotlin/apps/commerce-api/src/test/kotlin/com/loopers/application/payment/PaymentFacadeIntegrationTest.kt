@@ -222,6 +222,25 @@ class PaymentFacadeIntegrationTest @Autowired constructor(
             )
         }
 
+        @DisplayName("만료로 취소된 주문이면, 409 CONFLICT 예외가 발생하고 결제를 남기지 않으며 PG 를 부르지 않는다.")
+        @Test
+        fun throwsConflict_whenOrderIsCanceled() {
+            // arrange
+            val order = placeOrder(signUp())
+            orderService.cancel(order.id)
+
+            // act
+            val result = assertThrows<CoreException> { paymentFacade.request(command(order.id)) }
+
+            // assert
+            assertAll(
+                { assertThat(result.errorType).isEqualTo(ErrorType.CONFLICT) },
+                { assertThat(result.message).contains("결제할 수 없는 상태의 주문입니다") },
+                { assertThat(paymentService.findAllByOrderId(order.id)).isEmpty() },
+                { verify(paymentGateway, never()).request(any()) },
+            )
+        }
+
         @DisplayName("이미 결제 완료면, 409 CONFLICT 예외가 발생한다.")
         @Test
         fun throwsConflict_whenPaid() {

@@ -181,7 +181,11 @@ CREATE TABLE payments (
 PAYMENT_PENDING ─┐
                  ├─(결제 요청)─▶ PAYING ──(결제 SUCCESS)──▶ PAID
 PAYMENT_FAILED ◀─┘                └─────(결제 FAILED)──▶ PAYMENT_FAILED
+      │
+PAYMENT_PENDING · PAYMENT_FAILED ──(생성 후 30 분)──▶ CANCELED   ← 2026-10-28 추가
 ```
+
+- `CANCELED` 는 최종 상태다. 만료 정책은 [2026-10-28 주문 만료 설계](2026-10-28-order-expiration-design.md) 가 정한다. PAYING 주문은 취소하지 않는다.
 
 - 주문 생성 시 `PAYMENT_PENDING`. 기존 주문 생성 흐름(재고 · 쿠폰)은 바꾸지 않는다.
 - **결제에 실패한 주문은 다시 결제할 수 있다.** PG 의 실패 사유가 "다른 카드를 선택해주세요" 다. (2026-10-13 결정)
@@ -196,7 +200,7 @@ PAYMENT_FAILED ◀─┘                └─────(결제 FAILED)──�
 
 | 메서드 | SQL | 0 행일 때 |
 |---|---|---|
-| `startPayment(orderId)` | `SET status='PAYING' WHERE id=? AND status IN ('PAYMENT_PENDING','PAYMENT_FAILED')` | 409 — 이미 결제 중이거나 완료된 주문 |
+| `startPayment(orderId)` | `SET status='PAYING' WHERE id=? AND status IN ('PAYMENT_PENDING','PAYMENT_FAILED')` | 409 — 결제할 수 없는 상태(결제 중 · 완료 · 취소)의 주문 |
 | `completePayment(orderId)` | `SET status='PAID' WHERE id=? AND status='PAYING'` | 무시 — 다른 경로가 먼저 확정했다 |
 | `failPayment(orderId)` | `SET status='PAYMENT_FAILED' WHERE id=? AND status='PAYING'` | 무시 — 위와 같다 |
 
@@ -568,7 +572,7 @@ X-Loopers-LoginId: user1
 |---|---|
 | 카드 형식 · 카드사 오류 | 400 |
 | 회원 없음, 주문 없음, 남의 주문 | 404 |
-| 이미 결제 중(PAYING) · 결제 완료(PAID) | 409 |
+| 결제할 수 없는 상태(결제 중 PAYING · 결제 완료 PAID · 취소 CANCELED) | 409 |
 | PG 접수 / 서킷 OPEN / 결과 모름 | 200 — `status` 가 `PENDING` / `FAILED` / `REQUESTED` |
 | 0 원 주문 | 200 — `SUCCESS` |
 
@@ -590,9 +594,16 @@ REQUESTED 를 1 분 뒤 FAILED 로 확정했는데 그 요청이 뒤늦게 PG �
 그 결제 건은 키가 없는 채 FAILED 라 뒤늦은 콜백이 어떤 결제 건과도 이어지지 않는다.
 **콜백이 결제 건을 찾지 못하면 `transactionKey` · `orderId` 를 담아 ERROR 로그를 남긴다** — 사람이 PG 를 조회해 확인하고, 환불은 수동이다(PG 에 취소 API 가 없다).
 
+이 주문도 생성 30 분 뒤 CANCELED 가 되고 재고가 돌아간다(2026-10-28 주문 만료 설계 6 장). 돈은 나갔는데 상품은 다시 팔리므로,
+사람이 처리할 때는 "주문을 되살려 배송" 이 아니라 "환불" 로 가야 한다.
+
 ### 9.2 결제되지 않은 주문이 재고를 계속 쥔다
 
-PAYMENT_PENDING · PAYMENT_FAILED 주문의 재고와 쿠폰은 돌아오지 않는다(1 장 제외 항목). 만료 정책이 생기기 전까지 운영에 내보내면 안 된다.
+**해소됨 — [2026-10-28 주문 만료 설계](2026-10-28-order-expiration-design.md).** 생성 후 30 분이 지나도록 PAYMENT_PENDING · PAYMENT_FAILED 인 주문은
+CANCELED 로 바뀌고 재고와 쿠폰이 돌아온다.
+
+남는 한계: PAYING 주문(PG 장애로 결과를 모르는 결제가 묶인 주문, 9.6 장)은 취소하지 않으므로 재고를 계속 쥔다.
+PG 가 돌아와 동기화가 PAYMENT_FAILED 로 닫으면 다음 만료 주기에 취소된다.
 
 ### 9.3 인증 없는 결제 요청
 
