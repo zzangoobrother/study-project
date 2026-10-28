@@ -2,10 +2,12 @@ package com.loopers.infrastructure.order
 
 import com.loopers.domain.order.OrderModel
 import com.loopers.domain.order.OrderStatus
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
+import java.time.ZonedDateTime
 
 /**
  * 단건 조회 메서드를 여기 두지 않는다. (Ruling T5-1)
@@ -36,4 +38,18 @@ interface OrderJpaRepository : JpaRepository<OrderModel, Long> {
         @Param("expected") expected: Collection<OrderStatus>,
         @Param("next") next: OrderStatus,
     ): Int
+
+    /** 만료 대상 ID. createdAt 경계는 포함(<=)이다. limit 은 Pageable 로 번역해 받는다. */
+    @Query(
+        """
+        SELECT o.id FROM OrderModel o
+         WHERE o.status IN :statuses AND o.createdAt <= :createdBefore AND o.deletedAt IS NULL
+         ORDER BY o.id
+        """,
+    )
+    fun findExpirationTargetIds(
+        @Param("statuses") statuses: Collection<OrderStatus>,
+        @Param("createdBefore") createdBefore: ZonedDateTime,
+        pageable: Pageable,
+    ): List<Long>
 }

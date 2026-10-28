@@ -4,6 +4,7 @@ import com.loopers.domain.product.Price
 import com.loopers.domain.support.PageResult
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
+import java.time.ZonedDateTime
 
 /**
  * 주문 애그리거트의 유스케이스.
@@ -58,7 +59,7 @@ class OrderService(
     @Transactional
     fun startPayment(orderId: Long): Boolean = orderRepository.changeStatus(
         orderId = orderId,
-        expected = setOf(OrderStatus.PAYMENT_PENDING, OrderStatus.PAYMENT_FAILED),
+        expected = CANCELABLE,
         next = OrderStatus.PAYING,
     )
 
@@ -71,4 +72,25 @@ class OrderService(
     @Transactional
     fun failPayment(orderId: Long): Boolean =
         orderRepository.changeStatus(orderId, setOf(OrderStatus.PAYING), OrderStatus.PAYMENT_FAILED)
+
+    /**
+     * 결제가 시작되기 전인 주문만 취소한다. false 면 결제가 시작됐거나 이미 취소됐다. 호출자는 재고 · 쿠폰을 되돌리지 않는다.
+     */
+    @Transactional
+    fun cancel(orderId: Long): Boolean = orderRepository.changeStatus(orderId, CANCELABLE, OrderStatus.CANCELED)
+
+    /**
+     * 만료 대상 주문 ID 를 id 오름차순으로 limit 건 돌려준다. 대상 상태는 [cancel] 이 취소할 수 있는 상태와 같다.
+     */
+    @Transactional(readOnly = true)
+    fun findExpirationTargets(createdBefore: ZonedDateTime, limit: Int): List<Long> =
+        orderRepository.findExpirationTargets(CANCELABLE, createdBefore, limit)
+
+    private companion object {
+        /**
+         * 취소할 수 있는 상태 = 만료 대상 상태. 둘이 어긋나면 고르고도 취소하지 못하는 주문이 매 주기 다시 뽑힌다.
+         * 결제 시작이 가능한 상태이기도 하다.
+         */
+        val CANCELABLE = setOf(OrderStatus.PAYMENT_PENDING, OrderStatus.PAYMENT_FAILED)
+    }
 }

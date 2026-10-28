@@ -5,7 +5,9 @@ import com.loopers.domain.order.OrderModel
 import com.loopers.domain.order.OrderRepository
 import com.loopers.domain.order.OrderStatus
 import com.loopers.domain.support.PageResult
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Component
+import java.time.ZonedDateTime
 
 @Component
 class OrderRepositoryImpl(
@@ -31,4 +33,7 @@ class OrderRepositoryImpl(
     override fun changeStatus(orderId: Long, expected: Set<OrderStatus>, next: OrderStatus): Boolean {
         return orderJpaRepository.changeStatus(orderId = orderId, expected = expected, next = next) > 0
     }
+
+    override fun findExpirationTargets(statuses: Set<OrderStatus>, createdBefore: ZonedDateTime, limit: Int): List<Long> =
+        orderJpaRepository.findExpirationTargetIds(statuses, createdBefore, PageRequest.of(0, limit))
 }

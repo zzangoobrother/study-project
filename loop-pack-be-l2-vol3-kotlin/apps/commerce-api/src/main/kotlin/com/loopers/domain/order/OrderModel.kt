@@ -37,7 +37,10 @@ import jakarta.persistence.Table
 @Entity
 @Table(
     name = "orders",
-    indexes = [Index(name = "idx_orders_user_id_created_at", columnList = "user_id, created_at")],
+    indexes = [
+        Index(name = "idx_orders_user_id_created_at", columnList = "user_id, created_at"),
+        Index(name = "idx_orders_status_created_at", columnList = "status, created_at"),
+    ],
 )
 class OrderModel private constructor(
     userId: Long,
@@ -93,6 +96,7 @@ class OrderModel private constructor(
      *
      * 주의 — dev·qa·prd 는 ddl-auto 가 none 이므로 이 컬럼을 스키마에 직접 추가해야 한다(설계 3.2 장의 ALTER TABLE).
      * 기존 행을 DEFAULT 'PAYMENT_PENDING' 으로 채우지 않으면 빈 문자열이 EnumType.STRING 매핑에서 실패해 주문 조회가 500 이 된다.
+     * 만료 대상 조회용 인덱스도 운영에는 직접 만든다: `CREATE INDEX idx_orders_status_created_at ON orders (status, created_at);`
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
