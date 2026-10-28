@@ -394,6 +394,9 @@ class OrderServiceIntegrationTest @Autowired constructor(
     @DisplayName("주문을 만료 대상으로 고를 때, ")
     @Nested
     inner class FindExpirationTargets {
+        /** 기준 시각은 저장 후 다시 읽은 값이다. 메모리 값은 나노초 정밀도라 DB(마이크로초) 값과 어긋날 수 있다. */
+        private fun storedCreatedAt(orderId: Long) = orderService.getOrder(orderId)!!.createdAt
+
         @DisplayName("결제 대기 · 결제 실패 주문만 id 오름차순으로 고른다.")
         @Test
         fun returnsOnlyPendingAndFailed_createdAtOrBeforeCutoff() {
@@ -411,7 +414,7 @@ class OrderServiceIntegrationTest @Autowired constructor(
             val last = place(items = arrayOf(item())).also { orderService.cancel(it.id) }
 
             // act
-            val result = orderService.findExpirationTargets(createdBefore = last.createdAt, limit = 100)
+            val result = orderService.findExpirationTargets(createdBefore = storedCreatedAt(last.id), limit = 100)
 
             // assert
             assertThat(result).containsExactly(pending.id, failed.id)
@@ -424,7 +427,7 @@ class OrderServiceIntegrationTest @Autowired constructor(
             val order = place(items = arrayOf(item()))
 
             // act
-            val result = orderService.findExpirationTargets(createdBefore = order.createdAt, limit = 100)
+            val result = orderService.findExpirationTargets(createdBefore = storedCreatedAt(order.id), limit = 100)
 
             // assert
             assertThat(result).containsExactly(order.id)
@@ -437,7 +440,7 @@ class OrderServiceIntegrationTest @Autowired constructor(
             val order = place(items = arrayOf(item()))
 
             // act
-            val result = orderService.findExpirationTargets(createdBefore = order.createdAt.minusSeconds(1), limit = 100)
+            val result = orderService.findExpirationTargets(createdBefore = storedCreatedAt(order.id).minusSeconds(1), limit = 100)
 
             // assert
             assertThat(result).isEmpty()
@@ -448,11 +451,12 @@ class OrderServiceIntegrationTest @Autowired constructor(
         fun excludesSoftDeletedOrder() {
             // arrange
             val order = place(items = arrayOf(item()))
+            val cutoff = storedCreatedAt(order.id)
             order.delete()
             orderRepository.save(order)
 
             // act
-            val result = orderService.findExpirationTargets(createdBefore = order.createdAt, limit = 100)
+            val result = orderService.findExpirationTargets(createdBefore = cutoff, limit = 100)
 
             // assert
             assertThat(result).isEmpty()
@@ -465,7 +469,7 @@ class OrderServiceIntegrationTest @Autowired constructor(
             val orders = (1..3).map { place(items = arrayOf(item())) }
 
             // act
-            val result = orderService.findExpirationTargets(createdBefore = orders.last().createdAt, limit = 2)
+            val result = orderService.findExpirationTargets(createdBefore = storedCreatedAt(orders.last().id), limit = 2)
 
             // assert
             assertThat(result).containsExactly(orders[0].id, orders[1].id)
