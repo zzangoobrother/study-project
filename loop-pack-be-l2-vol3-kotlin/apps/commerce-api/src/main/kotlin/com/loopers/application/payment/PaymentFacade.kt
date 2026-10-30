@@ -38,6 +38,11 @@ import java.time.ZonedDateTime
  *
  * 최종 결과는 콜백과 스케줄러가 같은 sync 로 확정한다. 콜백 본문의 status 를 믿지 않는다 — 콜백은 인증이 없어
  * 누구든 SUCCESS 를 보내 결제 없이 주문을 PAID 로 만들 수 있다. 콜백은 "지금 PG 에 물어보라" 는 신호일 뿐이다. (설계 5.1 장)
+ *
+ * 사람이 PG 를 확인해야 하는 사건은 ManualReviewRecorder 로 센다. 결제를 FAILED 로 닫을 때 세고 발견할 때 세지 않는다 —
+ * 발견 시점의 로그는 1 분이 지나기 전까지 동기화 주기마다 반복돼 한 결제가 여러 번 세진다. 이유는 호출 자리로 정한다.
+ * 같은 사유 문자열(REASON_AMBIGUOUS)로 닫아도 모호한 거래와 키 소유 충돌이 다른 사건이라 문자열로 가르면 섞인다.
+ * (2026-10-30 결제 경보 설계 2 장)
  */
 @Component
 class PaymentFacade(
@@ -46,6 +51,7 @@ class PaymentFacade(
     private val paymentService: PaymentService,
     private val paymentGateway: PaymentGateway,
     private val transactionTemplate: TransactionTemplate,
+    private val manualReviewRecorder: ManualReviewRecorder,
 ) {
     companion object {
         private const val REASON_NOT_SENT = "결제 시스템이 불안정합니다. 잠시 후 다시 시도해주세요."
@@ -180,6 +186,8 @@ class PaymentFacade(
         if (unlinked == null) {
             // 1 분 뒤 FAILED 로 확정한 요청이 뒤늦게 승인된 고아 거래일 수 있다. 사람이 PG 를 조회해 확인한다. (설계 9.1 장)
             log.error("[transactionKey = {}, orderId = {}] 콜백과 이어지는 결제가 없습니다.", transactionKey, pgOrderId)
+            // 바꾸는 상태가 없어 트랜잭션이 없으므로 기록기가 즉시 센다. (2026-10-30 결제 경보 설계 2 · 3 장)
+            manualReviewRecorder.record(ManualReviewReason.UNLINKED_CALLBACK)
             return
         }
         // 생성 후 6 s 안이면 sync 가 아무것도 하지 않는다. 이 콜백은 놓치고 스케줄러가 30 s 뒤에 확정한다. (설계 5.2 장)
@@ -211,11 +219,11 @@ class PaymentFacade(
         val transactionKey = payment.transactionKey ?: when (val found = findUnlinkedTransaction(payment)) {
             is Unlinked.Found -> found.transactionKey
             Unlinked.None -> {
-                giveUpIfExpired(payment.id, payment.createdAt, now, REASON_NOT_REACHED)
+                giveUpIfExpired(payment.id, payment.createdAt, now, REASON_NOT_REACHED, reviewReason = null)
                 return
             }
             Unlinked.Ambiguous -> {
-                giveUpIfExpired(payment.id, payment.createdAt, now, REASON_AMBIGUOUS)
+                giveUpIfExpired(payment.id, payment.createdAt, now, REASON_AMBIGUOUS, ManualReviewReason.AMBIGUOUS_TRANSACTION)
                 return
             }
             Unlinked.Unavailable -> return
@@ -294,7 +302,17 @@ class PaymentFacade(
             PgQueryResult.Unavailable -> Unlinked.Unavailable
         }
 
-    private fun giveUpIfExpired(paymentId: Long, createdAt: ZonedDateTime, now: ZonedDateTime, reason: String) {
+    /**
+     * @param reviewReason 실제로 포기(fail)했을 때만 기록할 이유. REASON_NOT_REACHED 는 null — 세지 않는다.
+     *   뒤늦게 승인되면 콜백이 unlinked_callback 으로 센다. (2026-10-30 결제 경보 설계 2 장)
+     */
+    private fun giveUpIfExpired(
+        paymentId: Long,
+        createdAt: ZonedDateTime,
+        now: ZonedDateTime,
+        reason: String,
+        reviewReason: ManualReviewReason?,
+    ) {
         if (createdAt.isAfter(now.minus(GIVE_UP_AFTER))) return
         inTransaction(paymentId) {
             val payment = paymentService.getPayment(paymentId)!!
@@ -303,6 +321,11 @@ class PaymentFacade(
             if (payment.status != PaymentStatus.REQUESTED) return@inTransaction
             payment.fail(reason)
             orderService.failPayment(payment.orderId)
+            reviewReason?.let {
+                // 경보 description 이 운영자를 ERROR 로그로 보낸다. 다른 이유는 각자 자리에서 남기지만 이 닫는 시각에는 로그가 없어 더한다.
+                log.error("[paymentId = {}] 거래를 특정할 수 없어 실패로 닫았습니다. 사람이 PG 를 확인해야 합니다.", paymentId)
+                manualReviewRecorder.record(it)
+            }
         }
     }
 
@@ -334,6 +357,7 @@ class PaymentFacade(
             )
             payment.fail(REASON_ORDER_MISMATCH)
             orderService.failPayment(payment.orderId)
+            manualReviewRecorder.record(ManualReviewReason.ORDER_MISMATCH)
             return
         }
 
@@ -351,6 +375,7 @@ class PaymentFacade(
             )
             payment.fail(REASON_AMOUNT_MISMATCH)
             orderService.failPayment(payment.orderId)
+            manualReviewRecorder.record(ManualReviewReason.AMOUNT_MISMATCH)
             return
         }
         when (transaction.status) {
@@ -383,8 +408,12 @@ class PaymentFacade(
             owner.id,
             transactionKey,
         )
+        // fail 은 이미 최종 상태면 아무것도 바꾸지 않는다. tx2 경로는 isFinal 확인 없이 불리므로 바뀐 것이 있을 때만 센다.
+        // (2026-10-30 결제 경보 설계 2 장)
+        val wasFinal = payment.status.isFinal
         payment.fail(REASON_AMBIGUOUS)
         orderService.failPayment(payment.orderId)
+        if (!wasFinal) manualReviewRecorder.record(ManualReviewReason.KEY_OWNER_CONFLICT)
         return true
     }
 

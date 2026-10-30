@@ -24,6 +24,7 @@ import com.loopers.domain.user.UserService
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
 import com.loopers.utils.DatabaseCleanUp
+import io.micrometer.core.instrument.MeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
@@ -47,6 +48,7 @@ class PaymentFacadeIntegrationTest @Autowired constructor(
     private val orderService: OrderService,
     private val userService: UserService,
     private val databaseCleanUp: DatabaseCleanUp,
+    private val meterRegistry: MeterRegistry,
 ) {
     @MockitoBean
     lateinit var paymentGateway: PaymentGateway
@@ -55,6 +57,17 @@ class PaymentFacadeIntegrationTest @Autowired constructor(
         private const val LOGIN_ID = "loopers01"
         private const val KEY = "20251013:TR:abc123"
     }
+
+    // find 로 읽는다 — counter() 는 없으면 만들어 미등록을 가린다. 컨텍스트가 공유되므로 증가분으로 단언한다.
+    private fun count(reason: ManualReviewReason): Double =
+        meterRegistry.find("payment.manual.review").tag("reason", reason.tag).counter()?.count()
+            ?: error("카운터가 등록되지 않았습니다: ${reason.tag}")
+
+    private fun snapshot(): Map<ManualReviewReason, Double> = ManualReviewReason.entries.associateWith { count(it) }
+
+    /** 이유별 증가분. 늘지 않은 이유는 0.0 이다. */
+    private fun deltaSince(before: Map<ManualReviewReason, Double>): Map<ManualReviewReason, Double> =
+        ManualReviewReason.entries.associateWith { count(it) - before.getValue(it) }
 
     @AfterEach
     fun tearDown() {
@@ -132,6 +145,7 @@ class PaymentFacadeIntegrationTest @Autowired constructor(
             val second = placeOrder(userId)
             whenever(paymentGateway.request(any())).thenReturn(PgRequestResult.Accepted(KEY))
             val firstInfo = paymentFacade.request(command(first.id))
+            val before = snapshot()
 
             // act
             val info = paymentFacade.request(command(second.id))
@@ -144,6 +158,8 @@ class PaymentFacadeIntegrationTest @Autowired constructor(
                 { assertThat(orderStatusOf(second.id)).isEqualTo(OrderStatus.PAYMENT_FAILED) },
                 { assertThat(paymentService.getPayment(firstInfo.paymentId)!!.transactionKey).isEqualTo(KEY) },
                 { assertThat(orderStatusOf(first.id)).isEqualTo(OrderStatus.PAYING) },
+                { assertThat(deltaSince(before)).containsEntry(ManualReviewReason.KEY_OWNER_CONFLICT, 1.0) },
+                { assertThat(deltaSince(before).filterKeys { it != ManualReviewReason.KEY_OWNER_CONFLICT }.values).containsOnly(0.0) },
             )
         }
 
