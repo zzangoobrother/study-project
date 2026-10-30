@@ -321,7 +321,11 @@ class PaymentFacade(
             if (payment.status != PaymentStatus.REQUESTED) return@inTransaction
             payment.fail(reason)
             orderService.failPayment(payment.orderId)
-            reviewReason?.let { manualReviewRecorder.record(it) }
+            reviewReason?.let {
+                // 경보 description 이 운영자를 ERROR 로그로 보낸다. 다른 이유는 각자 자리에서 남기지만 이 닫는 시각에는 로그가 없어 더한다.
+                log.error("[paymentId = {}] 거래를 특정할 수 없어 실패로 닫았습니다. 사람이 PG 를 확인해야 합니다.", paymentId)
+                manualReviewRecorder.record(it)
+            }
         }
     }
 

@@ -700,6 +700,7 @@ class PaymentSyncIntegrationTest @Autowired constructor(
         @DisplayName("어떤 결제와도 이어지지 않으면, 예외 없이 무시한다.")
         @Test
         fun ignores_whenNothingMatches() {
+            // arrange
             val before = snapshot()
 
             // act
@@ -767,6 +768,26 @@ class PaymentSyncIntegrationTest @Autowired constructor(
 
             // assert
             assertOnly(before, ManualReviewReason.AMOUNT_MISMATCH)
+        }
+
+        @DisplayName("1 분 뒤 포기한 결제의 주문으로 모르는 거래의 콜백이 오면, 고아 거래로 한 번만 센다.")
+        @Test
+        fun countsUnlinkedCallback_forOrphanTransactionOfClosedPayment() {
+            // arrange
+            val order = placeOrder()
+            val info = pay(order.id, PgRequestResult.Unknown)
+            stubByOrder(PgQueryResult.NotFound)
+            paymentFacade.sync(info.paymentId, now = paymentOf(info).createdAt.plusMinutes(2))
+            val before = snapshot()
+
+            // act
+            paymentFacade.handleCallback(transactionKey = "20251013:TR:orphan", pgOrderId = "%06d".format(order.id))
+
+            // assert
+            assertAll(
+                { assertThat(paymentOf(info).status).isEqualTo(PaymentStatus.FAILED) },
+                { assertOnly(before, ManualReviewReason.UNLINKED_CALLBACK) },
+            )
         }
 
         @DisplayName("정상 확정 · 1 분 뒤 포기 · 키로 찾은 콜백이면, 어떤 이유도 세지 않는다.")
