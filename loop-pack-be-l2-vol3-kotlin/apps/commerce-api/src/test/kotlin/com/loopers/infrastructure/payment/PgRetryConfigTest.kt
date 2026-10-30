@@ -55,7 +55,7 @@ class PgRetryConfigTest @Autowired constructor(
             assertThat(first.min()).isLessThan(first.max())
         }
 
-        @DisplayName("범위가 ±25% 에 맞는다. (50% 였다면 나올 값이 나오지 않는다)")
+        @DisplayName("범위가 ±25% 폭 전체에 퍼진다. (폭이 더 좁으면 양 끝 가까운 값이 나오지 않는다)")
         @Test
         fun spreadsAcrossWholeRangeOfQuarter() {
             // act
