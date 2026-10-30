@@ -603,6 +603,8 @@ REQUESTED 를 1 분 뒤 FAILED 로 확정했는데 그 요청이 뒤늦게 PG �
 이 주문도 생성 30 분 뒤 CANCELED 가 되고 재고가 돌아간다(2026-10-28 주문 만료 설계 6 장). 돈은 나갔는데 상품은 다시 팔리므로,
 사람이 처리할 때는 "주문을 되살려 배송" 이 아니라 "환불" 로 가야 한다.
 
+사람에게 닿는 길: `payment_manual_review_total{reason}` 경보(2026-10-30). 이 장은 `unlinked_callback` 이다.
+
 ### 9.2 결제되지 않은 주문이 재고를 계속 쥔다
 
 **해소됨 — [2026-10-28 주문 만료 설계](2026-10-28-order-expiration-design.md).** 생성 후 30 분이 지나도록 PAYMENT_PENDING · PAYMENT_FAILED 인 주문은
@@ -640,6 +642,8 @@ PG 가 돌아와 동기화가 PAYMENT_FAILED 로 닫으면 다음 만료 주기�
 
 모르는 키가 하나인데 사실은 고아 거래이고 이번 요청은 PG 에 닿지 않았다면, 그 키를 이번 결제에 연결한다.
 같은 주문 · 같은 금액의 거래라 주문 상태는 PG 의 실제 결과와 맞지만, 결제 건에 저장된 카드 정보는 실제 거래와 다를 수 있다. (2026-10-16 검토)
+
+사람에게 닿는 길: `payment_manual_review_total{reason}` 경보(2026-10-30). 이 장의 네 경우는 `ambiguous_transaction` · `amount_mismatch` · `order_mismatch` · `key_owner_conflict` 다.
 
 ### 9.6 확정이 늦어지는 결제
 

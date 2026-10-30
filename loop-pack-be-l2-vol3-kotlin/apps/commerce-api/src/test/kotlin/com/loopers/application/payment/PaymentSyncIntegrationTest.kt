@@ -27,6 +27,7 @@ import com.loopers.domain.user.UserService
 import com.loopers.support.error.CoreException
 import com.loopers.support.error.ErrorType
 import com.loopers.utils.DatabaseCleanUp
+import io.micrometer.core.instrument.MeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
@@ -58,6 +59,7 @@ class PaymentSyncIntegrationTest @Autowired constructor(
     private val orderService: OrderService,
     private val userService: UserService,
     private val databaseCleanUp: DatabaseCleanUp,
+    private val meterRegistry: MeterRegistry,
 ) {
     @MockitoBean
     lateinit var paymentGateway: PaymentGateway
@@ -71,6 +73,23 @@ class PaymentSyncIntegrationTest @Autowired constructor(
 
     /** REQUESTED 결제는 생성 후 6 s 동안 PG 를 조회하지 않는다(설계 5.2 장). 그 유예를 넘긴 "지금" 이다. */
     private fun afterInFlight(): ZonedDateTime = ZonedDateTime.now().plusSeconds(10)
+
+    // find 로 읽는다 — counter() 는 없으면 만들어 미등록을 가린다. 컨텍스트가 공유되므로 증가분으로 단언한다.
+    private fun count(reason: ManualReviewReason): Double =
+        meterRegistry.find("payment.manual.review").tag("reason", reason.tag).counter()?.count()
+            ?: error("카운터가 등록되지 않았습니다: ${reason.tag}")
+
+    private fun snapshot(): Map<ManualReviewReason, Double> = ManualReviewReason.entries.associateWith { count(it) }
+
+    /** 이유별 증가분. 늘지 않은 이유는 0.0 이다. */
+    private fun deltaSince(before: Map<ManualReviewReason, Double>): Map<ManualReviewReason, Double> =
+        ManualReviewReason.entries.associateWith { count(it) - before.getValue(it) }
+
+    /** 지정한 이유만 expected 만큼 늘고 나머지는 그대로인지 본다. */
+    private fun assertOnly(before: Map<ManualReviewReason, Double>, reason: ManualReviewReason?, expected: Double = 1.0) {
+        val delta = deltaSince(before)
+        assertThat(delta).isEqualTo(ManualReviewReason.entries.associateWith { if (it == reason) expected else 0.0 })
+    }
 
     @AfterEach
     fun tearDown() {
@@ -228,6 +247,8 @@ class PaymentSyncIntegrationTest @Autowired constructor(
             val info = pay(order.id, PgRequestResult.Accepted(KEY))
             stubDetail(PgQueryResult.Found(tx(status = PgTransactionStatus.SUCCESS, amount = 1L)))
 
+            val before = snapshot()
+
             // act
             paymentFacade.sync(info.paymentId)
 
@@ -237,6 +258,7 @@ class PaymentSyncIntegrationTest @Autowired constructor(
                 { assertThat(paymentOf(info).failureReason).isEqualTo("PG 결제 금액이 주문 금액과 다릅니다.") },
                 { assertThat(paymentOf(info).transactionKey).isEqualTo(KEY) },
                 { assertThat(orderStatusOf(order.id)).isEqualTo(OrderStatus.PAYMENT_FAILED) },
+                { assertOnly(before, ManualReviewReason.AMOUNT_MISMATCH) },
             )
         }
 
@@ -252,6 +274,8 @@ class PaymentSyncIntegrationTest @Autowired constructor(
             val info = pay(order.id, PgRequestResult.Accepted(KEY))
             stubDetail(PgQueryResult.Found(tx(status = PgTransactionStatus.SUCCESS, orderId = order.id + 1)))
 
+            val before = snapshot()
+
             // act
             paymentFacade.sync(info.paymentId)
 
@@ -261,6 +285,7 @@ class PaymentSyncIntegrationTest @Autowired constructor(
                 { assertThat(paymentOf(info).failureReason).isEqualTo("PG 거래의 주문이 결제 주문과 다릅니다.") },
                 { assertThat(paymentOf(info).transactionKey).isEqualTo(KEY) },
                 { assertThat(orderStatusOf(order.id)).isEqualTo(OrderStatus.PAYMENT_FAILED) },
+                { assertOnly(before, ManualReviewReason.ORDER_MISMATCH) },
             )
         }
 
@@ -490,6 +515,8 @@ class PaymentSyncIntegrationTest @Autowired constructor(
             stubByOrder(PgQueryResult.Found(listOf(tx(status = PgTransactionStatus.PENDING, amount = null))))
             stubDetail(PgQueryResult.Found(tx(status = PgTransactionStatus.SUCCESS, orderId = otherOrder.id)))
 
+            val before = snapshot()
+
             // act
             paymentFacade.sync(info.paymentId, now = afterInFlight())
 
@@ -502,6 +529,7 @@ class PaymentSyncIntegrationTest @Autowired constructor(
                 { assertThat(paymentOf(owner).status).isEqualTo(PaymentStatus.PENDING) },
                 { assertThat(paymentOf(owner).transactionKey).isEqualTo(KEY) },
                 { assertThat(orderStatusOf(order.id)).isEqualTo(OrderStatus.PAYING) },
+                { assertOnly(before, ManualReviewReason.KEY_OWNER_CONFLICT) },
             )
         }
 
@@ -672,11 +700,123 @@ class PaymentSyncIntegrationTest @Autowired constructor(
         @DisplayName("어떤 결제와도 이어지지 않으면, 예외 없이 무시한다.")
         @Test
         fun ignores_whenNothingMatches() {
+            val before = snapshot()
+
             // act
             paymentFacade.handleCallback(transactionKey = "20251013:TR:nobody", pgOrderId = "not-a-number")
 
             // assert
-            verify(paymentGateway, never()).findTransaction(any(), any())
+            assertAll(
+                { verify(paymentGateway, never()).findTransaction(any(), any()) },
+                { assertOnly(before, ManualReviewReason.UNLINKED_CALLBACK) },
+            )
+        }
+    }
+
+    /**
+     * 사람이 PG 를 확인해야 하는 결제를 닫을 때 센다(발견할 때가 아니라). (2026-10-30 결제 경보 설계 2 장)
+     * 컨텍스트가 공유되므로 값이 아니라 증가분으로 단언한다.
+     */
+    @DisplayName("수동 확인 경보는, ")
+    @Nested
+    inner class ManualReviewAlert {
+        private fun ambiguousList() = PgQueryResult.Found(
+            listOf(
+                tx(key = OLD_KEY, status = PgTransactionStatus.SUCCESS, amount = null),
+                tx(key = KEY, status = PgTransactionStatus.SUCCESS, amount = null),
+            ),
+        )
+
+        @DisplayName("모르는 거래가 둘 이상이면 1 분 뒤 닫을 때 한 번만 세고, 그 전 · 그 뒤 동기화는 세지 않는다.")
+        @Test
+        fun countsAmbiguousOnlyWhenClosed() {
+            // arrange
+            val order = placeOrder()
+            val info = pay(order.id, PgRequestResult.Unknown)
+            stubByOrder(ambiguousList())
+            val createdAt = paymentOf(info).createdAt
+            val before = snapshot()
+
+            // act
+            repeat(3) { paymentFacade.sync(info.paymentId, now = createdAt.plusSeconds(30)) }
+            val beforeClose = deltaSince(before)
+            paymentFacade.sync(info.paymentId, now = createdAt.plusMinutes(1).plusSeconds(1))
+            val afterClose = deltaSince(before)
+            repeat(2) { paymentFacade.sync(info.paymentId, now = createdAt.plusMinutes(2)) }
+
+            // assert
+            assertAll(
+                { assertThat(beforeClose.values).containsOnly(0.0) },
+                { assertThat(afterClose[ManualReviewReason.AMBIGUOUS_TRANSACTION]).isEqualTo(1.0) },
+                { assertThat(afterClose[ManualReviewReason.KEY_OWNER_CONFLICT]).isEqualTo(0.0) },
+                { assertOnly(before, ManualReviewReason.AMBIGUOUS_TRANSACTION) },
+            )
+        }
+
+        @DisplayName("불일치로 닫은 결제를 다시 동기화해도, 다시 세지 않는다.")
+        @Test
+        fun doesNotRecount_whenSyncedAgain() {
+            // arrange
+            val order = placeOrder()
+            val info = pay(order.id, PgRequestResult.Accepted(KEY))
+            stubDetail(PgQueryResult.Found(tx(status = PgTransactionStatus.SUCCESS, amount = 1L)))
+            val before = snapshot()
+
+            // act
+            repeat(3) { paymentFacade.sync(info.paymentId) }
+
+            // assert
+            assertOnly(before, ManualReviewReason.AMOUNT_MISMATCH)
+        }
+
+        @DisplayName("정상 확정 · 1 분 뒤 포기 · 키로 찾은 콜백이면, 어떤 이유도 세지 않는다.")
+        @Test
+        fun doesNotCount_forNormalOutcomes() {
+            // arrange
+            val before = snapshot()
+            val success = pay(placeOrder().id, PgRequestResult.Accepted(KEY))
+            stubDetail(PgQueryResult.Found(tx(status = PgTransactionStatus.SUCCESS)))
+            val failedOrder = orderService.place(
+                userId = userService.getUser(LoginId(LOGIN_ID))!!.id,
+                items = listOf(
+                    OrderItemModel.create(productId = 2L, productName = ProductName("슬리퍼"), unitPrice = Price(AMOUNT), quantity = Quantity(1)),
+                ),
+            )
+            val pgFailed = pay(failedOrder.id, PgRequestResult.Accepted(OLD_KEY))
+            val notReachedOrder = orderService.place(
+                userId = userService.getUser(LoginId(LOGIN_ID))!!.id,
+                items = listOf(
+                    OrderItemModel.create(productId = 3L, productName = ProductName("샌들"), unitPrice = Price(AMOUNT), quantity = Quantity(1)),
+                ),
+            )
+            val notReached = pay(notReachedOrder.id, PgRequestResult.Unknown)
+            val callbackOrder = orderService.place(
+                userId = userService.getUser(LoginId(LOGIN_ID))!!.id,
+                items = listOf(
+                    OrderItemModel.create(productId = 4L, productName = ProductName("부츠"), unitPrice = Price(AMOUNT), quantity = Quantity(1)),
+                ),
+            )
+            val callback = pay(callbackOrder.id, PgRequestResult.Accepted("20251013:TR:cb0001"))
+
+            // act
+            paymentFacade.sync(success.paymentId)
+            whenever(paymentGateway.findTransaction(any(), eq(OLD_KEY)))
+                .thenReturn(PgQueryResult.Found(tx(key = OLD_KEY, status = PgTransactionStatus.FAILED, reason = "한도초과")))
+            paymentFacade.sync(pgFailed.paymentId)
+            stubByOrder(PgQueryResult.NotFound)
+            paymentFacade.sync(notReached.paymentId, now = ZonedDateTime.now().plusMinutes(2))
+            whenever(paymentGateway.findTransaction(any(), eq("20251013:TR:cb0001")))
+                .thenReturn(PgQueryResult.Found(tx(key = "20251013:TR:cb0001", status = PgTransactionStatus.SUCCESS)))
+            paymentFacade.handleCallback("20251013:TR:cb0001", "%06d".format(callbackOrder.id))
+
+            // assert
+            assertAll(
+                { assertThat(paymentOf(success).status).isEqualTo(PaymentStatus.SUCCESS) },
+                { assertThat(paymentOf(pgFailed).status).isEqualTo(PaymentStatus.FAILED) },
+                { assertThat(paymentOf(notReached).status).isEqualTo(PaymentStatus.FAILED) },
+                { assertThat(paymentOf(callback).status).isEqualTo(PaymentStatus.SUCCESS) },
+                { assertOnly(before, null) },
+            )
         }
     }
 

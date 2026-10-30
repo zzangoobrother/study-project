@@ -1,0 +1,10 @@
+groups:
+  - name: payment
+    rules:
+      - alert: PaymentManualReviewNeeded
+        expr: increase(payment_manual_review_total[5m]) > 0
+        labels:
+          severity: page
+        annotations:
+          summary: "사람이 PG 를 확인해야 하는 결제가 생겼습니다 ({{ $labels.reason }})"
+          description: "commerce-api ERROR 로그에서 결제 ID · 거래 키를 찾아 PG 를 조회하세요. 결제 설계 9.1 · 9.5 장."
