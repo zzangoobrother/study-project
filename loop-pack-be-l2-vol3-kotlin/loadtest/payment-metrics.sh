@@ -11,7 +11,7 @@ set -uo pipefail
 OUT="${1:?출력 CSV 경로를 지정한다}"
 URL="${PROM_URL:-http://localhost:8081/actuator/prometheus}"
 
-echo "epoch_ms,request_state,query_state,request_not_permitted,hikari_active,hikari_pending,tomcat_busy" > "$OUT"
+echo "epoch_ms,request_state,query_state,request_not_permitted,hikari_active,hikari_pending,tomcat_busy,request_slow_call_rate,request_failure_rate,bulkhead_available,bulkhead_rejected" > "$OUT"
 
 while true; do
   # 경과 시간이 아니라 시각을 남긴다. k6 요약과 시각으로 맞춰 봐야 하기 때문이다.
@@ -37,7 +37,12 @@ while true; do
   HA=$(value hikaricp_connections_active 'pool="mysql-main-pool"')
   HP=$(value hikaricp_connections_pending 'pool="mysql-main-pool"')
   TB=$(value tomcat_threads_busy_threads 'name="http-nio-8080"')
+  # 2 차 측정(2026-11-01) 열. 비율은 최소 호출 수 전에는 -1 이라 집계할 때 -1 을 거른다.
+  SC=$(value resilience4j_circuitbreaker_slow_call_rate 'name="pgRequest"')
+  FR=$(value resilience4j_circuitbreaker_failure_rate 'name="pgRequest"')
+  BA=$(value resilience4j_bulkhead_available_concurrent_calls 'name="pgRequest"')
+  BR=$(value pg_bulkhead_rejected_total 'name="pgRequest"')
 
-  echo "$NOW,$RS,$QS,$NP,$HA,$HP,$TB" >> "$OUT"
+  echo "$NOW,$RS,$QS,$NP,$HA,$HP,$TB,$SC,$FR,$BA,$BR" >> "$OUT"
   sleep 1
 done
