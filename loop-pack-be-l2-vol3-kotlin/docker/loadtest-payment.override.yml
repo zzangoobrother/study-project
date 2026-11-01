@@ -39,6 +39,14 @@ services:
     environment:
       PG_BASE_URL: http://toxiproxy:18082
       SERVER_TOMCAT_MBEANREGISTRY_ENABLED: "true"   # tomcat_threads_busy_threads 지표
+      # 2 차 측정(2026-11-01)의 조건별 설정 덮어쓰기. 셸에서 APP_OVERRIDES='<JSON>' 으로 넘기고, 없거나 비면 덮어쓰지 않는다(운영 값).
+      # 환경 변수(RESILIENCE4J_BULKHEAD_INSTANCES_PGREQUEST_...)로 덮지 않는 이유: relaxed binding 이 맵 키를 소문자로 만들어
+      # 운영 인스턴스 pgRequest 가 아닌 pgrequest 라는 다른 인스턴스가 생긴다 — 에러 없이 값이 안 먹는다. JSON 은 키 대소문자를 보존한다.
+      # 값을 바꿀 때는 restart 가 아니라 재생성(up -d --force-recreate)이어야 한다. restart 는 기존 컨테이너의 환경을 그대로 써서
+      # 새 값을 읽지 않는다. (2 차 측정 설계 2.2 장)
+      # 기본값을 `{}` 로 쓰지 않는 이유: compose 는 `${VAR:-{}}` 의 기본값을 첫 `}` 에서 끊어, 값이 있을 때 JSON 뒤에 `}` 가 하나 더 붙는다
+      # (D 값이 `...}}` 가 되어 깨진다 — 2026-11-01 `config` 로 확인). 비어 있으면 Spring 이 이 변수를 무시하므로 운영 값과 같다.
+      SPRING_APPLICATION_JSON: ${APP_OVERRIDES:-}
     ports:
       - "8081:8081"   # actuator — 샘플러가 호스트에서 읽는다
       - "8082:8082"   # 네임스페이스를 공유하는 pg-simulator — P0(k6 pg-direct)가 호스트에서 localhost:8082 로 부른다
