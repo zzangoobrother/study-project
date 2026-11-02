@@ -46,7 +46,7 @@
 ### Task 1: 측정 도구 — jar · 설정 전달 · 샘플러 열 · README
 
 **Files:**
-- Modify: `docker/loadtest-payment.override.yml` — commerce-api `environment` 에 `SPRING_APPLICATION_JSON: ${APP_OVERRIDES:-{}}` 와 주석(설계 2.2 의 이유 — 환경 변수는 맵 키를 소문자로 만들어 다른 인스턴스가 생긴다, `restart` 로는 바뀌지 않는다)
+- Modify: `docker/loadtest-payment.override.yml` — commerce-api `environment` 에 `SPRING_APPLICATION_JSON: ${APP_OVERRIDES:-}` 와 주석(설계 2.2 의 이유 — 환경 변수는 맵 키를 소문자로 만들어 다른 인스턴스가 생긴다, `restart` 로는 바뀌지 않는다. 기본값을 `{}` 로 쓰지 않는다 — compose 가 `${VAR:-{}}` 의 기본값을 첫 `}` 에서 끊어 값이 있을 때 JSON 뒤에 `}` 가 하나 더 붙는다)
 - Modify: `loadtest/payment-metrics.sh` — 기존 열 뒤에 `request_slow_call_rate,request_failure_rate,bulkhead_available,bulkhead_rejected`
 - Modify: `loadtest/README.md` — "2 차 측정(2026-11-01)" 절: 조건표, `APP_OVERRIDES` 값, 재생성 순서, 측정 전 확인, LABEL 규칙
 - Add (커밋만): 설계 문서 · 이 계획서

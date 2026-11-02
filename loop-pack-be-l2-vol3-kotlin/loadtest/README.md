@@ -346,23 +346,25 @@ pg-direct 는 PG 가 commerce-api 로 콜백하므로 "콜백과 이어지는 �
 계획: [`docs/superpowers/plans/2026-11-01-payment-measurement-round2.md`](../docs/superpowers/plans/2026-11-01-payment-measurement-round2.md).
 환경 · 공통 순서("측정 한 회의 순서")는 위 1 차 절과 같다. 여기에는 달라진 것만 적는다.
 commerce-api jar 는 이번 main 으로 빌드한 `commerce-api-payment-<짧은 해시>.jar`, PG jar 는 1 차의 `pg-simulator-payment-e928e87d.jar` 그대로다.
+아래 명령의 `$COMPOSE` 는 1 차 절의 정의와 같다 — `COMPOSE="docker compose -f docker/loadtest-compose.yml -f docker/loadtest-payment.override.yml"`.
 
 **조건** (워밍업 10 s + 측정 120 s, 주문 상세 `READ_TPS=100`)
 
-| 조건 | 결제 rps | 지연(Toxiproxy) | `APP_OVERRIDES` | LABEL |
-|---|---|---|---|---|
-| R | 70 | 없음 | `{}` | `r2-r` |
-| C5 × 5 | 70 | 400 ms | `{}` | `r2-c1` ~ `r2-c5` |
-| D (Bulkhead 끔) | 150 | 900 ms | D 값 | `r2-d` |
-| E (Bulkhead 켬) | D 가 성립한 rps | 900 ms | E 값 | `r2-e` |
+| 조건 | 결제 rps | 지연(Toxiproxy) | `APP_OVERRIDES` | Tomcat 상한 | LABEL |
+|---|---|---|---|---|---|
+| R | 70 | 없음 | `{}` | 200(운영 값) | `r2-r` |
+| C5 × 5 | 70 | 400 ms | `{}` | 200(운영 값) | `r2-c1` ~ `r2-c5` |
+| D' (Bulkhead 끔) | 150 | 900 ms | D' 값 | **150** | `r2-d-t150-try<n>` (잰 것: `-try1` · `-try2`, 대표 try2) |
+| E' (Bulkhead 켬) | 150 | 900 ms | E' 값 | **150** | `r2-e-t150` |
 
-rps 를 올리면 LABEL 에 rps 를 붙인다(`r2-d200`, `r2-e200`). 1 차 LABEL 과 겹치지 않게 모두 `r2-` 로 시작한다. 결과 원본은 커밋하지 않는다.
+D · E 를 Tomcat 150 으로 재는 이유는 설계 2.0 장이다. 1 차 LABEL 과 겹치지 않게 모두 `r2-` 로 시작한다. 결과 원본은 커밋하지 않는다.
+이력: 처음 설계(Tomcat 200, rps 상향)로 잰 `r2-d150`(150 rps, 포화 미달) · `r2-d200-unsat`(200 rps, DB 풀 대기)은 성립하지 않아 판정에서 뺐다(설계 7.5 장).
 
 **`APP_OVERRIDES` 값** (compose 가 `SPRING_APPLICATION_JSON` 으로 넘긴다. 조건마다 다르므로 `.env` 에 두지 않고 셸에서 export 한다)
 
 - R · C5: `{}`
-- D: `{"resilience4j.bulkhead.instances.pgRequest.max-concurrent-calls":1000,"resilience4j.circuitbreaker.instances.pgRequest.sliding-window-size":100000,"resilience4j.circuitbreaker.instances.pgRequest.minimum-number-of-calls":100000}`
-- E: D 에서 Bulkhead 항목만 뺀 것 — `{"resilience4j.circuitbreaker.instances.pgRequest.sliding-window-size":100000,"resilience4j.circuitbreaker.instances.pgRequest.minimum-number-of-calls":100000}`
+- D': `{"resilience4j.bulkhead.instances.pgRequest.max-concurrent-calls":1000,"resilience4j.circuitbreaker.instances.pgRequest.sliding-window-size":100000,"resilience4j.circuitbreaker.instances.pgRequest.minimum-number-of-calls":100000,"server.tomcat.threads.max":150}`
+- E': D' 에서 Bulkhead 항목만 뺀 것 — `{"resilience4j.circuitbreaker.instances.pgRequest.sliding-window-size":100000,"resilience4j.circuitbreaker.instances.pgRequest.minimum-number-of-calls":100000,"server.tomcat.threads.max":150}`
 
 compose 의 기본값은 빈 문자열이다(`${APP_OVERRIDES:-}`). `${APP_OVERRIDES:-{}}` 로 쓰면 compose 가 기본값을 첫 `}` 에서 끊어
 값이 있을 때 JSON 뒤에 `}` 가 하나 더 붙어 깨진다. 안 넘겨도 운영 값이지만, 측정에서는 조건을 기록으로 남기려고 `'{}'` 를 명시해 export 한다.
@@ -371,18 +373,25 @@ compose 의 기본값은 빈 문자열이다(`${APP_OVERRIDES:-}`). `${APP_OVERR
 운영 인스턴스 `pgRequest` 가 아닌 `pgrequest` 라는 다른 인스턴스가 생기고, 에러 없이 값이 먹지 않는다.
 
 **조건이 바뀔 때는 `restart` 가 아니라 재생성이다.** `restart` 는 기존 컨테이너를 그대로 써서 새 `SPRING_APPLICATION_JSON` 을 읽지 않는다.
-모르고 `restart` 하면 D 가 E 와 같은 조건이 된다(2026-11-01 Task 1 에서 확인).
+모르고 `restart` 하면 D' 가 E' 와 같은 조건이 된다(2026-11-01 Task 1 에서 확인).
 
-    COMPOSE stop pg-simulator
-    APP_OVERRIDES='<JSON>' COMPOSE up -d --force-recreate commerce-api    # healthy 까지 기다린다
-    APP_OVERRIDES='<JSON>' COMPOSE up -d --force-recreate pg-simulator    # healthy 까지 기다린다
+    $COMPOSE stop pg-simulator
+    APP_OVERRIDES='<JSON>' $COMPOSE up -d --force-recreate commerce-api    # healthy 까지 기다린다
+    $COMPOSE up -d --force-recreate pg-simulator                           # healthy 까지 기다린다
 
-같은 조건의 반복(C5 회차 사이)은 1 차의 `stop pg-simulator` → `restart commerce-api` → `start pg-simulator` 순서로 충분하다.
+같은 조건의 반복(C5 회차 사이, D' try1 → try2)은 1 차의 `stop pg-simulator` → `restart commerce-api` → `start pg-simulator` 순서로 충분하다.
 이때 `APP_OVERRIDES` 는 컨테이너가 만들어질 때의 값이 그대로 남는다.
 
-**측정 전 확인:** `curl -s localhost:8081/actuator/prometheus | grep 'resilience4j_bulkhead_max_allowed_concurrent_calls{.*pgRequest'` 가
-조건의 값이다 — R · C5 · E 는 `50.0`, D 는 `1000.0`. 아니면 측정하지 않는다.
-서킷 설정은 지표로 보이지 않으므로 D · E 는 CSV 전 행이 `request_state=closed` 인지로 본다.
+**측정 전 확인** (아니면 측정하지 않는다):
+
+    curl -s localhost:8081/actuator/prometheus | grep 'resilience4j_bulkhead_max_allowed_concurrent_calls{.*pgRequest'
+    # R · C5 · E' 는 50.0, D' 는 1000.0
+    curl -s localhost:8081/actuator/prometheus | grep 'tomcat_threads_config_max_threads{.*name="http-nio-8080"'
+    # D' · E' 는 150.0 (R · C5 는 200.0)
+
+서킷 설정은 지표로 보이지 않으므로 D' · E' 는 측정 구간 CSV 전 행이 `request_state=closed` 인지로 본다.
 
 **샘플러 열:** 1 차 열 뒤에 `request_slow_call_rate,request_failure_rate,bulkhead_available,bulkhead_rejected` 가 붙는다.
-서킷 비율 두 열은 최소 호출 수 전에는 `-1` 이라 최댓값을 구할 때 `-1` 을 거른다. 거절 수 = `bulkhead_rejected` 마지막 값 − 첫 값.
+서킷 비율 두 열은 최소 호출 수 전에는 `-1` 이라 최댓값을 구할 때 `-1` 을 거른다.
+판정 · 성립 조건 · CSV 집계는 **측정 구간 [T0+10 s, T0+130 s)**(워밍업 뒤부터 k6 도착 종료까지)의 행만 쓴다(설계 7 장 "수치의 기준").
+거절 수 = 구간 안 마지막 행의 `bulkhead_rejected` − 구간 안 첫 행의 값. 워밍업과 도착 종료 뒤 마무리 구간의 사건은 부가 기록으로 따로 적는다.
