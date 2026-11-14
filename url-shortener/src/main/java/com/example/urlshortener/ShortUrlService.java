@@ -21,4 +21,11 @@ public class ShortUrlService {
         saved.assignShortKey(shortKey);
         return shortKey;
     }
+
+    @Transactional(readOnly = true)
+    public String getOriginalUrl(String shortKey) {
+        return repository.findByShortKey(shortKey)
+                .map(ShortUrl::getOriginalUrl)
+                .orElseThrow(() -> new ShortUrlNotFoundException(shortKey));
+    }
 }
