@@ -4,6 +4,7 @@ spring:
     username: root
     password: root
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: none
   sql:
