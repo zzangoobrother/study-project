@@ -22,7 +22,8 @@ public class ShortUrlController {
     public ShortUrlController(ShortUrlService shortUrlService,
                               @Value("${shortener.base-url}") String baseUrl) {
         this.shortUrlService = shortUrlService;
-        this.baseUrl = baseUrl;
+        // 설정값 끝의 "/" 를 제거해 shortUrl 에 "//" 가 생기지 않게 한다
+        this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     }
 
     @PostMapping("/api/urls")

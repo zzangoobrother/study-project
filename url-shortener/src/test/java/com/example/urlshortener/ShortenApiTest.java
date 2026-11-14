@@ -60,6 +60,11 @@ class ShortenApiTest extends IntegrationTestSupport {
     }
 
     @Test
+    void rejectsUrlWithoutHost() throws Exception {
+        postUrl("http:///evil.com").andExpect(status().isBadRequest());
+    }
+
+    @Test
     void rejectsTooLongUrl() throws Exception {
         String url = "https://example.com/" + "a".repeat(2049 - 20);
         assertThat(url).hasSize(2049);
