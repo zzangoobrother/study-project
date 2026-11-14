@@ -124,7 +124,7 @@ git commit -m "feat : url-shortener 모듈과 Base62 인코더를 추가한다"
   - `record ShortenRequest(@NotBlank @Size(max = 2048) @HttpUrl String url)`
   - `record ShortenResponse(String shortKey, String shortUrl)`
   - `ShortUrlController`: `POST /api/urls` → 201 + `ShortenResponse`. `shortUrl = baseUrl + "/" + shortKey` (`@Value("${shortener.base-url}")`)
-  - `IntegrationTestSupport`: `@SpringBootTest(webEnvironment = RANDOM_PORT)` + `@AutoConfigureMockMvc` + `@Testcontainers`. `@Container @ServiceConnection static MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4")`. `protected MockMvc mockMvc`
+  - `IntegrationTestSupport`: `@SpringBootTest(webEnvironment = RANDOM_PORT)` + `@AutoConfigureMockMvc` . 싱글톤 컨테이너: `@ServiceConnection static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4")` + static 블록에서 `MYSQL.start()` (직접 stop 하지 않음, Ryuk 가 정리). `protected MockMvc mockMvc`. `@Container` 는 테스트 클래스마다 컨테이너를 재시작해 포트가 바뀌지만 Spring 컨텍스트 캐시는 옛 포트를 유지하므로, 테스트 클래스가 2개 이상이면 실패한다 — Task 3 실행 중 발견
 
 `application.yml` 핵심 값: datasource `jdbc:mysql://localhost:3307/url_shortener` (root/root), `spring.jpa.hibernate.ddl-auto: none`, `spring.sql.init.mode: always`, `shortener.base-url: http://localhost:8080`.
 
@@ -200,7 +200,7 @@ git commit -m "feat : 카운터 방식 단축 URL 생성 API 를 추가한다"
 - [ ] **Step 2: 테스트 실패 확인**
 
 Run: `./gradlew :url-shortener:test --tests '*RedirectApiTest'`
-Expected: 4개 실패 (GET 매핑이 없어서 404/405가 나오거나 상태 코드가 다름)
+Expected: 302 테스트 2개 실패 (404 테스트 2개는 GET 매핑이 없어도 404 라 구현 전부터 통과)
 
 - [ ] **Step 3: `ShortUrlNotFoundException`, `getOriginalUrl`, GET 핸들러 구현**
 
