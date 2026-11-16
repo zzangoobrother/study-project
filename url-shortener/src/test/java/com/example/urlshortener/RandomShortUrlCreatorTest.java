@@ -4,6 +4,8 @@ import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
@@ -26,6 +28,9 @@ class RandomShortUrlCreatorTest extends IntegrationTestSupport {
 
     @Autowired
     ShortUrlCreator creator;
+
+    @Autowired
+    PlatformTransactionManager txManager;
 
     @MockitoBean
     RandomKeyGenerator keyGenerator;
@@ -84,6 +89,21 @@ class RandomShortUrlCreatorTest extends IntegrationTestSupport {
                 .andExpect(status().isFound())
                 .andExpect(header().string(HttpHeaders.LOCATION, "https://example.com/original"));
         // UNIQUE 위반 경로를 실제로 탔는지 확인한다 (1회 실패 + 1회 성공)
+        verify(repository, times(2)).saveAndFlush(any());
+    }
+
+    @Test
+    void raceCollisionRetriesEvenInsideOuterTransaction() {
+        repository.saveAndFlush(ShortUrl.create("https://example.com/original", "rndEEE1"));
+        clearInvocations(repository);
+        willReturn(false).given(repository).existsByShortKey("rndEEE1");
+        given(keyGenerator.generate()).willReturn("rndEEE1", "rndEEE2");
+
+        // 호출자에 바깥 트랜잭션이 있어도 UNIQUE 위반이 바깥을 rollback-only 로 만들지 않아야 한다
+        String key = new TransactionTemplate(txManager)
+                .execute(status -> creator.create("https://example.com/outer"));
+
+        assertThat(key).isEqualTo("rndEEE2");
         verify(repository, times(2)).saveAndFlush(any());
     }
 
