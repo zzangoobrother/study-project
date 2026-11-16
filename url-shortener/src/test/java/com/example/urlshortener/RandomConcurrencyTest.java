@@ -23,7 +23,10 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// 키 길이를 2로 줄여(62^2 = 3844 가지) 경쟁 조건 하에서 UNIQUE 충돌이 실제로 일어나게 만든다.
+// 키 길이를 2로 줄여(62^2 = 3844 가지) 충돌 가능성을 높인 채 동시 요청을 보낸다.
+// 실행마다 UNIQUE 위반은 0~1건 정도라 충돌 경로를 보장하지는 못한다.
+// 이 테스트가 보장하는 것은 동시 요청 하에서도 발급된 키가 겹치지 않는다는 유일성 불변식이다.
+// 경쟁 조건(UNIQUE 위반) 경로 자체는 RandomShortUrlCreatorTest 가 결정적으로 검증한다.
 // 이 부하(300건)에서 재시도 소진(503)은 정상 경로가 아니므로 0 건이어야 한다
 @TestPropertySource(properties = {"shortener.key-strategy=random", "shortener.random.key-length=2"})
 class RandomConcurrencyTest extends IntegrationTestSupport {
