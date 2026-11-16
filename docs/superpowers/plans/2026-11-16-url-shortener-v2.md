@@ -190,3 +190,43 @@ throw new ShortKeyGenerationException(...)
 - [ ] **Step 2: 실행** — Run: `./gradlew :url-shortener:test --tests '*RandomConcurrencyTest'` / Expected: 통과. 구현이 이미 있으므로 이 테스트는 특성화 테스트다. 실패하면 Task 3 구현의 결함이므로 리포트에 적고 고친다
 - [ ] **Step 3: 전체 테스트 3회 반복 실행으로 불안정 여부 확인** — Run: `./gradlew :url-shortener:test --rerun-tasks` ×3 / Expected: 3회 모두 BUILD SUCCESSFUL
 - [ ] **Step 4: 커밋** — `test : 짧은 키로 동시 요청을 보내 키가 겹치지 않는지 검증한다`
+
+---
+
+### Task 5: `short_key` 대소문자 구분 + random 시도의 `REQUIRES_NEW` 명시 *(구현 중 추가, 사용자 승인)*
+
+스펙의 "구현 중 변경" 절 참고. 이 태스크는 Global Constraints 의 "스키마는 바꾸지 않는다"보다 우선한다 (`short_key` 컬럼 한정).
+
+**Files:**
+- Modify: `url-shortener/src/main/resources/schema.sql`, `url-shortener/src/main/java/com/example/urlshortener/RandomShortUrlCreator.java`
+- Test: `url-shortener/src/test/java/com/example/urlshortener/ShortKeyCaseSensitivityTest.java`
+- Test: `url-shortener/src/test/java/com/example/urlshortener/RandomShortUrlCreatorTest.java` (테스트 1개 추가)
+
+**Interfaces:**
+- `schema.sql`: `short_key VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NULL` (나머지 DDL 그대로)
+- `RandomShortUrlCreator`: 생성자에 `PlatformTransactionManager` 를 추가로 받아 `TransactionTemplate`(propagation `REQUIRES_NEW`)을 만든다. 시도 1회의 INSERT(`saveAndFlush`)를 그 템플릿 안에서 실행하고, `DataIntegrityViolationException` 은 템플릿 **바깥**에서 잡는다. `create` 에는 여전히 `@Transactional` 을 붙이지 않는다. 주석은 새 구조에 맞게 고친다
+
+- [ ] **Step 1: 실패하는 테스트 작성**
+
+`ShortKeyCaseSensitivityTest extends IntegrationTestSupport` (`@Autowired ShortUrlRepository`):
+```java
+@Test void keysDifferingOnlyInCaseAreDistinct()
+    // saveAndFlush(ShortUrl.create("https://example.com/lower", "csAb")) 후
+    // saveAndFlush(ShortUrl.create("https://example.com/upper", "csaB")) 가 예외 없이 성공
+    // GET /csAb → Location "https://example.com/lower", GET /csaB → Location "https://example.com/upper"
+    // existsByShortKey("CSAB") == false
+@Test void counterSurvivesCaseCollidingIds()   // @Nested 또는 별도 클래스, key-strategy=counter
+    // POST 를 70번 반복 → 모두 201 (id 10 "a" 와 id 36 "A" 를 지나간다)
+```
+`RandomShortUrlCreatorTest`에 추가:
+```java
+@Test void raceCollisionRetriesEvenInsideOuterTransaction()
+    // raceCollisionRetriesAndKeepsExistingRow 와 같은 준비 (다른 고정 키 "rndEEE1"/"rndEEE2")
+    // new TransactionTemplate(txManager).execute(s -> creator.create("https://example.com/outer")) 의 결과 == "rndEEE2"
+    // 바깥 트랜잭션 커밋까지 예외 없음 (UnexpectedRollbackException 이 나면 실패)
+```
+
+- [ ] **Step 2: 실패 확인** — Run: `./gradlew :url-shortener:test --tests '*ShortKeyCaseSensitivityTest' --tests '*RandomShortUrlCreatorTest'` / Expected: 대소문자 테스트는 UNIQUE 위반으로 실패, 바깥 트랜잭션 테스트는 `UnexpectedRollbackException` 으로 실패
+- [ ] **Step 3: `schema.sql` 수정, `RandomShortUrlCreator` 에 `REQUIRES_NEW` 적용**
+- [ ] **Step 4: 전체 테스트 통과 확인** — Run: `./gradlew :url-shortener:test --rerun-tasks` 2회, `--tests '*RandomConcurrencyTest' --rerun-tasks` 5회 / Expected: 모두 성공 (동시성 테스트의 503 == 0 단언 포함)
+- [ ] **Step 5: 커밋** — `fix : short_key 를 대소문자 구분 collation 으로 바꾸고 random 시도의 트랜잭션을 REQUIRES_NEW 로 명시한다`

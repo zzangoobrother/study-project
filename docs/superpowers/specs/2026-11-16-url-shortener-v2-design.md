@@ -49,3 +49,16 @@ public interface ShortUrlCreator {
 
 ## 빌더 재량
 - 클래스 배치, 테스트 재현 기법, 503 응답 본문 형식
+
+## 구현 중 변경 (2026-11-16, 사용자 승인)
+구현 도중 결함 두 가지가 드러나 설계를 고쳤다.
+
+1. **`short_key` 의 대소문자 구분** — `short_key` 에 collation 을 지정하지 않아 MySQL 8 기본값 `utf8mb4_0900_ai_ci`(대소문자 무시)가 적용돼 있었다. 그래서 Base62 의 `a`/`A` 를 같은 키로 취급했다.
+   - v1 영향: counter 의 id 10(`"a"`)과 id 36(`"A"`)이 충돌해 36번째 저장이 500 이 난다. GET 도 대소문자만 다른 행으로 리다이렉트될 수 있다.
+   - v2 영향: random 의 실효 키 공간이 62ⁿ 에서 36ⁿ 으로 줄어든다.
+   - 동시성 테스트(Task 4)가 설명되지 않는 503 을 내면서 드러났다.
+   - 수정: `short_key VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NULL`. v1 설계의 "스키마는 바꾸지 않는다"를 이 한 컬럼에 한해 뒤집는다.
+   - 로컬 DB 는 `schema.sql` 이 `CREATE TABLE IF NOT EXISTS` 라 기존 테이블을 바꾸지 못한다. compose 컨테이너를 다시 만들어야 적용된다(볼륨 없음).
+2. **random 시도의 트랜잭션 독립성을 코드로 명시** — 기존 구현은 "호출자에 트랜잭션이 없다"는 전제에 기대고 있었다. 바깥에 `@Transactional` 이 생기면 `saveAndFlush`(전파 REQUIRED)가 거기에 합류하고, 첫 UNIQUE 위반에서 rollback-only 가 되어 재시도에 성공해도 `UnexpectedRollbackException` 이 난다.
+   - 수정: 시도 1회(INSERT)를 `TransactionTemplate`(`PROPAGATION_REQUIRES_NEW`)으로 감싼다.
+   - 대가: 바깥 트랜잭션이 있으면 요청 하나가 커넥션 2개를 쓰고, 바깥이 롤백돼도 이미 커밋된 단축 URL 행은 남는다.
