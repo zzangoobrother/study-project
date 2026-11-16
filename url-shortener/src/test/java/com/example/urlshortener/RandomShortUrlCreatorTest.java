@@ -4,12 +4,12 @@ import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -93,7 +93,7 @@ class RandomShortUrlCreatorTest extends IntegrationTestSupport {
     }
 
     @Test
-    void raceCollisionRetriesEvenInsideOuterTransaction() {
+    void raceCollisionRetriesEvenInsideOuterTransaction() throws Exception {
         repository.saveAndFlush(ShortUrl.create("https://example.com/original", "rndEEE1"));
         clearInvocations(repository);
         willReturn(false).given(repository).existsByShortKey("rndEEE1");
@@ -104,6 +104,10 @@ class RandomShortUrlCreatorTest extends IntegrationTestSupport {
                 .execute(status -> creator.create("https://example.com/outer"));
 
         assertThat(key).isEqualTo("rndEEE2");
+        // 기존 행이 덮어써지지 않는다
+        mockMvc.perform(get("/rndEEE1"))
+                .andExpect(status().isFound())
+                .andExpect(header().string(HttpHeaders.LOCATION, "https://example.com/original"));
         verify(repository, times(2)).saveAndFlush(any());
     }
 

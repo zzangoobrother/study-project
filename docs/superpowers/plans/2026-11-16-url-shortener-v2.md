@@ -4,7 +4,7 @@
 
 **Goal:** `ShortUrlCreator` 전략 인터페이스를 추출하고, 무작위 키 + 중복 확인 + UNIQUE 위반 재시도 방식(`random`)을 기본 전략으로 추가한다.
 
-**Architecture:** `ShortUrlService.shorten()`은 `ShortUrlCreator.create()`에 위임한다. 구현체는 `CounterShortUrlCreator`(v1 로직)와 `RandomShortUrlCreator`이고, `shortener.key-strategy` 값에 따라 `@ConditionalOnProperty`로 하나만 빈으로 등록된다. random은 시도 한 번마다 별도 트랜잭션(`saveAndFlush`)을 쓰고, 재시도 루프는 트랜잭션 밖에 둔다.
+**Architecture:** `ShortUrlService.shorten()`은 `ShortUrlCreator.create()`에 위임한다. 구현체는 `CounterShortUrlCreator`(v1 로직)와 `RandomShortUrlCreator`이고, `shortener.key-strategy` 값에 따라 `@ConditionalOnProperty`로 하나만 빈으로 등록된다. random은 시도 한 번마다 `ShortUrlInserter` 의 `@Transactional(REQUIRES_NEW)` 트랜잭션 (Task 5)을 쓰고, 재시도 루프는 트랜잭션 밖에 둔다.
 
 **Tech Stack:** Java 21, Spring Boot 3.5.4, Spring Data JPA, MySQL 8.4, Testcontainers(싱글톤 컨테이너, 기존 `IntegrationTestSupport`), JUnit 5, AssertJ, Mockito(`@MockitoBean`, `@MockitoSpyBean`)
 
@@ -205,6 +205,8 @@ throw new ShortKeyGenerationException(...)
 **Interfaces:**
 - `schema.sql`: `short_key VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NULL` (나머지 DDL 그대로)
 - `RandomShortUrlCreator`: 생성자에 `PlatformTransactionManager` 를 추가로 받아 `TransactionTemplate`(propagation `REQUIRES_NEW`)을 만든다. 시도 1회의 INSERT(`saveAndFlush`)를 그 템플릿 안에서 실행하고, `DataIntegrityViolationException` 은 템플릿 **바깥**에서 잡는다. `create` 에는 여전히 `@Transactional` 을 붙이지 않는다. 주석은 새 구조에 맞게 고친다
+
+> 이후 변경: `ShortUrlInserter` 빈 + `@Transactional(REQUIRES_NEW)` 로 대체 (스펙 구현 중 변경 2 참고)
 
 - [ ] **Step 1: 실패하는 테스트 작성**
 

@@ -35,4 +35,13 @@ class RandomKeyGeneratorTest {
         assertThatThrownBy(() -> new RandomKeyGenerator(new SecureRandom(), 0))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    // short_key 컬럼이 VARCHAR(16) 이므로 17 이상은 거부하고 16 은 허용한다
+    @Test
+    void rejectsLengthOver16() {
+        assertThatThrownBy(() -> new RandomKeyGenerator(new SecureRandom(), 17))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("1~16");
+        assertThat(new RandomKeyGenerator(new SecureRandom(), 16).generate()).hasSize(16);
+    }
 }
