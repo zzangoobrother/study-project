@@ -38,6 +38,13 @@ public class ShortUrl {
         return shortUrl;
     }
 
+    // 키를 미리 정해 두고 INSERT 하는 방식(random)에서 사용한다
+    public static ShortUrl create(String originalUrl, String shortKey) {
+        ShortUrl shortUrl = create(originalUrl);
+        shortUrl.shortKey = shortKey;
+        return shortUrl;
+    }
+
     public void assignShortKey(String shortKey) {
         this.shortKey = shortKey;
     }

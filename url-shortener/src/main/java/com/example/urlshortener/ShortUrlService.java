@@ -7,19 +7,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class ShortUrlService {
 
     private final ShortUrlRepository repository;
+    private final ShortUrlCreator shortUrlCreator;
 
-    public ShortUrlService(ShortUrlRepository repository) {
+    public ShortUrlService(ShortUrlRepository repository, ShortUrlCreator shortUrlCreator) {
         this.repository = repository;
+        this.shortUrlCreator = shortUrlCreator;
     }
 
-    @Transactional
+    // 트랜잭션 경계는 구현체(ShortUrlCreator)가 소유한다
     public String shorten(String originalUrl) {
-        // IDENTITY INSERT 로 id 를 발급받은 뒤 Base62 로 인코딩해 키로 사용한다
-        ShortUrl saved = repository.save(ShortUrl.create(originalUrl));
-        String shortKey = Base62.encode(saved.getId());
-        // 변경 감지로 UPDATE 된다
-        saved.assignShortKey(shortKey);
-        return shortKey;
+        return shortUrlCreator.create(originalUrl);
     }
 
     @Transactional(readOnly = true)
