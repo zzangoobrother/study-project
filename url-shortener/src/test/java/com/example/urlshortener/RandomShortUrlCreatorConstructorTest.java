@@ -1,7 +1,6 @@
 package com.example.urlshortener;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.transaction.PlatformTransactionManager;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -13,11 +12,11 @@ class RandomShortUrlCreatorConstructorTest {
     void rejectsNonPositiveMaxAttempts() {
         ShortUrlRepository repository = mock(ShortUrlRepository.class);
         RandomKeyGenerator keyGenerator = mock(RandomKeyGenerator.class);
-        PlatformTransactionManager txManager = mock(PlatformTransactionManager.class);
+        ShortUrlInserter inserter = mock(ShortUrlInserter.class);
 
-        assertThatThrownBy(() -> new RandomShortUrlCreator(repository, keyGenerator, txManager, 0))
+        assertThatThrownBy(() -> new RandomShortUrlCreator(repository, keyGenerator, inserter, 0))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new RandomShortUrlCreator(repository, keyGenerator, txManager, -1))
+        assertThatThrownBy(() -> new RandomShortUrlCreator(repository, keyGenerator, inserter, -1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }
