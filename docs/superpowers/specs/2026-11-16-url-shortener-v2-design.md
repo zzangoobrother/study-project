@@ -25,7 +25,7 @@ public interface ShortUrlCreator {
 - `CounterShortUrlCreator`: v1의 `ShortUrlService.shorten()` 로직을 그대로 옮긴다. INSERT → id → Base62 → 변경 감지로 UPDATE.
 - `RandomShortUrlCreator`: 아래 "random 동작" 참고.
 - 선택: `shortener.key-strategy` (`counter` | `random`), 기본값 **`random`** *(Claude 판단: 지금 단계의 방식을 기본으로 둔다)*. `@ConditionalOnProperty`로 구현체 하나만 빈으로 등록한다.
-- `ShortUrlService.shorten()`은 `ShortUrlCreator.create()`에 위임한다. 컨트롤러, GET 흐름, 스키마는 바꾸지 않는다.
+- `ShortUrlService.shorten()`은 `ShortUrlCreator.create()`에 위임한다. 컨트롤러, GET 흐름, 스키마는 바꾸지 않는다(구현 중 변경 1 참고).
 - v1 설계의 "`ShortKeyGenerator` 인터페이스를 v2에서 추출"은 위 이유로 `ShortUrlCreator`로 대체한다.
 
 ## random 동작
@@ -45,20 +45,26 @@ public interface ShortUrlCreator {
   - **사전 확인 충돌**: 이미 저장된 키 "aaaaaaa"를 생성기가 먼저 내놓고 그다음에 "bbbbbbb"를 내놓으면 → 201이고 키는 "bbbbbbb".
   - **경쟁 조건 충돌**: 사전 확인은 통과했지만 INSERT 직전에 같은 키가 들어간 상황 → UNIQUE 위반이 났다가 재시도 후 성공. 재현 방법은 빌더 재량이다 (예: 확인 직후 같은 키를 끼워 넣는 테스트용 훅/스파이).
   - **재시도 소진**: 생성기가 계속 이미 있는 키만 내놓으면 → 503.
-- 동시성 불변식 테스트: 키 길이를 2(3,844개)로 줄인 상태에서 여러 스레드가 동시에 POST해도 **모든 요청이 성공하거나 503이고, 저장된 키가 모두 다르다** *(Claude 판단: 경쟁 조건이 실제로 일어나는 환경에서 데이터가 깨지지 않는지 확인)*.
+- 동시성 불변식 테스트: 키 길이를 2(3,844개)로 줄인 상태에서 여러 스레드가 동시에 POST해도 **모든 요청이 성공하거나 503이고, 저장된 키가 모두 다르다** *(Claude 판단: 충돌 가능성을 높인 동시 요청 하에서 키 유일성 불변식이 지켜지는지 확인)*. 실행마다 UNIQUE 위반은 0~1건이라 이 테스트가 충돌 경로를 보장하지는 않는다. 경쟁 조건 경로 자체는 `RandomShortUrlCreatorTest` 가 결정적으로 검증한다.
 
 ## 빌더 재량
 - 클래스 배치, 테스트 재현 기법, 503 응답 본문 형식
 
 ## 구현 중 변경 (2026-11-16, 사용자 승인)
-구현 도중 결함 두 가지가 드러나 설계를 고쳤다.
+구현 도중 결함 세 가지가 드러나 설계를 고쳤다.
 
 1. **`short_key` 의 대소문자 구분** — `short_key` 에 collation 을 지정하지 않아 MySQL 8 기본값 `utf8mb4_0900_ai_ci`(대소문자 무시)가 적용돼 있었다. 그래서 Base62 의 `a`/`A` 를 같은 키로 취급했다.
-   - v1 영향: counter 의 id 10(`"a"`)과 id 36(`"A"`)이 충돌해 36번째 저장이 500 이 난다. GET 도 대소문자만 다른 행으로 리다이렉트될 수 있다.
+   - v1 영향: id 36~61 전부, 이후 끝자리가 A~Z 인 id(약 42%)의 저장이 모두 500 이 난다(소문자 키와 충돌). GET 도 대소문자만 다른 행으로 리다이렉트될 수 있다.
    - v2 영향: random 의 실효 키 공간이 62ⁿ 에서 36ⁿ 으로 줄어든다.
    - 동시성 테스트(Task 4)가 설명되지 않는 503 을 내면서 드러났다.
    - 수정: `short_key VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NULL`. v1 설계의 "스키마는 바꾸지 않는다"를 이 한 컬럼에 한해 뒤집는다.
-   - 로컬 DB 는 `schema.sql` 이 `CREATE TABLE IF NOT EXISTS` 라 기존 테이블을 바꾸지 못한다. compose 컨테이너를 다시 만들어야 적용된다(볼륨 없음).
+   - 로컬 DB 는 `schema.sql` 이 `CREATE TABLE IF NOT EXISTS` 라 기존 테이블을 바꾸지 못한다.
+   - mysql 이미지가 익명 볼륨을 쓰므로 컨테이너를 다시 만들어도 기존 테이블이 남는다.
+   - 기존 로컬 DB 에는 `ALTER TABLE short_url MODIFY short_key VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NULL;` 을 실행한다.
+   - 기존 v1 데이터는 대소문자 중복이 없고 모두 ASCII 라 이 ALTER 는 항상 성공한다.
+   - 데이터를 버려도 되면 `docker compose -f url-shortener/docker-compose.yml down -v` 를 쓴다.
 2. **random 시도의 트랜잭션 독립성을 코드로 명시** — 기존 구현은 "호출자에 트랜잭션이 없다"는 전제에 기대고 있었다. 바깥에 `@Transactional` 이 생기면 `saveAndFlush`(전파 REQUIRED)가 거기에 합류하고, 첫 UNIQUE 위반에서 rollback-only 가 되어 재시도에 성공해도 `UnexpectedRollbackException` 이 난다.
    - 수정: 시도 1회(INSERT)를 `TransactionTemplate`(`PROPAGATION_REQUIRES_NEW`)으로 감싼다.
    - 대가: 바깥 트랜잭션이 있으면 요청 하나가 커넥션 2개를 쓰고, 바깥이 롤백돼도 이미 커밋된 단축 URL 행은 남는다.
+   - 대가: 바깥 트랜잭션에서 호출하면 커넥션을 2개 써서 풀이 고갈되면 교착될 수 있고, 사전 확인은 바깥 트랜잭션의 REPEATABLE READ 스냅샷에서 실행된다(정합성은 UNIQUE 위반 재시도가 보장).
+3. **비 ASCII 조회 키 처리** — short_key 는 ascii 라 비 ASCII 조회값은 DB 에서 오류가 나므로 서비스 계층에서 키 형식을 검증해 404 로 처리한다.

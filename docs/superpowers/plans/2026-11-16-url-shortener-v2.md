@@ -4,7 +4,7 @@
 
 **Goal:** `ShortUrlCreator` 전략 인터페이스를 추출하고, 무작위 키 + 중복 확인 + UNIQUE 위반 재시도 방식(`random`)을 기본 전략으로 추가한다.
 
-**Architecture:** `ShortUrlService.shorten()`은 `ShortUrlCreator.create()`에 위임한다. 구현체는 `CounterShortUrlCreator`(v1 로직)와 `RandomShortUrlCreator`이고, `shortener.key-strategy` 값에 따라 `@ConditionalOnProperty`로 하나만 빈으로 등록된다. random은 시도 한 번마다 별도 트랜잭션(`saveAndFlush`)을 쓰고, 재시도 루프는 트랜잭션 밖에 둔다.
+**Architecture:** `ShortUrlService.shorten()`은 `ShortUrlCreator.create()`에 위임한다. 구현체는 `CounterShortUrlCreator`(v1 로직)와 `RandomShortUrlCreator`이고, `shortener.key-strategy` 값에 따라 `@ConditionalOnProperty`로 하나만 빈으로 등록된다. random은 시도 한 번마다 `TransactionTemplate(REQUIRES_NEW)` 트랜잭션 (Task 5)을 쓰고, 재시도 루프는 트랜잭션 밖에 둔다.
 
 **Tech Stack:** Java 21, Spring Boot 3.5.4, Spring Data JPA, MySQL 8.4, Testcontainers(싱글톤 컨테이너, 기존 `IntegrationTestSupport`), JUnit 5, AssertJ, Mockito(`@MockitoBean`, `@MockitoSpyBean`)
 
