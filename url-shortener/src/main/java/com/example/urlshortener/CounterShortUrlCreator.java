@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
-@ConditionalOnProperty(name = "shortener.key-strategy", havingValue = "counter", matchIfMissing = true)
+@ConditionalOnProperty(name = "shortener.key-strategy", havingValue = "counter")
 class CounterShortUrlCreator implements ShortUrlCreator {
 
     private final ShortUrlRepository repository;

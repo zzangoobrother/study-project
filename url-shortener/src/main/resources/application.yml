@@ -13,3 +13,7 @@ spring:
 
 shortener:
   base-url: http://localhost:8080
+  key-strategy: random
+  random:
+    key-length: 7
+    max-attempts: 5

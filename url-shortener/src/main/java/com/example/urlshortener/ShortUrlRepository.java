@@ -7,4 +7,6 @@ import java.util.Optional;
 public interface ShortUrlRepository extends JpaRepository<ShortUrl, Long> {
 
     Optional<ShortUrl> findByShortKey(String shortKey);
+
+    boolean existsByShortKey(String shortKey);
 }
