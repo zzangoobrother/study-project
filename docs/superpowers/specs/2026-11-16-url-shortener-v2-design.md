@@ -64,7 +64,7 @@ public interface ShortUrlCreator {
    - 기존 v1 데이터는 대소문자 중복이 없고 모두 ASCII 라 이 ALTER 는 항상 성공한다.
    - 데이터를 버려도 되면 `docker compose -f url-shortener/docker-compose.yml down -v` 를 쓴다.
 2. **random 시도의 트랜잭션 독립성을 코드로 명시** — 기존 구현은 "호출자에 트랜잭션이 없다"는 전제에 기대고 있었다. 바깥에 `@Transactional` 이 생기면 `saveAndFlush`(전파 REQUIRED)가 거기에 합류하고, 첫 UNIQUE 위반에서 rollback-only 가 되어 재시도에 성공해도 `UnexpectedRollbackException` 이 난다.
-   - 수정: 시도 1회(INSERT)를 `TransactionTemplate`(`PROPAGATION_REQUIRES_NEW`)으로 감싼다.
+   - 수정: 시도 1회(INSERT)를 별도 빈 `ShortUrlInserter` 의 `@Transactional(propagation = REQUIRES_NEW)` 메서드로 실행한다 (처음엔 `TransactionTemplate` 으로 구현했으나 유지보수 가독성을 위해 애너테이션 + 별도 빈으로 바꿈. 별도 빈인 이유는 자기 호출 시 프록시를 거치지 않아 애너테이션이 무시되기 때문).
    - 대가: 바깥 트랜잭션이 있으면 요청 하나가 커넥션 2개를 쓰고, 바깥이 롤백돼도 이미 커밋된 단축 URL 행은 남는다.
    - 대가: 바깥 트랜잭션에서 호출하면 커넥션을 2개 써서 풀이 고갈되면 교착될 수 있고, 사전 확인은 바깥 트랜잭션의 REPEATABLE READ 스냅샷에서 실행된다(정합성은 UNIQUE 위반 재시도가 보장).
 3. **비 ASCII 조회 키 처리** — short_key 는 ascii 라 비 ASCII 조회값은 DB 에서 오류가 나므로 서비스 계층에서 키 형식을 검증해 404 로 처리한다.
