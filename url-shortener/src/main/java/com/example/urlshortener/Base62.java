@@ -5,7 +5,7 @@ package com.example.urlshortener;
  */
 final class Base62 {
 
-    private static final String ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    static final String ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     private static final int BASE = ALPHABET.length();
 
     private Base62() {
