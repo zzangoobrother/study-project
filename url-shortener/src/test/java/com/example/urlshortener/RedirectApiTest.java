@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 
+import java.net.URI;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -49,6 +51,19 @@ class RedirectApiTest extends IntegrationTestSupport {
     @Test
     void unknownKeyWithInvalidCharsReturns404() throws Exception {
         mockMvc.perform(get("/ab-c"))
+                .andExpect(status().isNotFound());
+    }
+
+    // short_key 는 ascii 컬럼이라 비 ASCII 값을 그대로 조회하면 DB 가 collation 오류를 낸다
+    @Test
+    void nonAsciiKeyReturns404() throws Exception {
+        mockMvc.perform(get(URI.create("/%ED%95%9C%EA%B8%80")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void tooLongKeyReturns404() throws Exception {
+        mockMvc.perform(get("/" + "a".repeat(17)))
                 .andExpect(status().isNotFound());
     }
 }

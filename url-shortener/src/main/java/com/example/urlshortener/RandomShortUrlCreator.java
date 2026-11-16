@@ -1,5 +1,7 @@
 package com.example.urlshortener;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -12,6 +14,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 @ConditionalOnProperty(name = "shortener.key-strategy", havingValue = "random", matchIfMissing = true)
 class RandomShortUrlCreator implements ShortUrlCreator {
 
+    private static final Logger log = LoggerFactory.getLogger(RandomShortUrlCreator.class);
+
     private final ShortUrlRepository repository;
     private final RandomKeyGenerator keyGenerator;
     private final TransactionTemplate attemptTx;
@@ -21,6 +25,9 @@ class RandomShortUrlCreator implements ShortUrlCreator {
                           RandomKeyGenerator keyGenerator,
                           PlatformTransactionManager txManager,
                           @Value("${shortener.random.max-attempts:5}") int maxAttempts) {
+        if (maxAttempts < 1) {
+            throw new IllegalArgumentException("maxAttempts must be positive: " + maxAttempts);
+        }
         this.repository = repository;
         this.keyGenerator = keyGenerator;
         this.attemptTx = new TransactionTemplate(txManager);
@@ -37,10 +44,13 @@ class RandomShortUrlCreator implements ShortUrlCreator {
     // DataIntegrityViolationException 은 템플릿 바깥에서 잡아야 한다 (안에서 잡으면 이미 rollback-only 가 된 뒤다).
     @Override
     public String create(String originalUrl) {
+        int precheckCollisions = 0;
+        int uniqueViolations = 0;
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             String key = keyGenerator.generate();
             // 사전 확인: 이미 있는 키면 INSERT 없이 다음 시도로 넘어간다
             if (repository.existsByShortKey(key)) {
+                precheckCollisions++;
                 continue;
             }
             try {
@@ -50,8 +60,11 @@ class RandomShortUrlCreator implements ShortUrlCreator {
                 return key;
             } catch (DataIntegrityViolationException e) {
                 // 사전 확인과 INSERT 사이에 다른 요청이 같은 키를 넣은 경우 (UNIQUE 위반)
+                uniqueViolations++;
             }
         }
+        log.warn("랜덤 키 생성 재시도 소진: 시도 {}회, 사전 확인 충돌 {}회, UNIQUE 위반 {}회",
+                maxAttempts, precheckCollisions, uniqueViolations);
         throw new ShortKeyGenerationException(maxAttempts);
     }
 }

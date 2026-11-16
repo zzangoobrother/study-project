@@ -17,8 +17,9 @@ public class RandomKeyGenerator {
 
     // 테스트에서 난수원과 길이를 직접 주입하기 위한 생성자
     RandomKeyGenerator(RandomGenerator random, int keyLength) {
-        if (keyLength < 1) {
-            throw new IllegalArgumentException("keyLength must be positive: " + keyLength);
+        // short_key 컬럼이 VARCHAR(16) 이다
+        if (keyLength < 1 || keyLength > 16) {
+            throw new IllegalArgumentException("keyLength must be in 1~16: " + keyLength);
         }
         this.random = random;
         this.keyLength = keyLength;
