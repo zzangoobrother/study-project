@@ -17,3 +17,6 @@ shortener:
   random:
     key-length: 7
     max-attempts: 5
+  md5:
+    key-length: 7
+    max-attempts: 5
