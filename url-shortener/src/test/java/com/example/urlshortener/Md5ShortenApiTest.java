@@ -1,6 +1,7 @@
 package com.example.urlshortener;
 
 import com.jayway.jsonpath.JsonPath;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
@@ -16,6 +17,7 @@ class Md5ShortenApiTest extends ShortenApiTest {
     // md5 는 중복 제거하므로 반대 동작: 같은 URL 은 항상 같은 키를 받는다
     @Override
     @Test
+    @DisplayName("md5 는 같은 URL 에 같은 키를 준다 (부모와 반대 동작)")
     void sameUrlGetsNewKeyEachTime() throws Exception {
         String first = postAndGetKey("https://example.com/same");
         String second = postAndGetKey("https://example.com/same");
