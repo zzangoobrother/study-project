@@ -9,6 +9,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,6 +42,15 @@ class Md5ShortUrlCreatorTest extends IntegrationTestSupport {
     @Autowired
     Md5KeyDeriver deriver;
 
+    @Autowired
+    ShortUrlCreator creator;
+
+    @Autowired
+    ShortUrlInserter inserter;
+
+    @Autowired
+    PlatformTransactionManager txManager;
+
     // 테스트가 만들거나 넣은 키 (정리 대상)
     private final List<String> usedKeys = new ArrayList<>();
 
@@ -65,8 +76,8 @@ class Md5ShortUrlCreatorTest extends IntegrationTestSupport {
     // 사용할 키를 등록하고, 비어 있지 않으면 테스트를 건너뛴다
     private void useKeys(String... keys) {
         for (String key : keys) {
-            usedKeys.add(key);
             assumeTrue(repository.findByShortKey(key).isEmpty());
+            usedKeys.add(key);
         }
     }
 
@@ -112,18 +123,18 @@ class Md5ShortUrlCreatorTest extends IntegrationTestSupport {
                 u2 = candidate;
             }
         }
-        String k1Of1 = deriver.keyOf(u1, 0);
-        String k1Of2 = deriver.keyOf(u2, 1);
-        useKeys(k1Of1, k1Of2);
+        String k0OfU1 = deriver.keyOf(u1, 0);
+        String k1OfU2 = deriver.keyOf(u2, 1);
+        useKeys(k0OfU1, k1OfU2);
 
-        assertThat(keyOfResponse(postUrl(u1).andExpect(status().isCreated()))).isEqualTo(k1Of1);
-        assertThat(keyOfResponse(postUrl(u2).andExpect(status().isCreated()))).isEqualTo(k1Of2);
-        assertThat(keyOfResponse(postUrl(u2).andExpect(status().isCreated()))).isEqualTo(k1Of2);
+        assertThat(keyOfResponse(postUrl(u1).andExpect(status().isCreated()))).isEqualTo(k0OfU1);
+        assertThat(keyOfResponse(postUrl(u2).andExpect(status().isCreated()))).isEqualTo(k1OfU2);
+        assertThat(keyOfResponse(postUrl(u2).andExpect(status().isCreated()))).isEqualTo(k1OfU2);
 
-        mockMvc.perform(get("/" + k1Of1))
+        mockMvc.perform(get("/" + k0OfU1))
                 .andExpect(status().isFound())
                 .andExpect(header().string(HttpHeaders.LOCATION, u1));
-        mockMvc.perform(get("/" + k1Of2))
+        mockMvc.perform(get("/" + k1OfU2))
                 .andExpect(status().isFound())
                 .andExpect(header().string(HttpHeaders.LOCATION, u2));
     }
@@ -155,6 +166,26 @@ class Md5ShortUrlCreatorTest extends IntegrationTestSupport {
         stubFirstLookupEmpty(k0);
 
         assertThat(keyOfResponse(postUrl(url).andExpect(status().isCreated()))).isEqualTo(k0);
+        assertThat(countRowsOf(url)).isEqualTo(1);
+    }
+
+    @Test
+    void raceOnSameUrlInsideOuterTransactionReturnsSameKey() {
+        String url = PREFIX + "raceOuterTx/a";
+        String k0 = deriver.keyOf(url, 0);
+        useKeys(k0);
+
+        // 호출자에 바깥 트랜잭션(REPEATABLE READ)이 있어도 재조회가 최신 커밋을 봐야 한다
+        String result = new TransactionTemplate(txManager).execute(status -> {
+            // 1. 바깥 트랜잭션의 스냅샷을 고정한다
+            repository.count();
+            // 2. 다른 요청이 먼저 같은 URL 을 넣은 상황 (inserter 는 REQUIRES_NEW 라 바로 커밋된다)
+            inserter.insert(ShortUrl.create(url, k0));
+            // 3. 첫 조회는 스냅샷이라 "없음", INSERT 는 UNIQUE 위반, 재조회가 최신을 봐야 같은 키를 돌려준다
+            return creator.create(url);
+        });
+
+        assertThat(result).isEqualTo(k0);
         assertThat(countRowsOf(url)).isEqualTo(1);
     }
 

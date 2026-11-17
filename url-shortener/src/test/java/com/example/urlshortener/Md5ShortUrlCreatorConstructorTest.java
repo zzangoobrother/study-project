@@ -13,10 +13,11 @@ class Md5ShortUrlCreatorConstructorTest {
         ShortUrlRepository repository = mock(ShortUrlRepository.class);
         Md5KeyDeriver deriver = mock(Md5KeyDeriver.class);
         ShortUrlInserter inserter = mock(ShortUrlInserter.class);
+        ShortUrlFreshReader freshReader = mock(ShortUrlFreshReader.class);
 
-        assertThatThrownBy(() -> new Md5ShortUrlCreator(repository, deriver, inserter, 0))
+        assertThatThrownBy(() -> new Md5ShortUrlCreator(repository, deriver, inserter, freshReader, 0))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new Md5ShortUrlCreator(repository, deriver, inserter, -1))
+        assertThatThrownBy(() -> new Md5ShortUrlCreator(repository, deriver, inserter, freshReader, -1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -79,4 +79,15 @@ class ShortenApiTest extends IntegrationTestSupport {
 
         postUrl(url).andExpect(status().isCreated());
     }
+
+    @Test
+    void rejectsMalformedUnicode() throws Exception {
+        // JSON 이스케이프로 짝이 맞지 않는 UTF-16 서로게이트를 넣는다
+        postUrl("https://example.com/\\ud800").andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void acceptsKoreanUrl() throws Exception {
+        postUrl("https://example.com/한글").andExpect(status().isCreated());
+    }
 }
