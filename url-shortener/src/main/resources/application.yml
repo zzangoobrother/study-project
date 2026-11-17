@@ -17,6 +17,8 @@ shortener:
   random:
     key-length: 7
     max-attempts: 5
+  # key-length/max-attempts 는 배포 후 바꾸지 않는다. key-length 를 바꾸면 모든 URL 의 체인이 바뀌어 중복 제거가 깨진다.
+  # max-attempts 를 줄이면 체인 뒤쪽에 저장된 URL 을 다시 요청할 때 503 이 난다.
   md5:
     key-length: 7
     max-attempts: 5

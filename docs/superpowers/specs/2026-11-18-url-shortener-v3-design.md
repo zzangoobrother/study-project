@@ -33,7 +33,9 @@
 - MD5 를 쓰는 이유: 보안용이 아니라 고르게 퍼진 값을 얻기 위해서다. 짧게 자르면 어떤 해시든 충돌을 일부러 만들 수 있으므로, 방어선은 충돌 처리 로직이다.
 
 ## md5 동작
-시도 n = 0 부터 `shortener.md5.max-attempts`(기본 5, 1 이상, 기동 시 검증)까지 반복한다.
+시도 n = 0 부터 `shortener.md5.max-attempts` − 1 까지(총 max-attempts 회, 기본 5, 1 이상, 기동 시 검증) 반복한다.
+
+> `key-length` / `max-attempts` 는 배포 후 바꾸지 않는다. key-length 를 바꾸면 모든 URL 의 체인이 바뀌어 중복 제거가 깨진다. max-attempts 를 줄이면 체인 뒤쪽에 저장된 URL 을 다시 요청할 때 503 이 난다.
 1. `key = keyOf(url, n)`
 2. `findByShortKey(key)` 를 조회한다.
    - 행이 있고 원본 URL 이 요청 URL 과 **같으면** → 그 키를 반환한다 (중복 제거).
@@ -45,6 +47,14 @@
 - 모두 소진하면 `ShortKeyGenerationException`(503) 을 던지고, v2 와 같은 형식으로 `log.warn` 을 남긴다.
 - **원본 URL 비교는 Java 의 `String.equals` 로 한다** *(Claude 판단)*. `original_url` 컬럼은 대소문자를 무시하는 기본 collation 이라 SQL 로 비교하면 `https://A.com/X` 와 `https://a.com/x` 를 같다고 판단한다.
 - 트랜잭션: `create` 에는 `@Transactional` 을 붙이지 않는다. 이유는 v2 와 같다.
+
+## 구현 중 변경
+- UNIQUE 위반 뒤의 재조회는 `ShortUrlFreshReader` 의 `REQUIRES_NEW` + `readOnly` 트랜잭션으로 실행한다. 첫 조회는 기존 `repository.findByShortKey` 를 그대로 쓴다.
+- 이유: 호출자에 REPEATABLE READ 트랜잭션이 있으면 첫 조회가 스냅샷을 고정한다. 다른 요청이 같은 URL 을 커밋하면 UNIQUE 검사는 최신 데이터를 보고 위반을 내지만, 재조회는 스냅샷을 읽어 "없음"이 나온다. 그러면 충돌로 오인해 같은 URL 행이 다음 키에 하나 더 생긴다(`result=k1, rows=2` 로 재현됨).
+- 별도 빈으로 둔 이유: 자기 호출이면 프록시를 거치지 않아 `@Transactional` 이 무시된다.
+- 대가: UNIQUE 위반이 났을 때만 커넥션을 1개 더 쓴다. 정상 경로에는 영향이 없다.
+- 검증: `Md5ShortUrlCreatorTest.raceOnSameUrlInsideOuterTransactionReturnsSameKey`
+- 부수 변경: 짝이 맞지 않는 UTF-16 서로게이트가 든 URL 은 DB 에 `?` 로 저장되어 `equals` 비교가 늘 실패하므로, `HttpUrlValidator` 가 모든 전략에서 400 으로 거절한다.
 
 ## 응답
 - 새로 만들 때도, 기존 키를 돌려줄 때도 **201** 과 같은 응답 본문을 쓴다 *(Claude 판단)*.
