@@ -3,6 +3,7 @@ package com.example.urlshortener;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 
 import java.util.HashSet;
@@ -23,8 +24,16 @@ class RangeStrategyTest extends IntegrationTestSupport {
     @Autowired
     ShortUrlRepository repository;
 
+    @Autowired
+    JdbcTemplate jdbcTemplate;
+
     @Value("${shortener.range.feistel-secret}")
     long feistelSecret;
+
+    private long nextStart() {
+        return jdbcTemplate.queryForObject(
+                "SELECT next_start FROM key_range WHERE name = ?", Long.class, KeyRange.SHORT_URL);
+    }
 
     private long numberOf(String key, FeistelPermutation feistel) {
         return feistel.inverse(Base62.decode(key));
@@ -49,11 +58,15 @@ class RangeStrategyTest extends IntegrationTestSupport {
     @Test
     void keyDecodesBackToIssuedNumber() {
         FeistelPermutation feistel = FeistelPermutation.forShortKey(feistelSecret);
+        // 워밍업: 발급기가 범위를 들고 있게 한다
+        creator.create("https://example.com/warmup");
+        long before = nextStart();
         String k1 = creator.create("https://example.com/d1");
         String k2 = creator.create("https://example.com/d2");
+        long after = nextStart();
 
-        // 블록 경계에 걸리면 번호가 연속이 아니므로 건너뛴다 (블록 10000 이라 드물다)
-        assumeTrue(numberOf(k2, feistel) == numberOf(k1, feistel) + 1);
+        // 블록 경계 판정은 결과가 아니라 DB 상태로 한다. 그 사이 새 할당이 없었으면 같은 블록이다.
+        assumeTrue(before == after);
 
         assertThat(numberOf(k2, feistel)).isEqualTo(numberOf(k1, feistel) + 1);
     }
@@ -61,22 +74,25 @@ class RangeStrategyTest extends IntegrationTestSupport {
     @Test
     void skipsKeyAlreadyTakenByAnotherStrategy() {
         FeistelPermutation feistel = FeistelPermutation.forShortKey(feistelSecret);
+        // k1 생성이 워밍업을 겸한다
         String k1 = creator.create("https://example.com/s1");
         long n = numberOf(k1, feistel);
         String taken = Base62.encodePadded(feistel.permute(n + 1), 7);
         String otherUrl = "https://example.com/other-strategy";
         repository.save(ShortUrl.create(otherUrl, taken));
         try {
+            long before = nextStart();
             String k2 = creator.create("https://example.com/s2");
-
+            long after = nextStart();
             long n2 = numberOf(k2, feistel);
-            // n+1 은 이미 쓰인 키이므로 절대 나오면 안 된다
-            assertThat(n2).isNotEqualTo(n + 1);
-            // n+2 보다 크면 블록 경계에 걸린 것이므로 건너뛴다
-            assumeTrue(n2 == n + 2);
 
-            assertThat(k2).isEqualTo(Base62.encodePadded(feistel.permute(n + 2), 7));
+            // 무조건 검증: 미리 넣은 행은 그대로이고, n+1 은 건너뛴다
             assertThat(repository.findByShortKey(taken).orElseThrow().getOriginalUrl()).isEqualTo(otherUrl);
+            assertThat(n2).isGreaterThan(n + 1);
+
+            // 새 할당이 없었던 경우(같은 블록)에만 정확히 n+2 임을 확인한다
+            assumeTrue(before == after);
+            assertThat(n2).isEqualTo(n + 2);
         } finally {
             repository.findByShortKey(taken).ifPresent(repository::delete);
         }
