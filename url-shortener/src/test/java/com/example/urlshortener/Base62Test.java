@@ -46,4 +46,17 @@ class Base62Test {
     void rejectsEmpty() {
         assertThatThrownBy(() -> Base62.decode("")).isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void encodePaddedFillsLeftWithZero() {
+        assertThat(Base62.encodePadded(0, 7)).isEqualTo("0000000");
+        assertThat(Base62.encodePadded(FeistelPermutation.SHORT_KEY_SPACE - 1, 7)).isEqualTo("ZZZZZZZ");
+        assertThat(Base62.decode(Base62.encodePadded(62, 7))).isEqualTo(62);
+    }
+
+    @Test
+    void encodePaddedRejectsOverflow() {
+        assertThatThrownBy(() -> Base62.encodePadded(FeistelPermutation.SHORT_KEY_SPACE, 7))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }

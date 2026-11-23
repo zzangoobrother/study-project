@@ -5,3 +5,9 @@ CREATE TABLE IF NOT EXISTS short_url (
     created_at   DATETIME(6)   NOT NULL,
     CONSTRAINT uk_short_url_short_key UNIQUE (short_key)
 );
+
+CREATE TABLE IF NOT EXISTS key_range (
+    name       VARCHAR(32) NOT NULL PRIMARY KEY,
+    next_start BIGINT      NOT NULL
+);
+INSERT IGNORE INTO key_range (name, next_start) VALUES ('short_url', 0);

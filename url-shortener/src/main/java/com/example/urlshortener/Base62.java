@@ -26,6 +26,17 @@ final class Base62 {
         return sb.reverse().toString();
     }
 
+    /**
+     * 왼쪽을 '0' 으로 채워 항상 width 자리로 인코딩한다. 인코딩 길이가 width 를 넘으면 예외다.
+     */
+    static String encodePadded(long value, int width) {
+        String encoded = encode(value);
+        if (encoded.length() > width) {
+            throw new IllegalArgumentException("value does not fit in " + width + " chars: " + value);
+        }
+        return String.valueOf(ALPHABET.charAt(0)).repeat(width - encoded.length()) + encoded;
+    }
+
     static long decode(String key) {
         if (key == null || key.isEmpty()) {
             throw new IllegalArgumentException("key must not be empty");
