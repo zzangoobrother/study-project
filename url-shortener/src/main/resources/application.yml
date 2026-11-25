@@ -7,6 +7,12 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: none
+  data:
+    redis:
+      host: localhost
+      port: 6380
+      timeout: 200ms
+      connect-timeout: 200ms
   sql:
     init:
       mode: always
@@ -27,3 +33,7 @@ shortener:
     max-attempts: 5
     # feistel-secret 은 배포 후 바꾸지 않는다. 순열이 바뀌면 새로 발급하는 키가 이미 발급된 키와 겹친다.
     feistel-secret: 7340271153842017295
+  cache:
+    local:
+      ttl: 5m
+      max-size: 100000
