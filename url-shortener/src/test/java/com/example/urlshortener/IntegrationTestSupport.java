@@ -1,9 +1,11 @@
 package com.example.urlshortener;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.MySQLContainer;
@@ -30,4 +32,20 @@ abstract class IntegrationTestSupport {
 
     @Autowired
     protected MockMvc mockMvc;
+
+    @Autowired
+    private StringRedisTemplate redis;
+
+    @Autowired
+    private LocalUrlCache localUrlCache;
+
+    // 테스트가 DB 행을 지워도 캐시는 남아 다음 테스트를 오염시키므로(스펙 6절) 매번 L1·L2 를 비운다
+    @BeforeEach
+    void clearCaches() {
+        var keys = redis.keys(RedisUrlCache.KEY_PREFIX + "*");
+        if (keys != null && !keys.isEmpty()) {
+            redis.delete(keys);
+        }
+        localUrlCache.clear();
+    }
 }
