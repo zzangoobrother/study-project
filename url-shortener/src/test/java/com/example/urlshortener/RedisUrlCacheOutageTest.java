@@ -62,7 +62,6 @@ class RedisUrlCacheOutageTest {
         long start = System.nanoTime();
         cache.get("abc");
         Duration elapsed = Duration.ofNanos(System.nanoTime() - start);
-        System.out.println("outage get elapsed ms = " + elapsed.toMillis());
-        assertThat(elapsed).isLessThan(Duration.ofSeconds(2));
+        assertThat(elapsed).as("연결 거부 시 get 소요 시간").isLessThan(Duration.ofSeconds(2));
     }
 }
