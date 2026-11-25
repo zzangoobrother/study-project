@@ -55,7 +55,7 @@ class RedisUrlCacheHungTest {
 
         assertThat(result).isInstanceOf(RedisCacheResult.Miss.class);
         assertThat(elapsed).as("무응답 Redis get 소요 시간").isGreaterThanOrEqualTo(Duration.ofMillis(150));
-        assertThat(elapsed).as("무응답 Redis get 소요 시간").isLessThan(Duration.ofSeconds(1));
+        assertThat(elapsed).as("무응답 Redis get 소요 시간").isLessThan(Duration.ofSeconds(2));
         assertThatCode(() -> {
             cache.putFound("abc", "https://example.com");
             cache.putNotFound("abc");

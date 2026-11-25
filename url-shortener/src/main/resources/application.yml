@@ -37,3 +37,6 @@ shortener:
     local:
       ttl: 5m
       max-size: 100000
+    redis:
+      ttl: 1d
+      negative-ttl: 60s

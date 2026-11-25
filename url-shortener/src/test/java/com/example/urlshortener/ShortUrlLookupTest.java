@@ -31,7 +31,7 @@ class ShortUrlLookupTest extends IntegrationTestSupport {
     void setUp() {
         repo = mock(ShortUrlRepository.class);
         l2 = new RedisUrlCache(redis, Duration.ofDays(1), Duration.ofSeconds(60));
-        // 테스트 간 캐시 초기화가 아직 없으므로 키를 테스트마다 고유하게 쓴다.
+        // IntegrationTestSupport 가 매 테스트 전에 캐시를 비우지만, 방어적으로 키도 테스트마다 고유하게 쓴다.
         key = "lk" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         when(repo.findByShortKey(key)).thenReturn(Optional.empty());
     }
@@ -47,9 +47,12 @@ class ShortUrlLookupTest extends IntegrationTestSupport {
     @Test
     void dbHitFillsBothLevels() {
         when(repo.findByShortKey(key)).thenReturn(Optional.of(ShortUrl.create(URL, key)));
-        ShortUrlLookup serverA = newServer(newL1());
+        LocalUrlCache l1A = newL1();
+        ShortUrlLookup serverA = newServer(l1A);
 
         assertThat(serverA.findOriginalUrl(key)).contains(URL);
+        assertThat(l1A.get(key)).contains(URL);
+        assertThat(l2.get(key)).isInstanceOf(RedisCacheResult.Found.class);
         assertThat(serverA.findOriginalUrl(key)).contains(URL);
         verify(repo, times(1)).findByShortKey(key);
 

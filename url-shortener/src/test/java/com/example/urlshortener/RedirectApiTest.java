@@ -33,6 +33,17 @@ class RedirectApiTest extends IntegrationTestSupport {
     }
 
     @Test
+    void redirectsFromDbWhenCacheIsCold() throws Exception {
+        String originalUrl = "https://example.com/cold/cache";
+        String shortKey = createShortKey(originalUrl);
+        clearCaches();
+
+        mockMvc.perform(get("/" + shortKey))
+                .andExpect(status().isFound())
+                .andExpect(header().string(HttpHeaders.LOCATION, originalUrl));
+    }
+
+    @Test
     void redirectPreservesQueryString() throws Exception {
         String originalUrl = "https://example.com/a?b=1&c=2";
         String shortKey = createShortKey(originalUrl);

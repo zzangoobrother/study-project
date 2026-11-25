@@ -40,6 +40,10 @@ class CachedRedirectApiTest extends IntegrationTestSupport {
 
         assertThat(redis.opsForValue().get(RedisUrlCache.KEY_PREFIX + "zzzzzzz"))
                 .isEqualTo(RedisUrlCache.NOT_FOUND_MARKER);
+        // 실제 빈에 설정된 negative TTL(60초)이 적용됐는지 확인한다
+        assertThat(redis.getExpire(RedisUrlCache.KEY_PREFIX + "zzzzzzz"))
+                .isPositive()
+                .isLessThanOrEqualTo(60);
     }
 
     @Test

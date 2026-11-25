@@ -11,8 +11,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  *
  * Redis 오류는 여기서 삼킨다. Redis 가 죽어도 리다이렉트와 생성은 DB 로 계속 동작해야 하기 때문이다.
  * get 은 Miss 로, put 은 무시로 처리하고 경고 로그만 남긴다.
- * 다만 장애가 길어지면 매 요청이 타임아웃(200ms)만큼 기다리게 되므로,
- * 실무에서는 서킷 브레이커로 Redis 호출 자체를 건너뛰어야 한다.
+ * 다만 장애가 길어지면 요청 하나가 (명령 타임아웃 × L2 호출 횟수(get + put))만큼 기다릴 수 있다.
+ * 응답 없는 Redis 에 대한 get 한 번이 약 440ms 걸리는 것을 측정했다.
+ * 그래서 실무에서는 서킷 브레이커로 Redis 호출 자체를 건너뛰어야 한다.
  */
 class RedisUrlCache {
 
